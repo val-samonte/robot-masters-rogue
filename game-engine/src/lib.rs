@@ -16,6 +16,7 @@ pub mod physics;
 pub mod random;
 pub mod script;
 pub mod state;
+pub mod tilemap;
 
 // Re-export public API
 pub use api::*;
