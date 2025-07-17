@@ -6,23 +6,23 @@
   - Define interfaces that establish system boundaries
   - _Requirements: 1.1, 10.1_
 
-- [ ] 2. Implement fixed-point mathematics system
-- [ ] 2.1 Create Fixed-point number type with 5-bit precision
+- [x] 2. Implement fixed-point mathematics system
+- [x] 2.1 Create Fixed-point number type with 5-bit precision
 
   - Write Fixed struct with i16 storage and 5-bit fractional precision
   - Implement core arithmetic operations (add, sub, mul, div)
   - Create unit tests for arithmetic operations and overflow handling
   - _Requirements: 2.1, 2.4_
 
-- [ ] 2.2 Implement precomputed trigonometry lookup tables
+- [x] 2.2 Implement precomputed trigonometry lookup tables
 
   - Create sin/cos tables with 1-degree precision using Fixed-point values
   - Implement atan2 lookup table for angle calculations
   - Write unit tests for trigonometric function accuracy
   - _Requirements: 2.2_
 
-- [ ] 3. Create deterministic seeded randomization system
-- [ ] 3.1 Implement seeded PRNG with u16 seed
+- [x] 3. Create deterministic seeded randomization system
+- [x] 3.1 Implement seeded PRNG with u16 seed
 
   - Write deterministic pseudo-random number generator using linear congruential generator
   - Ensure reproducible sequences with same seed values
