@@ -117,6 +117,7 @@ pub struct Character {
     pub core: EntityCore,
     pub health: u8,
     pub energy: u8,
+    pub elemental_immunity: [u8; 8], // Armor values for all 8 elements (baseline 100)
     pub behaviors: Vec<(ConditionId, ActionId)>,
     pub locked_action: Option<ActionInstanceId>,
     pub status_effects: Vec<StatusEffectInstance>,
@@ -129,8 +130,111 @@ pub struct SpawnInstance {
     pub spawn_id: SpawnLookupId,
     pub owner_id: CharacterId,
     pub lifespan: u16,
+    pub element: Element, // Element type carried by this spawn
     pub vars: [u8; 4], // Script variables
     // ... additional spawn properties
+}
+```
+
+### Elemental System
+
+The elemental system provides strategic depth through damage types and character resistances. Each character has immunity values for all 8 elements, and spawns carry exactly one element type.
+
+```rust
+/// Element types for damage and interactions
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Element {
+    // Damage/Armor types (0-3) - affect physical damage calculation
+    DamagePunct = 0, // Puncture/piercing - goes through multiple enemies and walls
+    Blast = 1,       // Explosive AOE damage
+    Force = 2,       // Blunt weapons - impact damage, bonus based on entity weight if melee
+    Sever = 3,       // Critical chance (x1.5 to x2 damage)
+
+    // Debuff/Resistance types (4-7) - affect status effect application
+    Heat = 4,        // Applies overtime burning effect
+    Cryo = 5,        // Applies slow movement/cooldown, frostbite (max HP % damage)
+    Jolt = 6,        // Energy altering - slow recharging, energy damage, energy leak
+    Virus = 7,       // Alters target behavior - inject erratic bugs, disable behaviors
+}
+
+impl Element {
+    /// Returns true if this element is a damage/armor type (first 4 elements)
+    pub fn is_damage_type(&self) -> bool {
+        (*self as u8) < 4
+    }
+
+    /// Returns true if this element is a debuff/resistance type (last 4 elements)
+    pub fn is_debuff_type(&self) -> bool {
+        (*self as u8) >= 4
+    }
+
+    /// Convert from u8 value
+    pub fn from_u8(value: u8) -> Option<Element> {
+        if value < 8 {
+            Some(unsafe { core::mem::transmute(value) })
+        } else {
+            None
+        }
+    }
+}
+
+/// Character elemental immunity values (0-255, baseline 100)
+/// Lower values = more vulnerable, higher values = more resistant
+#[derive(Debug, Clone)]
+pub struct ElementalImmunity {
+    pub damage_punct: u8,  // Resistance to puncture/piercing damage
+    pub blast: u8,         // Resistance to explosive damage
+    pub force: u8,         // Resistance to blunt/impact damage
+    pub sever: u8,         // Resistance to critical/cutting damage
+    pub heat: u8,          // Resistance to burning effects
+    pub cryo: u8,          // Resistance to freezing/slowing effects
+    pub jolt: u8,          // Resistance to energy disruption effects
+    pub virus: u8,         // Resistance to behavior alteration effects
+}
+
+impl ElementalImmunity {
+    /// Create default immunity values (baseline 100 for all elements)
+    pub fn default() -> Self {
+        Self {
+            damage_punct: 100,
+            blast: 100,
+            force: 100,
+            sever: 100,
+            heat: 100,
+            cryo: 100,
+            jolt: 100,
+            virus: 100,
+        }
+    }
+
+    /// Get immunity value for a specific element
+    pub fn get_immunity(&self, element: Element) -> u8 {
+        match element {
+            Element::DamagePunct => self.damage_punct,
+            Element::Blast => self.blast,
+            Element::Force => self.force,
+            Element::Sever => self.sever,
+            Element::Heat => self.heat,
+            Element::Cryo => self.cryo,
+            Element::Jolt => self.jolt,
+            Element::Virus => self.virus,
+        }
+    }
+
+    /// Set immunity value for a specific element
+    pub fn set_immunity(&mut self, element: Element, value: u8) {
+        match element {
+            Element::DamagePunct => self.damage_punct = value,
+            Element::Blast => self.blast = value,
+            Element::Force => self.force = value,
+            Element::Sever => self.sever = value,
+            Element::Heat => self.heat = value,
+            Element::Cryo => self.cryo = value,
+            Element::Jolt => self.jolt = value,
+            Element::Virus => self.virus = value,
+        }
+    }
 }
 ```
 

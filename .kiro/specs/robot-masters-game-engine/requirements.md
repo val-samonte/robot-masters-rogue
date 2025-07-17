@@ -93,6 +93,20 @@ The Robot Masters Game Engine is a specialized no_std Rust library designed to p
 2. WHEN Spawns are active THEN they SHALL execute behavior scripts for movement and interaction
 3. WHEN Spawns collide with characters THEN they SHALL execute collision scripts for damage and status effects
 4. WHEN Spawns despawn THEN they SHALL execute despawn scripts for effects like explosions
+5. WHEN Spawns are created THEN they SHALL carry exactly one element type that defines their damage and effect properties
+
+### Requirement 11
+
+**User Story:** As a game designer, I want an elemental system with damage types and armor values, so that characters can have strategic strengths and weaknesses against different attack types.
+
+#### Acceptance Criteria
+
+1. WHEN defining elements THEN the system SHALL support 8 element types: Punct, Blast, Force, Sever, Heat, Cryo, Jolt, and Virus
+2. WHEN characters are created THEN they SHALL have armor values (0-255, baseline 100) stored as [u8; 8] for each of the 8 elements
+3. WHEN spawns are created THEN they SHALL carry exactly one element type
+4. WHEN collision occurs THEN the spawn's element value SHALL be compared against the character's corresponding armor value
+5. WHEN characters are initialized THEN their armor values SHALL be set during new_game or loop 0
+6. WHEN scripts need armor access THEN property addresses 0x40-0x47 SHALL provide read/write access to character armor values
 
 ### Requirement 9
 

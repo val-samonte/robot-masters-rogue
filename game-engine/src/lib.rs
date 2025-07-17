@@ -9,6 +9,7 @@ extern crate alloc;
 
 // Core modules
 pub mod api;
+pub mod behavior;
 pub mod core;
 pub mod entity;
 pub mod math;

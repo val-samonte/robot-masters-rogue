@@ -28,6 +28,7 @@ pub struct Character {
     pub core: EntityCore,
     pub health: u8,
     pub energy: u8,
+    pub elemental_immunity: ElementalImmunity, // Resistance values for all 8 elements
     pub behaviors: Vec<(ConditionId, ActionId)>,
     pub locked_action: Option<ActionInstanceId>,
     pub status_effects: Vec<StatusEffectInstance>,
@@ -40,7 +41,8 @@ pub struct SpawnInstance {
     pub spawn_id: SpawnLookupId,
     pub owner_id: CharacterId,
     pub lifespan: u16,
-    pub vars: [u8; 4], // Script variables
+    pub element: Element, // Element type carried by this spawn
+    pub vars: [u8; 4],    // Script variables
 }
 
 /// Definition template for spawn objects
@@ -76,12 +78,50 @@ pub struct StatusEffect {
 }
 
 /// Element types for damage and interactions
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Element {
-    Fire,
-    Ice,
-    Electric,
-    Kinetic,
+    Punct = 0, // Puncture/piercing - goes through multiple enemies and walls
+    Blast = 1, // Explosive AOE damage
+    Force = 2, // Blunt weapons - impact damage, bonus based on entity weight if melee
+    Sever = 3, // Critical chance (x1.5 to x2 damage)
+    Heat = 4,  // Applies overtime burning effect
+    Cryo = 5,  // Applies slow movement/cooldown, frostbite (max HP % damage)
+    Jolt = 6,  // Energy altering - slow recharging, energy damage, energy leak
+    Virus = 7, // Alters target behavior - inject erratic bugs, disable behaviors
+}
+
+impl Element {
+    /// Convert from u8 value
+    pub fn from_u8(value: u8) -> Option<Element> {
+        match value {
+            0 => Some(Element::Punct),
+            1 => Some(Element::Blast),
+            2 => Some(Element::Force),
+            3 => Some(Element::Sever),
+            4 => Some(Element::Heat),
+            5 => Some(Element::Cryo),
+            6 => Some(Element::Jolt),
+            7 => Some(Element::Virus),
+            _ => None,
+        }
+    }
+}
+
+/// Character armor values (0-255, baseline 100) - simplified elemental immunity
+pub type ElementalImmunity = [u8; 8];
+
+/// Helper functions for armor array
+impl Character {
+    /// Get armor value for a specific element
+    pub fn get_armor(&self, element: Element) -> u8 {
+        self.elemental_immunity[element as usize]
+    }
+
+    /// Set armor value for a specific element
+    pub fn set_armor(&mut self, element: Element, value: u8) {
+        self.elemental_immunity[element as usize] = value;
+    }
 }
 
 /// Condition for character behavior
@@ -120,6 +160,7 @@ impl Character {
             core: EntityCore::new(id, group),
             health: 100,
             energy: 100,
+            elemental_immunity: [100; 8], // Default armor values (baseline 100)
             behaviors: Vec::new(),
             locked_action: None,
             status_effects: Vec::new(),
@@ -136,7 +177,27 @@ impl SpawnInstance {
             core,
             spawn_id,
             owner_id,
+            lifespan: 0,             // Will be set from spawn definition
+            element: Element::Punct, // Default element, will be set from spawn definition
+            vars: [0; 4],
+        }
+    }
+
+    pub fn with_element(
+        spawn_id: SpawnLookupId,
+        owner_id: CharacterId,
+        pos: (Fixed, Fixed),
+        element: Element,
+    ) -> Self {
+        let mut core = EntityCore::new(0, 0); // ID will be assigned by game state
+        core.pos = pos;
+
+        Self {
+            core,
+            spawn_id,
+            owner_id,
             lifespan: 0, // Will be set from spawn definition
+            element,
             vars: [0; 4],
         }
     }
@@ -345,19 +406,24 @@ mod tests {
     #[test]
     fn test_element_enum() {
         // Test element creation and comparison
-        let fire = Element::Fire;
-        let ice = Element::Ice;
-        let electric = Element::Electric;
-        let kinetic = Element::Kinetic;
+        let punct = Element::Punct;
+        let blast = Element::Blast;
+        let heat = Element::Heat;
+        let virus = Element::Virus;
 
-        assert_eq!(fire, Element::Fire);
-        assert_ne!(fire, ice);
-        assert_ne!(ice, electric);
-        assert_ne!(electric, kinetic);
+        assert_eq!(punct, Element::Punct);
+        assert_ne!(punct, blast);
+        assert_ne!(blast, heat);
+        assert_ne!(heat, virus);
+
+        // Test element conversion
+        assert_eq!(Element::from_u8(0), Some(Element::Punct));
+        assert_eq!(Element::from_u8(4), Some(Element::Heat));
+        assert_eq!(Element::from_u8(8), None);
 
         // Test element in option
-        let element_option: Option<Element> = Some(Element::Fire);
-        assert_eq!(element_option, Some(Element::Fire));
+        let element_option: Option<Element> = Some(Element::Heat);
+        assert_eq!(element_option, Some(Element::Heat));
 
         let no_element: Option<Element> = None;
         assert_eq!(no_element, None);
@@ -369,7 +435,7 @@ mod tests {
             damage_base: 25,
             health_cap: 1, // One-hit projectile
             duration: 180, // 3 seconds at 60 FPS
-            element: Some(Element::Fire),
+            element: Some(Element::Heat),
             behavior_script: vec![1, 2, 3, 4], // Sample bytecode
             collision_script: vec![5, 6, 7],   // Sample collision bytecode
             despawn_script: vec![8, 9],        // Sample despawn bytecode
@@ -378,7 +444,7 @@ mod tests {
         assert_eq!(spawn_def.damage_base, 25);
         assert_eq!(spawn_def.health_cap, 1);
         assert_eq!(spawn_def.duration, 180);
-        assert_eq!(spawn_def.element, Some(Element::Fire));
+        assert_eq!(spawn_def.element, Some(Element::Heat));
         assert_eq!(spawn_def.behavior_script, vec![1, 2, 3, 4]);
         assert_eq!(spawn_def.collision_script, vec![5, 6, 7]);
         assert_eq!(spawn_def.despawn_script, vec![8, 9]);
@@ -561,5 +627,74 @@ mod tests {
         // Intangible effect (no collision)
         core.collision = (false, false, false, false);
         assert!(!core.collision.0 && !core.collision.1 && !core.collision.2 && !core.collision.3);
+    }
+
+    #[test]
+    fn test_character_armor_default() {
+        let character = Character::new(1, 0);
+
+        // All default armor values should be 100 (baseline)
+        assert_eq!(character.elemental_immunity[0], 100); // Punct
+        assert_eq!(character.elemental_immunity[1], 100); // Blast
+        assert_eq!(character.elemental_immunity[2], 100); // Force
+        assert_eq!(character.elemental_immunity[3], 100); // Sever
+        assert_eq!(character.elemental_immunity[4], 100); // Heat
+        assert_eq!(character.elemental_immunity[5], 100); // Cryo
+        assert_eq!(character.elemental_immunity[6], 100); // Jolt
+        assert_eq!(character.elemental_immunity[7], 100); // Virus
+    }
+
+    #[test]
+    fn test_character_armor_get_set() {
+        let mut character = Character::new(1, 0);
+
+        // Test getting armor values
+        assert_eq!(character.get_armor(Element::Punct), 100);
+        assert_eq!(character.get_armor(Element::Heat), 100);
+
+        // Test setting armor values
+        character.set_armor(Element::Punct, 50); // More vulnerable to puncture
+        character.set_armor(Element::Heat, 200); // More resistant to heat
+
+        assert_eq!(character.get_armor(Element::Punct), 50);
+        assert_eq!(character.get_armor(Element::Heat), 200);
+        assert_eq!(character.elemental_immunity[0], 50);
+        assert_eq!(character.elemental_immunity[4], 200);
+    }
+
+    #[test]
+    fn test_character_armor_modification() {
+        let mut character = Character::new(1, 0);
+
+        // Test modifying armor values directly
+        character.set_armor(Element::Virus, 25); // Very vulnerable to virus
+        character.set_armor(Element::Force, 150); // Resistant to force
+
+        assert_eq!(character.get_armor(Element::Virus), 25);
+        assert_eq!(character.get_armor(Element::Force), 150);
+    }
+
+    #[test]
+    fn test_spawn_with_element() {
+        let pos = (Fixed::from_int(10), Fixed::from_int(20));
+        let spawn = SpawnInstance::with_element(5, 3, pos, Element::Cryo);
+
+        assert_eq!(spawn.element, Element::Cryo);
+        assert_eq!(spawn.spawn_id, 5);
+        assert_eq!(spawn.owner_id, 3);
+        assert_eq!(spawn.core.pos, pos);
+    }
+
+    #[test]
+    fn test_element_values() {
+        // Test element numeric values
+        assert_eq!(Element::Punct as u8, 0);
+        assert_eq!(Element::Blast as u8, 1);
+        assert_eq!(Element::Force as u8, 2);
+        assert_eq!(Element::Sever as u8, 3);
+        assert_eq!(Element::Heat as u8, 4);
+        assert_eq!(Element::Cryo as u8, 5);
+        assert_eq!(Element::Jolt as u8, 6);
+        assert_eq!(Element::Virus as u8, 7);
     }
 }

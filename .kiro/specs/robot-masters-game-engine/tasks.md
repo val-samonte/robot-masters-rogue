@@ -47,7 +47,7 @@
   - Write unit tests for entity creation and property management
   - _Requirements: 5.1, 8.1_
 
-- [ ] 6. Implement bytecode scripting system
+- [x] 6. Implement bytecode scripting system
 - [x] 6.1 Create scalable operator system with structured patterns
 
   - Define Operator enum with explicit byte values and grouped operation patterns
@@ -65,7 +65,7 @@
   - _Requirements: 6.1, 6.2, 6.4_
 
 - [ ] 7. Implement Character behavior system
-- [ ] 7.1 Create Condition and Action execution logic
+- [x] 7.1 Create Condition and Action execution logic
 
   - Implement Condition struct with energy multiplier, args, and bytecode script
   - Create Action struct with energy cost, duration, args, and bytecode script
