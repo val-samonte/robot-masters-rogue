@@ -48,20 +48,20 @@
   - _Requirements: 5.1, 8.1_
 
 - [ ] 6. Implement bytecode scripting system
-- [ ] 6.1 Create efficient operator mapping system
+- [x] 6.1 Create scalable operator system with structured patterns
 
-  - Define Operator enum with all bytecode operations
-  - Implement efficient byte-to-enum mapping using lookup tables instead of match statements
-  - Create ScriptValue enum for different data types in scripts
-  - Write unit tests for operator mapping efficiency and correctness
+  - Define Operator enum with explicit byte values and grouped operation patterns
+  - Implement simple byte-to-enum conversion for efficient operator lookup
+  - Design generic operand patterns (3-operand arithmetic, 2-operand operations, property access)
+  - Write unit tests for operator mapping and pattern consistency
   - _Requirements: 6.1, 6.3_
 
-- [ ] 6.2 Build script execution engine
+- [x] 6.2 Build script execution engine with generic operation handlers
 
-  - Implement ScriptEngine with execution context (variables, stack)
-  - Create script interpreters for Conditions, Actions, and Spawn behaviors
-  - Implement property access system with efficient byte-to-property mapping
-  - Write unit tests for script execution and property access
+  - Implement ScriptEngine with execution context (vars, fixed arrays, game references)
+  - Create generic handler functions for arithmetic, conditional, and logical operations
+  - Implement scalable property access system with read_property/write_property functions
+  - Write unit tests for script execution and operation handler correctness
   - _Requirements: 6.1, 6.2, 6.4_
 
 - [ ] 7. Implement Character behavior system
