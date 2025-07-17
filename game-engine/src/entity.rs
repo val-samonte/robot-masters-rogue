@@ -141,3 +141,425 @@ impl SpawnInstance {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::vec;
+
+    #[test]
+    fn test_entity_core_creation() {
+        let core = EntityCore::new(5, 2);
+
+        assert_eq!(core.id, 5);
+        assert_eq!(core.group, 2);
+        assert_eq!(core.pos, (Fixed::ZERO, Fixed::ZERO));
+        assert_eq!(core.vel, (Fixed::ZERO, Fixed::ZERO));
+        assert_eq!(core.size, (16, 16)); // Default 16x16 pixel size
+        assert_eq!(core.collision, (true, true, true, true));
+    }
+
+    #[test]
+    fn test_entity_core_property_modification() {
+        let mut core = EntityCore::new(1, 0);
+
+        // Test position modification
+        core.pos = (Fixed::from_int(10), Fixed::from_int(20));
+        assert_eq!(core.pos, (Fixed::from_int(10), Fixed::from_int(20)));
+
+        // Test velocity modification
+        core.vel = (Fixed::from_int(-5), Fixed::from_int(3));
+        assert_eq!(core.vel, (Fixed::from_int(-5), Fixed::from_int(3)));
+
+        // Test size modification
+        core.size = (32, 24);
+        assert_eq!(core.size, (32, 24));
+
+        // Test collision modification
+        core.collision = (false, true, false, true);
+        assert_eq!(core.collision, (false, true, false, true));
+    }
+
+    #[test]
+    fn test_character_creation() {
+        let character = Character::new(10, 1);
+
+        assert_eq!(character.core.id, 10);
+        assert_eq!(character.core.group, 1);
+        assert_eq!(character.health, 100);
+        assert_eq!(character.energy, 100);
+        assert!(character.behaviors.is_empty());
+        assert!(character.locked_action.is_none());
+        assert!(character.status_effects.is_empty());
+    }
+
+    #[test]
+    fn test_character_property_management() {
+        let mut character = Character::new(1, 0);
+
+        // Test health modification
+        character.health = 75;
+        assert_eq!(character.health, 75);
+
+        // Test energy modification
+        character.energy = 50;
+        assert_eq!(character.energy, 50);
+
+        // Test behavior addition
+        character.behaviors.push((1, 2)); // condition_id: 1, action_id: 2
+        character.behaviors.push((3, 4)); // condition_id: 3, action_id: 4
+        assert_eq!(character.behaviors.len(), 2);
+        assert_eq!(character.behaviors[0], (1, 2));
+        assert_eq!(character.behaviors[1], (3, 4));
+
+        // Test locked action
+        character.locked_action = Some(5);
+        assert_eq!(character.locked_action, Some(5));
+
+        // Test status effect addition
+        let status_effect = StatusEffectInstance {
+            effect_id: 1,
+            remaining_duration: 300,
+            stack_count: 1,
+            vars: [10, 20, 30, 40],
+        };
+        character.status_effects.push(status_effect.clone());
+        assert_eq!(character.status_effects.len(), 1);
+        assert_eq!(character.status_effects[0].effect_id, 1);
+        assert_eq!(character.status_effects[0].remaining_duration, 300);
+        assert_eq!(character.status_effects[0].stack_count, 1);
+        assert_eq!(character.status_effects[0].vars, [10, 20, 30, 40]);
+    }
+
+    #[test]
+    fn test_character_position_and_movement() {
+        let mut character = Character::new(1, 0);
+
+        // Test initial position
+        assert_eq!(character.core.pos, (Fixed::ZERO, Fixed::ZERO));
+
+        // Test position modification
+        character.core.pos = (Fixed::from_int(100), Fixed::from_int(50));
+        assert_eq!(
+            character.core.pos,
+            (Fixed::from_int(100), Fixed::from_int(50))
+        );
+
+        // Test velocity modification
+        character.core.vel = (Fixed::from_int(2), Fixed::from_int(-1));
+        assert_eq!(
+            character.core.vel,
+            (Fixed::from_int(2), Fixed::from_int(-1))
+        );
+
+        // Test size modification for different character types
+        character.core.size = (24, 32); // Taller character
+        assert_eq!(character.core.size, (24, 32));
+    }
+
+    #[test]
+    fn test_spawn_instance_creation() {
+        let pos = (Fixed::from_int(50), Fixed::from_int(75));
+        let spawn = SpawnInstance::new(3, 7, pos);
+
+        assert_eq!(spawn.core.id, 0); // ID will be assigned by game state
+        assert_eq!(spawn.core.group, 0);
+        assert_eq!(spawn.core.pos, pos);
+        assert_eq!(spawn.spawn_id, 3);
+        assert_eq!(spawn.owner_id, 7);
+        assert_eq!(spawn.lifespan, 0); // Will be set from spawn definition
+        assert_eq!(spawn.vars, [0; 4]);
+    }
+
+    #[test]
+    fn test_spawn_instance_property_management() {
+        let mut spawn = SpawnInstance::new(1, 2, (Fixed::ZERO, Fixed::ZERO));
+
+        // Test ID assignment (simulating game state assignment)
+        spawn.core.id = 15;
+        assert_eq!(spawn.core.id, 15);
+
+        // Test group assignment
+        spawn.core.group = 3;
+        assert_eq!(spawn.core.group, 3);
+
+        // Test lifespan modification
+        spawn.lifespan = 120; // 2 seconds at 60 FPS
+        assert_eq!(spawn.lifespan, 120);
+
+        // Test velocity for projectile movement
+        spawn.core.vel = (Fixed::from_int(5), Fixed::from_int(-2));
+        assert_eq!(spawn.core.vel, (Fixed::from_int(5), Fixed::from_int(-2)));
+
+        // Test size for different projectile types
+        spawn.core.size = (8, 8); // Small projectile
+        assert_eq!(spawn.core.size, (8, 8));
+
+        // Test script variables
+        spawn.vars = [100, 200, 50, 25];
+        assert_eq!(spawn.vars, [100, 200, 50, 25]);
+
+        // Test collision properties
+        spawn.core.collision = (true, true, false, false); // Only collides on top and right
+        assert_eq!(spawn.core.collision, (true, true, false, false));
+    }
+
+    #[test]
+    fn test_status_effect_instance_creation() {
+        let status_effect = StatusEffectInstance {
+            effect_id: 5,
+            remaining_duration: 600, // 10 seconds at 60 FPS
+            stack_count: 3,
+            vars: [255, 128, 64, 32],
+        };
+
+        assert_eq!(status_effect.effect_id, 5);
+        assert_eq!(status_effect.remaining_duration, 600);
+        assert_eq!(status_effect.stack_count, 3);
+        assert_eq!(status_effect.vars, [255, 128, 64, 32]);
+    }
+
+    #[test]
+    fn test_status_effect_instance_modification() {
+        let mut status_effect = StatusEffectInstance {
+            effect_id: 1,
+            remaining_duration: 300,
+            stack_count: 1,
+            vars: [0; 4],
+        };
+
+        // Test duration countdown
+        status_effect.remaining_duration -= 1;
+        assert_eq!(status_effect.remaining_duration, 299);
+
+        // Test stack count increase
+        status_effect.stack_count += 1;
+        assert_eq!(status_effect.stack_count, 2);
+
+        // Test variable modification
+        status_effect.vars[0] = 100;
+        status_effect.vars[3] = 200;
+        assert_eq!(status_effect.vars, [100, 0, 0, 200]);
+    }
+
+    #[test]
+    fn test_element_enum() {
+        // Test element creation and comparison
+        let fire = Element::Fire;
+        let ice = Element::Ice;
+        let electric = Element::Electric;
+        let kinetic = Element::Kinetic;
+
+        assert_eq!(fire, Element::Fire);
+        assert_ne!(fire, ice);
+        assert_ne!(ice, electric);
+        assert_ne!(electric, kinetic);
+
+        // Test element in option
+        let element_option: Option<Element> = Some(Element::Fire);
+        assert_eq!(element_option, Some(Element::Fire));
+
+        let no_element: Option<Element> = None;
+        assert_eq!(no_element, None);
+    }
+
+    #[test]
+    fn test_spawn_definition_creation() {
+        let spawn_def = SpawnDefinition {
+            damage_base: 25,
+            health_cap: 1, // One-hit projectile
+            duration: 180, // 3 seconds at 60 FPS
+            element: Some(Element::Fire),
+            behavior_script: vec![1, 2, 3, 4], // Sample bytecode
+            collision_script: vec![5, 6, 7],   // Sample collision bytecode
+            despawn_script: vec![8, 9],        // Sample despawn bytecode
+        };
+
+        assert_eq!(spawn_def.damage_base, 25);
+        assert_eq!(spawn_def.health_cap, 1);
+        assert_eq!(spawn_def.duration, 180);
+        assert_eq!(spawn_def.element, Some(Element::Fire));
+        assert_eq!(spawn_def.behavior_script, vec![1, 2, 3, 4]);
+        assert_eq!(spawn_def.collision_script, vec![5, 6, 7]);
+        assert_eq!(spawn_def.despawn_script, vec![8, 9]);
+    }
+
+    #[test]
+    fn test_status_effect_definition() {
+        let status_def = StatusEffect {
+            duration: 300,
+            stack_limit: 5,
+            reset_on_stack: true,
+            on_script: vec![10, 11, 12],
+            tick_script: vec![13, 14, 15, 16],
+            off_script: vec![17, 18],
+        };
+
+        assert_eq!(status_def.duration, 300);
+        assert_eq!(status_def.stack_limit, 5);
+        assert_eq!(status_def.reset_on_stack, true);
+        assert_eq!(status_def.on_script, vec![10, 11, 12]);
+        assert_eq!(status_def.tick_script, vec![13, 14, 15, 16]);
+        assert_eq!(status_def.off_script, vec![17, 18]);
+    }
+
+    #[test]
+    fn test_condition_and_action_creation() {
+        let condition = Condition {
+            energy_mul: Fixed::from_raw(16), // 0.5 multiplier
+            args: [10, 20, 30, 40],
+            script: vec![1, 2, 3, 4, 5],
+        };
+
+        assert_eq!(condition.energy_mul, Fixed::from_raw(16));
+        assert_eq!(condition.args, [10, 20, 30, 40]);
+        assert_eq!(condition.script, vec![1, 2, 3, 4, 5]);
+
+        let action = Action {
+            energy_cost: 15,
+            duration: 30, // 0.5 seconds at 60 FPS
+            args: [5, 10, 15, 20],
+            script: vec![6, 7, 8, 9],
+        };
+
+        assert_eq!(action.energy_cost, 15);
+        assert_eq!(action.duration, 30);
+        assert_eq!(action.args, [5, 10, 15, 20]);
+        assert_eq!(action.script, vec![6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn test_entity_id_types() {
+        // Test that all ID types are u8 and can be used interchangeably where appropriate
+        let entity_id: EntityId = 1;
+        let character_id: CharacterId = 2;
+        let spawn_lookup_id: SpawnLookupId = 3;
+        let action_id: ActionId = 4;
+        let condition_id: ConditionId = 5;
+        let action_instance_id: ActionInstanceId = 6;
+
+        // Test that they can be assigned and compared
+        assert_eq!(entity_id, 1);
+        assert_eq!(character_id, 2);
+        assert_eq!(spawn_lookup_id, 3);
+        assert_eq!(action_id, 4);
+        assert_eq!(condition_id, 5);
+        assert_eq!(action_instance_id, 6);
+
+        // Test that they can be used in entity creation
+        let core = EntityCore::new(entity_id, 0);
+        assert_eq!(core.id, entity_id);
+
+        let character = Character::new(character_id, 1);
+        assert_eq!(character.core.id, character_id);
+    }
+
+    #[test]
+    fn test_complex_character_scenario() {
+        let mut character = Character::new(1, 0);
+
+        // Set up a character with multiple behaviors and status effects
+        character.health = 80;
+        character.energy = 60;
+        character.core.pos = (Fixed::from_int(128), Fixed::from_int(120)); // Center of 256x240 screen
+        character.core.vel = (Fixed::from_int(1), Fixed::ZERO); // Moving right
+        character.core.size = (20, 28); // Custom character size
+
+        // Add multiple behaviors
+        character.behaviors.push((1, 10)); // Condition 1 -> Action 10
+        character.behaviors.push((2, 11)); // Condition 2 -> Action 11
+        character.behaviors.push((3, 12)); // Condition 3 -> Action 12
+
+        // Add status effects
+        let invulnerability = StatusEffectInstance {
+            effect_id: 1,
+            remaining_duration: 120, // 2 seconds
+            stack_count: 1,
+            vars: [0; 4],
+        };
+
+        let energy_regen = StatusEffectInstance {
+            effect_id: 2,
+            remaining_duration: 600, // 10 seconds
+            stack_count: 3,          // Stacked 3 times
+            vars: [5, 0, 0, 0],      // 5 energy per tick
+        };
+
+        character.status_effects.push(invulnerability);
+        character.status_effects.push(energy_regen);
+
+        // Lock character in an action
+        character.locked_action = Some(15);
+
+        // Verify the complex state
+        assert_eq!(character.health, 80);
+        assert_eq!(character.energy, 60);
+        assert_eq!(
+            character.core.pos,
+            (Fixed::from_int(128), Fixed::from_int(120))
+        );
+        assert_eq!(character.core.vel, (Fixed::from_int(1), Fixed::ZERO));
+        assert_eq!(character.behaviors.len(), 3);
+        assert_eq!(character.status_effects.len(), 2);
+        assert_eq!(character.locked_action, Some(15));
+
+        // Verify specific status effects
+        assert_eq!(character.status_effects[0].effect_id, 1);
+        assert_eq!(character.status_effects[0].remaining_duration, 120);
+        assert_eq!(character.status_effects[1].effect_id, 2);
+        assert_eq!(character.status_effects[1].stack_count, 3);
+        assert_eq!(character.status_effects[1].vars[0], 5);
+    }
+
+    #[test]
+    fn test_complex_spawn_scenario() {
+        let mut spawn = SpawnInstance::new(5, 3, (Fixed::from_int(64), Fixed::from_int(32)));
+
+        // Configure spawn as a homing projectile
+        spawn.core.id = 20;
+        spawn.core.group = 2; // Projectile group
+        spawn.core.vel = (Fixed::from_int(3), Fixed::from_int(-1)); // Moving right and up
+        spawn.core.size = (6, 6); // Small projectile
+        spawn.core.collision = (true, true, true, true); // Collides on all sides
+        spawn.lifespan = 300; // 5 seconds
+        spawn.vars = [64, 32, 0, 1]; // Target X, Target Y, unused, homing flag
+
+        // Verify the complex spawn state
+        assert_eq!(spawn.core.id, 20);
+        assert_eq!(spawn.core.group, 2);
+        assert_eq!(spawn.spawn_id, 5);
+        assert_eq!(spawn.owner_id, 3);
+        assert_eq!(spawn.core.pos, (Fixed::from_int(64), Fixed::from_int(32)));
+        assert_eq!(spawn.core.vel, (Fixed::from_int(3), Fixed::from_int(-1)));
+        assert_eq!(spawn.core.size, (6, 6));
+        assert_eq!(spawn.core.collision, (true, true, true, true));
+        assert_eq!(spawn.lifespan, 300);
+        assert_eq!(spawn.vars, [64, 32, 0, 1]);
+    }
+
+    #[test]
+    fn test_entity_core_collision_flags() {
+        let mut core = EntityCore::new(1, 0);
+
+        // Test different collision configurations
+
+        // Platform character (no top collision for jumping through platforms)
+        core.collision = (false, true, true, true);
+        assert_eq!(core.collision.0, false); // top
+        assert_eq!(core.collision.1, true); // right
+        assert_eq!(core.collision.2, true); // bottom
+        assert_eq!(core.collision.3, true); // left
+
+        // Projectile that only damages on contact (all sides)
+        core.collision = (true, true, true, true);
+        assert!(core.collision.0 && core.collision.1 && core.collision.2 && core.collision.3);
+
+        // One-way platform (only bottom collision)
+        core.collision = (false, false, true, false);
+        assert!(!core.collision.0 && !core.collision.1 && core.collision.2 && !core.collision.3);
+
+        // Intangible effect (no collision)
+        core.collision = (false, false, false, false);
+        assert!(!core.collision.0 && !core.collision.1 && !core.collision.2 && !core.collision.3);
+    }
+}

@@ -38,8 +38,8 @@
   - Create unit tests for collision detection accuracy
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 5. Build entity system foundation
-- [ ] 5.1 Create base entity structures and Character implementation
+- [x] 5. Build entity system foundation
+- [x] 5.1 Create base entity structures and Character implementation
 
   - Define EntityCore with id, group, position, velocity, size, and collision properties
   - Implement Character struct with health, energy, behaviors, and status effects
