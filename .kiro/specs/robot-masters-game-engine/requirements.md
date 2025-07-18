@@ -71,6 +71,10 @@ The Robot Masters Game Engine is a specialized no_std Rust library designed to p
 2. WHEN executing Actions THEN the engine SHALL run bytecode scripts for movement, jumping, shooting, and other behaviors
 3. WHEN processing scripts THEN the engine SHALL support the full operator set including arithmetic, conditionals, and game actions
 4. WHEN script execution fails THEN the engine SHALL handle errors gracefully without crashing
+5. WHEN scripts are executed THEN they SHALL have access to read-only args array for configuration parameters
+6. WHEN scripts need working variables THEN they SHALL use the vars array for temporary storage and calculations
+7. WHEN scripts access args THEN the args array SHALL remain read-only throughout script execution
+8. WHEN scripts need spawn management THEN they SHALL use the spawns array for spawn ID storage
 
 ### Requirement 7
 

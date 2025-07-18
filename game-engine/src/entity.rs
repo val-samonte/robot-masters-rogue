@@ -52,6 +52,10 @@ pub struct SpawnDefinition {
     pub health_cap: u8,
     pub duration: u16,
     pub element: Option<Element>,
+    pub vars: [u8; 8],     // Variable storage (u8)
+    pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
+    pub args: [u8; 8],     // Passed when calling scripts (read-only)
+    pub spawns: [u8; 4],   // Spawn IDs
     pub behavior_script: Vec<u8>,
     pub collision_script: Vec<u8>,
     pub despawn_script: Vec<u8>,
@@ -72,6 +76,10 @@ pub struct StatusEffect {
     pub duration: u16,
     pub stack_limit: u8,
     pub reset_on_stack: bool,
+    pub vars: [u8; 8],        // Variable storage (u8)
+    pub fixed: [Fixed; 4],    // Variable storage (FixedPoint)
+    pub args: [u8; 8],        // Passed when calling scripts (read-only)
+    pub spawns: [u8; 4],      // Spawn IDs
     pub on_script: Vec<u8>,   // Runs when applied
     pub tick_script: Vec<u8>, // Runs every frame
     pub off_script: Vec<u8>,  // Runs when removed
@@ -128,7 +136,10 @@ impl Character {
 #[derive(Debug, Clone)]
 pub struct Condition {
     pub energy_mul: Fixed, // Energy requirement multiplier
-    pub args: [u8; 4],     // Script arguments
+    pub vars: [u8; 8],     // Variable storage (u8)
+    pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
+    pub args: [u8; 8],     // Passed when calling scripts (read-only)
+    pub spawns: [u8; 4],   // Spawn IDs
     pub script: Vec<u8>,   // Bytecode
 }
 
@@ -136,8 +147,11 @@ pub struct Condition {
 #[derive(Debug, Clone)]
 pub struct Action {
     pub energy_cost: u8,
-    pub duration: u16, // Frames this action locks the character
-    pub args: [u8; 4],
+    pub duration: u16,     // Frames this action locks the character
+    pub vars: [u8; 8],     // Variable storage (u8)
+    pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
+    pub args: [u8; 8],     // Passed when calling scripts (read-only)
+    pub spawns: [u8; 4],   // Spawn IDs
     pub script: Vec<u8>,
 }
 
@@ -436,15 +450,21 @@ mod tests {
             health_cap: 1, // One-hit projectile
             duration: 180, // 3 seconds at 60 FPS
             element: Some(Element::Heat),
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [10, 20, 30, 40, 50, 60, 70, 80],
+            spawns: [1, 2, 0, 0], // Can spawn explosion (ID 1) and debris (ID 2)
             behavior_script: vec![1, 2, 3, 4], // Sample bytecode
-            collision_script: vec![5, 6, 7],   // Sample collision bytecode
-            despawn_script: vec![8, 9],        // Sample despawn bytecode
+            collision_script: vec![5, 6, 7], // Sample collision bytecode
+            despawn_script: vec![8, 9], // Sample despawn bytecode
         };
 
         assert_eq!(spawn_def.damage_base, 25);
         assert_eq!(spawn_def.health_cap, 1);
         assert_eq!(spawn_def.duration, 180);
         assert_eq!(spawn_def.element, Some(Element::Heat));
+        assert_eq!(spawn_def.args, [10, 20, 30, 40, 50, 60, 70, 80]);
+        assert_eq!(spawn_def.spawns, [1, 2, 0, 0]);
         assert_eq!(spawn_def.behavior_script, vec![1, 2, 3, 4]);
         assert_eq!(spawn_def.collision_script, vec![5, 6, 7]);
         assert_eq!(spawn_def.despawn_script, vec![8, 9]);
@@ -456,6 +476,10 @@ mod tests {
             duration: 300,
             stack_limit: 5,
             reset_on_stack: true,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             on_script: vec![10, 11, 12],
             tick_script: vec![13, 14, 15, 16],
             off_script: vec![17, 18],
@@ -473,24 +497,30 @@ mod tests {
     fn test_condition_and_action_creation() {
         let condition = Condition {
             energy_mul: Fixed::from_raw(16), // 0.5 multiplier
-            args: [10, 20, 30, 40],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [10, 20, 30, 40, 50, 60, 70, 80],
+            spawns: [0; 4],
             script: vec![1, 2, 3, 4, 5],
         };
 
         assert_eq!(condition.energy_mul, Fixed::from_raw(16));
-        assert_eq!(condition.args, [10, 20, 30, 40]);
+        assert_eq!(condition.args, [10, 20, 30, 40, 50, 60, 70, 80]);
         assert_eq!(condition.script, vec![1, 2, 3, 4, 5]);
 
         let action = Action {
             energy_cost: 15,
             duration: 30, // 0.5 seconds at 60 FPS
-            args: [5, 10, 15, 20],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [5, 10, 15, 20, 25, 30, 35, 40],
+            spawns: [0; 4],
             script: vec![6, 7, 8, 9],
         };
 
         assert_eq!(action.energy_cost, 15);
         assert_eq!(action.duration, 30);
-        assert_eq!(action.args, [5, 10, 15, 20]);
+        assert_eq!(action.args, [5, 10, 15, 20, 25, 30, 35, 40]);
         assert_eq!(action.script, vec![6, 7, 8, 9]);
     }
 

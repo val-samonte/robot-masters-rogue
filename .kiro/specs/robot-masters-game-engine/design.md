@@ -242,6 +242,52 @@ impl ElementalImmunity {
 
 The script engine uses a scalable approach that improves upon traditional match-based interpreters. While still using match syntax for clarity and performance, it eliminates repetitive code through structured operand patterns and generic operation handling.
 
+The script system now supports enhanced parameter passing through a read-only args array and working variables through a vars array, enabling reusable script components like configurable actions (e.g., a Shoot action with different ammo capacities).
+
+**ARGS/Vars Separation of Concerns:**
+
+- **Args Array (`args: [u8; 8]`)**: Read-only parameters passed during entity definition, similar to function parameters. These remain constant throughout script execution and enable reusable script components.
+- **Vars Array (`vars: [u8; 8]`)**: Working variables for temporary storage and calculations during script execution. Scripts can read from and write to these variables.
+- **Spawns Array (`spawns: [u8; 4]`)**: Dedicated storage for spawn ID management, allowing scripts to create and track spawned entities.
+
+**Example: Reusable Shoot Action with Args**
+
+```rust
+// Shoot action that can be configured with different ammo capacities
+let shoot_action = Action {
+    energy_cost: 10,
+    duration: 30,
+    args: [30, 0, 0, 0, 0, 0, 0, 0], // args[0] = ammo capacity (30 rounds)
+    script: vec![
+        // Read current ammo from args[0] into vars[0]
+        95, 0, 0,        // ReadArg vars[0] = args[0] (ammo capacity)
+
+        // Check if we have ammo
+        52, 1, 0, 1,     // LessThan vars[1] = (vars[0] < 1) - out of ammo?
+
+        // If out of ammo, exit with reload flag
+        // ... reload logic here ...
+
+        // Otherwise, shoot projectile
+        20, 2, 5,        // AssignByte vars[2] = 5 (projectile ID)
+        84, 2,           // Spawn vars[2] (create projectile)
+
+        // Decrease ammo count
+        41, 0, 0, 1,     // SubByte vars[0] = vars[0] - 1
+
+        0, 1             // Exit success
+    ],
+    // ... other fields
+};
+
+// The same action can be reused with different ammo capacities:
+// - Pistol: args[0] = 12 (12 rounds)
+// - Rifle: args[0] = 30 (30 rounds)
+// - Shotgun: args[0] = 8 (8 shells)
+```
+
+This design pattern allows for highly reusable and configurable game logic without code duplication.
+
 ```rust
 // Base script execution engine with shared operators
 pub struct ScriptEngine {

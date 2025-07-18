@@ -19,6 +19,10 @@ pub struct ScriptEngine {
     pub vars: [u8; 8],
     /// Fixed-point variables for script execution
     pub fixed: [Fixed; 4],
+    /// Read-only arguments passed to script (like function parameters)
+    pub args: [u8; 8],
+    /// Spawn IDs for spawn creation
+    pub spawns: [u8; 4],
 }
 
 /// Bytecode operators with explicit byte values
@@ -83,6 +87,11 @@ pub enum Operator {
 
     // Debug
     LogVariable = 90, // [LogVariable, var_index]
+
+    // Args and Spawns access (read-only)
+    ReadArg = 95,    // [ReadArg, var_index, arg_index] - Copy arg to var
+    ReadSpawn = 96,  // [ReadSpawn, var_index, spawn_index] - Copy spawn ID to var
+    WriteSpawn = 97, // [WriteSpawn, spawn_index, var_index] - Copy var to spawn ID
 }
 
 impl Operator {
@@ -128,6 +137,9 @@ impl Operator {
             84 => Some(Operator::Spawn),
             85 => Some(Operator::SpawnWithVars),
             90 => Some(Operator::LogVariable),
+            95 => Some(Operator::ReadArg),
+            96 => Some(Operator::ReadSpawn),
+            97 => Some(Operator::WriteSpawn),
             _ => None,
         }
     }
@@ -140,6 +152,20 @@ impl ScriptEngine {
             exit_flag: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+        }
+    }
+
+    /// Create a new script engine with arguments
+    pub fn new_with_args(args: [u8; 8]) -> Self {
+        Self {
+            pos: 0,
+            exit_flag: 0,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args,
+            spawns: [0; 4],
         }
     }
 
@@ -149,6 +175,17 @@ impl ScriptEngine {
         self.exit_flag = 0;
         self.vars = [0; 8];
         self.fixed = [Fixed::ZERO; 4];
+        // Note: args and spawns are NOT reset - they persist across script executions
+    }
+
+    /// Reset the script engine state with new arguments
+    pub fn reset_with_args(&mut self, args: [u8; 8]) {
+        self.pos = 0;
+        self.exit_flag = 0;
+        self.vars = [0; 8];
+        self.fixed = [Fixed::ZERO; 4];
+        self.args = args;
+        self.spawns = [0; 4];
     }
 
     /// Read a u8 value from the script at current position and advance
@@ -375,6 +412,34 @@ impl ScriptEngine {
                         fixed_index, self.fixed[fixed_index]
                     ));
                 }
+            }
+
+            // Args and Spawns access operations
+            Operator::ReadArg => {
+                let var_index = self.read_u8(script)? as usize;
+                let arg_index = self.read_u8(script)? as usize;
+                if var_index >= self.vars.len() || arg_index >= self.args.len() {
+                    return Err(ScriptError::InvalidScript);
+                }
+                self.vars[var_index] = self.args[arg_index];
+            }
+
+            Operator::ReadSpawn => {
+                let var_index = self.read_u8(script)? as usize;
+                let spawn_index = self.read_u8(script)? as usize;
+                if var_index >= self.vars.len() || spawn_index >= self.spawns.len() {
+                    return Err(ScriptError::InvalidScript);
+                }
+                self.vars[var_index] = self.spawns[spawn_index];
+            }
+
+            Operator::WriteSpawn => {
+                let spawn_index = self.read_u8(script)? as usize;
+                let var_index = self.read_u8(script)? as usize;
+                if spawn_index >= self.spawns.len() || var_index >= self.vars.len() {
+                    return Err(ScriptError::InvalidScript);
+                }
+                self.spawns[spawn_index] = self.vars[var_index];
             }
         }
 

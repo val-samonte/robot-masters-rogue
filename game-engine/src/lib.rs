@@ -16,7 +16,9 @@ pub mod math;
 pub mod physics;
 pub mod random;
 pub mod script;
+pub mod spawn;
 pub mod state;
+pub mod status;
 pub mod tilemap;
 
 // Re-export public API

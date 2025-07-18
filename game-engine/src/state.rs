@@ -1,10 +1,12 @@
 //! Game state management and serialization
 
 use crate::api::GameResult;
-use crate::entity::{Action, Character, Condition, SpawnDefinition, SpawnInstance, StatusEffect};
+use crate::behavior::{execute_character_behaviors, Action, Condition};
+use crate::entity::{Character, SpawnDefinition, SpawnInstance, StatusEffect};
 use crate::physics::Tilemap;
 use crate::random::SeededRng;
 use crate::script::ScriptEngine;
+use crate::status::process_character_status_effects;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -76,16 +78,19 @@ impl GameState {
         }
 
         // Frame processing pipeline:
-        // 1. Execute character behaviors
+        // 1. Process status effects
+        self.process_status_effects()?;
+
+        // 2. Execute character behaviors
         self.process_character_behaviors()?;
 
-        // 2. Update physics
+        // 3. Update physics
         self.update_physics()?;
 
-        // 3. Handle collisions
+        // 4. Handle collisions
         self.process_collisions()?;
 
-        // 4. Clean up expired entities
+        // 5. Clean up expired entities
         self.cleanup_entities()?;
 
         self.frame += 1;
@@ -140,9 +145,71 @@ impl GameState {
         self.rng.reset();
     }
 
-    // Private methods for frame processing (stubs for now)
+    // Private methods for frame processing
+    fn process_status_effects(&mut self) -> GameResult<()> {
+        // Process status effects for each character individually to avoid borrowing conflicts
+        let status_definitions = self.status_effect_lookup.clone();
+
+        // Process characters one by one to avoid borrowing conflicts
+        for i in 0..self.characters.len() {
+            // Create a temporary copy of the character for processing
+            let mut character = self.characters[i].clone();
+
+            if let Err(_) =
+                process_character_status_effects(&mut character, self, &status_definitions)
+            {
+                // Handle script execution errors gracefully
+                // For now, just continue to next character
+                continue;
+            }
+
+            // Update the character in the game state
+            self.characters[i] = character;
+        }
+        Ok(())
+    }
+
     fn process_character_behaviors(&mut self) -> GameResult<()> {
-        // Will be implemented in behavior system task
+        let mut all_spawns_to_create = Vec::new();
+
+        // Process each character's behaviors individually to avoid borrowing conflicts
+        let conditions = self.condition_lookup.clone();
+        let actions = self.action_lookup.clone();
+
+        // Process characters one by one
+        let character_indices: Vec<usize> = (0..self.characters.len()).collect();
+
+        for &i in &character_indices {
+            // Skip characters that are locked in actions (simplified for now)
+            if self.characters[i].locked_action.is_some() {
+                continue;
+            }
+
+            // Create a temporary copy of the character for processing
+            let mut character = self.characters[i].clone();
+
+            // Execute character behaviors using the behavior system
+            match execute_character_behaviors(self, &mut character, &conditions, &actions) {
+                Ok(mut spawns) => {
+                    // Update the character in the game state
+                    self.characters[i] = character;
+                    all_spawns_to_create.append(&mut spawns);
+                }
+                Err(_) => {
+                    // Handle script execution errors gracefully
+                    // For now, just continue to next character
+                    continue;
+                }
+            }
+        }
+
+        // Add all created spawns to the game state
+        for mut spawn in all_spawns_to_create {
+            // Assign unique ID to spawn
+            spawn.core.id = self.spawn_instances.len() as u8;
+            self.spawn_instances.push(spawn);
+        }
+
         Ok(())
     }
 
@@ -252,5 +319,159 @@ mod tests {
 
         // Values should be different (RNG state should continue)
         assert_ne!(value_before, value_after);
+    }
+
+    #[test]
+    fn test_character_behavior_integration() {
+        use crate::behavior::{Action, Condition};
+        use crate::entity::Character;
+        use crate::math::Fixed;
+
+        let seed = 12345;
+        let tilemap = [[0u8; 16]; 15];
+        let mut character = Character::new(1, 0);
+
+        // Add a behavior to the character
+        character.behaviors.push((0, 0)); // condition_id: 0, action_id: 0
+        character.energy = 50;
+
+        let mut game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        // Add a simple condition that always succeeds
+        let condition = Condition {
+            id: 0,
+            energy_mul: Fixed::from_int(1),
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![0, 1], // Exit with flag 1 (success)
+        };
+        game.condition_lookup.push(condition);
+
+        // Add a simple action that costs 10 energy
+        let action = Action {
+            energy_cost: 10,
+            interval: 60,
+            duration: 30,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![0, 1], // Exit with flag 1 (success)
+        };
+        game.action_lookup.push(action);
+
+        // Verify initial state
+        assert_eq!(game.characters[0].energy, 50);
+
+        // Advance one frame to trigger behavior processing
+        let _ = game.advance_frame();
+
+        // Character should have consumed energy (50 - 10 = 40)
+        assert_eq!(game.characters[0].energy, 40);
+    }
+
+    #[test]
+    fn test_character_behavior_energy_requirement() {
+        use crate::behavior::{Action, Condition};
+        use crate::entity::Character;
+        use crate::math::Fixed;
+
+        let seed = 12345;
+        let tilemap = [[0u8; 16]; 15];
+        let mut character = Character::new(1, 0);
+
+        // Add a behavior to the character
+        character.behaviors.push((0, 0)); // condition_id: 0, action_id: 0
+        character.energy = 5; // Not enough energy
+
+        let mut game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        // Add a condition that always succeeds
+        let condition = Condition {
+            id: 0,
+            energy_mul: Fixed::from_int(1),
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![0, 1], // Exit with flag 1 (success)
+        };
+        game.condition_lookup.push(condition);
+
+        // Add an action that costs 10 energy (more than character has)
+        let action = Action {
+            energy_cost: 10,
+            interval: 60,
+            duration: 30,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![0, 1], // Exit with flag 1 (success)
+        };
+        game.action_lookup.push(action);
+
+        // Verify initial state
+        assert_eq!(game.characters[0].energy, 5);
+
+        // Advance one frame to trigger behavior processing
+        let _ = game.advance_frame();
+
+        // Character should not have consumed energy (insufficient energy)
+        assert_eq!(game.characters[0].energy, 5);
+    }
+
+    #[test]
+    fn test_locked_action_skips_behavior_processing() {
+        use crate::behavior::{Action, Condition};
+        use crate::entity::Character;
+        use crate::math::Fixed;
+
+        let seed = 12345;
+        let tilemap = [[0u8; 16]; 15];
+        let mut character = Character::new(1, 0);
+
+        // Add a behavior and lock the character in an action
+        character.behaviors.push((0, 0));
+        character.energy = 50;
+        character.locked_action = Some(1); // Character is locked
+
+        let mut game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        // Add condition and action
+        let condition = Condition {
+            id: 0,
+            energy_mul: Fixed::from_int(1),
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![0, 1],
+        };
+        game.condition_lookup.push(condition);
+
+        let action = Action {
+            energy_cost: 10,
+            interval: 60,
+            duration: 30,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![0, 1],
+        };
+        game.action_lookup.push(action);
+
+        // Verify initial state
+        assert_eq!(game.characters[0].energy, 50);
+        assert_eq!(game.characters[0].locked_action, Some(1));
+
+        // Advance one frame
+        let _ = game.advance_frame();
+
+        // Character should not have consumed energy (locked in action)
+        assert_eq!(game.characters[0].energy, 50);
     }
 }

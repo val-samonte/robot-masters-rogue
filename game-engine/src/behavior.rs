@@ -1,7 +1,7 @@
 //! Character behavior system with condition and action execution
 
 use crate::{
-    entity::{Character, Element, SpawnInstance},
+    entity::{Character, SpawnInstance},
     math::Fixed,
     script::{ScriptContext, ScriptEngine, ScriptError},
     state::GameState,
@@ -15,7 +15,10 @@ use alloc::vec::Vec;
 pub struct Condition {
     pub id: usize,
     pub energy_mul: Fixed,
-    pub args: [u8; 4],
+    pub vars: [u8; 8],     // Variable storage (u8)
+    pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
+    pub args: [u8; 8],     // Passed when calling scripts (read-only)
+    pub spawns: [u8; 4],   // Spawn IDs
     pub script: Vec<u8>,
 }
 
@@ -25,7 +28,10 @@ pub struct Action {
     pub energy_cost: u8,
     pub interval: u16,
     pub duration: u16,
-    pub args: [u8; 4],
+    pub vars: [u8; 8],     // Variable storage (u8)
+    pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
+    pub args: [u8; 8],     // Passed when calling scripts (read-only)
+    pub spawns: [u8; 4],   // Spawn IDs
     pub script: Vec<u8>,
 }
 
@@ -51,7 +57,10 @@ impl Condition {
         Self {
             id,
             energy_mul: Fixed::from_int(props[0] as i16).div(Fixed::from_int(props[1] as i16)),
-            args: copy_args(&props, 2),
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: copy_args_8(&props, 2),
+            spawns: [0; 4],
             script: extract_script(&props, 6),
         }
     }
@@ -81,7 +90,10 @@ impl Action {
             energy_cost: props[0] as u8,
             interval: props[1],
             duration: props[2],
-            args: copy_args(&props, 3),
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: copy_args_8(&props, 3),
+            spawns: [0; 4],
             script: extract_script(&props, 7),
         }
     }
@@ -138,7 +150,9 @@ impl<'a> ScriptContext for ConditionContext<'a> {
             0x13..=0x16 => {
                 if var_index < engine.vars.len() {
                     let arg_index = (prop_address - 0x13) as usize;
-                    engine.vars[var_index] = self.condition.args[arg_index];
+                    if arg_index < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[arg_index];
+                    }
                 }
             }
 
@@ -163,6 +177,7 @@ impl<'a> ScriptContext for ConditionContext<'a> {
                     engine.fixed[var_index] = self.character.core.pos.1;
                 }
             }
+
             0x1B => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = self.character.core.vel.0;
@@ -183,9 +198,31 @@ impl<'a> ScriptContext for ConditionContext<'a> {
                     engine.fixed[var_index] = Fixed::from_int(self.character.core.size.1 as i16);
                 }
             }
+
+            0x1F => {
+                if var_index < engine.vars.len() {
+                    if 4 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[4];
+                    }
+                }
+            }
+            0x20 => {
+                if var_index < engine.vars.len() {
+                    if 5 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[5];
+                    }
+                }
+            }
             0x21 => {
                 if var_index < engine.vars.len() {
                     engine.vars[var_index] = self.character.health;
+                }
+            }
+            0x22 => {
+                if var_index < engine.vars.len() {
+                    if 6 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[6];
+                    }
                 }
             }
             0x23 => {
@@ -377,10 +414,12 @@ impl<'a> ScriptContext for ActionContext<'a> {
                     engine.fixed[var_index] = Fixed::from_int(self.action.duration as i16);
                 }
             }
-            0x07..=0x0A => {
+            0x07..=0x0E => {
                 if var_index < engine.vars.len() {
                     let arg_index = (prop_address - 0x07) as usize;
-                    engine.vars[var_index] = self.action.args[arg_index];
+                    if arg_index < self.action.args.len() {
+                        engine.vars[var_index] = self.action.args[arg_index];
+                    }
                 }
             }
 
@@ -398,7 +437,9 @@ impl<'a> ScriptContext for ActionContext<'a> {
             0x13..=0x16 => {
                 if var_index < engine.vars.len() {
                     let arg_index = (prop_address - 0x13) as usize;
-                    engine.vars[var_index] = self.condition.args[arg_index];
+                    if arg_index < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[arg_index];
+                    }
                 }
             }
 
@@ -423,6 +464,7 @@ impl<'a> ScriptContext for ActionContext<'a> {
                     engine.fixed[var_index] = self.character.core.pos.1;
                 }
             }
+
             0x1B => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = self.character.core.vel.0;
@@ -443,9 +485,40 @@ impl<'a> ScriptContext for ActionContext<'a> {
                     engine.fixed[var_index] = Fixed::from_int(self.character.core.size.1 as i16);
                 }
             }
+
+            // Extended condition args (0x1F-0x22 for args[4-7]) - moved to avoid overlap with 0x21
+            0x1F => {
+                if var_index < engine.vars.len() {
+                    if 4 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[4];
+                    }
+                }
+            }
+            0x20 => {
+                if var_index < engine.vars.len() {
+                    if 5 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[5];
+                    }
+                }
+            }
             0x21 => {
                 if var_index < engine.vars.len() {
                     engine.vars[var_index] = self.character.health;
+                }
+            }
+            0x22 => {
+                if var_index < engine.vars.len() {
+                    if 6 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[6];
+                    }
+                }
+            }
+            // Extended condition arg 7 moved to avoid conflicts
+            0x24 => {
+                if var_index < engine.vars.len() {
+                    if 7 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[7];
+                    }
                 }
             }
             0x23 => {
@@ -783,10 +856,19 @@ pub fn execute_character_behaviors(
     Ok(spawns_to_create)
 }
 
-/// Helper function to copy args from definition
+/// Helper function to copy args from definition (legacy 4-byte version)
 fn copy_args(props: &[u16], from: usize) -> [u8; 4] {
     let mut vars = [0; 4];
     for (i, &val) in props[from..].iter().take(4).enumerate() {
+        vars[i] = val as u8;
+    }
+    vars
+}
+
+/// Helper function to copy args from definition (8-byte version)
+fn copy_args_8(props: &[u16], from: usize) -> [u8; 8] {
+    let mut vars = [0; 8];
+    for (i, &val) in props[from..].iter().take(8).enumerate() {
         vars[i] = val as u8;
     }
     vars
@@ -817,7 +899,7 @@ mod tests {
             condition.energy_mul,
             Fixed::from_int(2).div(Fixed::from_int(3))
         );
-        assert_eq!(condition.args, [10, 20, 30, 40]);
+        assert_eq!(condition.args[0..4], [10, 20, 30, 40]);
         assert_eq!(condition.script, vec![0, 1]);
     }
 
@@ -829,7 +911,7 @@ mod tests {
         assert_eq!(action.energy_cost, 15);
         assert_eq!(action.interval, 60);
         assert_eq!(action.duration, 120);
-        assert_eq!(action.args, [5, 10, 15, 20]);
+        assert_eq!(action.args[0..4], [5, 10, 15, 20]);
         assert_eq!(action.script, vec![0, 1]);
     }
 
@@ -842,7 +924,10 @@ mod tests {
         let condition = Condition {
             id: 0,
             energy_mul: Fixed::from_int(1),
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![0, 1], // Exit with flag 1
         };
 
@@ -859,7 +944,10 @@ mod tests {
         let condition = Condition {
             id: 0,
             energy_mul: Fixed::from_int(1),
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![0, 0], // Exit with flag 0
         };
 
@@ -876,14 +964,20 @@ mod tests {
             energy_cost: 10,
             interval: 60,
             duration: 30,
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![0, 1], // Exit with flag 1
         };
 
         let condition = Condition {
             id: 0,
             energy_mul: Fixed::from_int(1),
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![],
         };
 
@@ -903,7 +997,10 @@ mod tests {
         let condition = Condition {
             id: 0,
             energy_mul: Fixed::from_int(1),
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![10, 0, 0x21, 0, 1], // ReadProp var[0] = character.health, Exit 1
         };
 
@@ -921,14 +1018,20 @@ mod tests {
             energy_cost: 10,
             interval: 0,
             duration: 0,
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![20, 0, 5, 84, 0, 0, 1], // AssignByte var[0] = 5, Spawn var[0], Exit 1
         };
 
         let condition = Condition {
             id: 0,
             energy_mul: Fixed::from_int(1),
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![],
         };
 
@@ -956,14 +1059,20 @@ mod tests {
             Condition {
                 id: 0,
                 energy_mul: Fixed::from_int(1),
-                args: [0; 4],
+                vars: [0; 8],
+                fixed: [Fixed::ZERO; 4],
+                args: [0; 8],
+                spawns: [0; 4],
                 script: vec![0, 0], // Exit with flag 0 (fail)
             },
             // Condition 1: Always succeeds [Exit, 1]
             Condition {
                 id: 1,
                 energy_mul: Fixed::from_int(1),
-                args: [0; 4],
+                vars: [0; 8],
+                fixed: [Fixed::ZERO; 4],
+                args: [0; 8],
+                spawns: [0; 4],
                 script: vec![0, 1], // Exit with flag 1 (success)
             },
         ];
@@ -974,7 +1083,10 @@ mod tests {
                 energy_cost: 10,
                 interval: 0,
                 duration: 0,
-                args: [0; 4],
+                vars: [0; 8],
+                fixed: [Fixed::ZERO; 4],
+                args: [0; 8],
+                spawns: [0; 4],
                 script: vec![20, 0, 1, 84, 0, 0, 1], // Create spawn with id 1
             },
             // Action 1: Should execute (condition 1 succeeds)
@@ -982,7 +1094,10 @@ mod tests {
                 energy_cost: 15,
                 interval: 0,
                 duration: 0,
-                args: [0; 4],
+                vars: [0; 8],
+                fixed: [Fixed::ZERO; 4],
+                args: [0; 8],
+                spawns: [0; 4],
                 script: vec![20, 0, 2, 84, 0, 0, 1], // Create spawn with id 2
             },
         ];
@@ -1012,7 +1127,10 @@ mod tests {
         let conditions = vec![Condition {
             id: 0,
             energy_mul: Fixed::from_int(2), // 2x energy multiplier
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![0, 1], // Always succeeds
         }];
 
@@ -1020,7 +1138,10 @@ mod tests {
             energy_cost: 10, // Requires 20 energy with 2x multiplier
             interval: 0,
             duration: 0,
-            args: [0; 4],
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
             script: vec![0, 1], // Success
         }];
 

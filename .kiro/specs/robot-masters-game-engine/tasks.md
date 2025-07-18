@@ -64,7 +64,7 @@
   - Write unit tests for script execution and operation handler correctness
   - _Requirements: 6.1, 6.2, 6.4_
 
-- [ ] 7. Implement Character behavior system
+- [x] 7. Implement Character behavior system
 - [x] 7.1 Create Condition and Action execution logic
 
   - Implement Condition struct with energy multiplier, args, and bytecode script
@@ -73,8 +73,8 @@
   - Write unit tests for behavior execution order and energy requirements
   - _Requirements: 5.2, 5.3, 5.4_
 
-- [ ] 8. Build Status effects system
-- [ ] 8.1 Implement Status effect definitions and instances
+- [x] 8. Build Status effects system
+- [x] 8.1 Implement Status effect definitions and instances
 
   - Create StatusEffect struct with duration, stack limits, and three script types
   - Implement StatusEffectInstance for active effects on characters
@@ -82,8 +82,8 @@
   - Write unit tests for status effect lifecycle and stacking behavior
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 9. Create Spawn system for projectiles
-- [ ] 9.1 Implement Spawn definitions and instance management
+- [x] 9. Create Spawn system for projectiles
+- [x] 9.1 Implement Spawn definitions and instance management
 
   - Create Spawn struct with damage, health, duration, element, and behavior scripts
   - Build spawn creation, behavior execution, and collision handling
@@ -91,7 +91,7 @@
   - Write unit tests for spawn lifecycle and collision interactions
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 10. Implement game state management and serialization
+- [x] 10. Implement game state management and serialization
 - [ ] 10.1 Create GameState structure with efficient serialization
 
   - Define GameState with seed, frame, tilemap, status, and all entity collections
@@ -136,8 +136,42 @@
   - Write unit tests for error handling and recovery scenarios
   - _Requirements: 6.4, 9.4_
 
-- [ ] 15. Create integration tests and performance benchmarks
-- [ ] 15.1 Build end-to-end game scenarios and performance tests
+- [ ] 15. Enhance script system with ARGS and spawn ID support
+- [x] 15.1 Update ScriptEngine with args and spawns arrays
+
+  - Add `args: [u8; 8]` array for read-only script parameters
+  - Add `spawns: [u8; 4]` array for spawn ID management
+  - Ensure args remain read-only throughout script execution
+  - Write unit tests for args and spawns array functionality
+  - _Requirements: 6.1, 6.2_
+
+- [x] 15.2 Implement new script operators for args and spawn access
+
+  - Add `ReadArg` operator to copy values from args to vars array (read-only access)
+  - Add `ReadSpawn` and `WriteSpawn` operators for spawn ID management
+  - Add `ReadVar` and `WriteVar` operators for vars array access (if not already implemented)
+  - Write unit tests for new operator functionality
+  - _Requirements: 6.1, 6.3_
+
+- [x] 15.3 Update entity structures with expanded property sets
+
+  - Add `vars: [u8; 8]` property to Condition struct
+  - Expand `args` from `[u8; 4]` to `[u8; 8]` in all entity types
+  - Add `spawns: [u8; 4]` property to Character, Spawn, Action, Condition, StatusEffect
+  - Implement property accessors for all new properties
+  - Write unit tests for expanded entity properties
+  - _Requirements: 5.1, 6.1, 7.1, 8.1_
+
+- [x] 15.4 Update requirements and design documentation
+
+  - Document the read-only nature of args in requirements
+  - Update design document with args/vars separation of concerns
+  - Document spawn ID management system in design
+  - Add examples of reusable actions using args (like Shoot with ammo capacity)
+  - _Requirements: 6.1, 6.2_
+
+- [ ] 16. Create integration tests and performance benchmarks
+- [ ] 16.1 Build end-to-end game scenarios and performance tests
   - Create multi-frame game scenarios with complex character behaviors
   - Implement cross-platform determinism verification tests
   - Build performance benchmarks for frame processing and serialization
