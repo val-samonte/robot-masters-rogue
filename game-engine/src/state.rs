@@ -72,7 +72,7 @@ impl GameState {
         }
 
         // Check if game should end (3840 frames = 60 FPS × 64 seconds)
-        if self.frame >= 3840 {
+        if self.frame >= crate::core::MAX_FRAMES {
             self.status = GameStatus::Ended;
             return Ok(());
         }
@@ -1491,5 +1491,209 @@ mod tests {
         // Test with truncated tilemap
         let truncated_data = vec![0; 100]; // Too short for tilemap
         assert!(GameState::from_binary(&truncated_data).is_err());
+    }
+
+    #[test]
+    fn test_deterministic_frame_processing() {
+        use crate::behavior::{Action, Condition};
+        use crate::entity::Character;
+        use crate::math::Fixed;
+
+        let seed = 12345;
+        let tilemap = [[0u8; 16]; 15];
+
+        // Create two identical game states
+        let mut game1 = GameState::new(seed, tilemap, vec![], vec![]).unwrap();
+        let mut game2 = GameState::new(seed, tilemap, vec![], vec![]).unwrap();
+
+        // Add identical characters to both games
+        let mut character1 = Character::new(1, 0);
+        character1.energy = 100;
+        character1.behaviors.push((0, 0));
+
+        let mut character2 = Character::new(1, 0);
+        character2.energy = 100;
+        character2.behaviors.push((0, 0));
+
+        game1.characters.push(character1);
+        game2.characters.push(character2);
+
+        // Add identical conditions and actions
+        let condition = Condition {
+            id: 0,
+            energy_mul: Fixed::from_int(1),
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![22, 0, 0, 1], // AssignRandom vars[0], Exit success
+        };
+
+        let action = Action {
+            energy_cost: 10,
+            interval: 60,
+            duration: 30,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![0, 1], // Exit success
+        };
+
+        game1.condition_lookup.push(condition.clone());
+        game1.action_lookup.push(action.clone());
+        game2.condition_lookup.push(condition);
+        game2.action_lookup.push(action);
+
+        // Process multiple frames and verify identical results
+        for frame in 0..100 {
+            assert_eq!(game1.frame, frame);
+            assert_eq!(game2.frame, frame);
+            assert_eq!(game1.characters[0].energy, game2.characters[0].energy);
+
+            let _ = game1.advance_frame();
+            let _ = game2.advance_frame();
+        }
+
+        // Both games should have identical final states
+        assert_eq!(game1.frame, game2.frame);
+        assert_eq!(game1.characters[0].energy, game2.characters[0].energy);
+    }
+
+    #[test]
+    fn test_game_timing_and_frame_limit() {
+        let seed = 12345;
+        let tilemap = [[0u8; 16]; 15];
+        let mut game = GameState::new(seed, tilemap, vec![], vec![]).unwrap();
+
+        // Verify initial state
+        assert_eq!(game.frame, 0);
+        assert_eq!(game.status, GameStatus::Playing);
+
+        // Advance frames until the game ends
+        // The game should end when frame reaches MAX_FRAMES
+        while game.status == GameStatus::Playing {
+            let _ = game.advance_frame();
+        }
+
+        // Game should be ended and frame should be MAX_FRAMES
+        assert_eq!(game.status, GameStatus::Ended);
+        assert_eq!(game.frame, crate::core::MAX_FRAMES);
+
+        // Further frame advances should not change the frame count
+        let _ = game.advance_frame();
+        assert_eq!(game.frame, crate::core::MAX_FRAMES);
+        assert_eq!(game.status, GameStatus::Ended);
+    }
+
+    #[test]
+    fn test_frame_processing_pipeline_order() {
+        use crate::entity::{Character, SpawnInstance, StatusEffectInstance};
+
+        let seed = 12345;
+        let tilemap = [[0u8; 16]; 15];
+        let mut character = Character::new(1, 0);
+        character.energy = 100;
+
+        // Add a status effect that should be processed first
+        character.status_effects.push(StatusEffectInstance {
+            effect_id: 0,
+            remaining_duration: 10,
+            stack_count: 1,
+            vars: [0; 4],
+        });
+
+        let mut game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        // Add a spawn that should be cleaned up
+        let mut spawn =
+            SpawnInstance::new(0, 0, (crate::math::Fixed::ZERO, crate::math::Fixed::ZERO));
+        spawn.lifespan = 0; // Should be cleaned up
+        game.spawn_instances.push(spawn);
+
+        let initial_spawn_count = game.spawn_instances.len();
+
+        // Advance one frame to trigger the processing pipeline
+        let _ = game.advance_frame();
+
+        // Verify cleanup happened (spawn with 0 lifespan should be removed)
+        assert!(game.spawn_instances.len() < initial_spawn_count);
+    }
+
+    #[test]
+    fn test_frame_processing_determinism_with_randomness() {
+        use crate::behavior::{Action, Condition};
+        use crate::entity::Character;
+        use crate::math::Fixed;
+
+        let seed = 42;
+        let tilemap = [[0u8; 16]; 15];
+
+        // Create two identical games with the same seed
+        let mut game1 = GameState::new(seed, tilemap, vec![], vec![]).unwrap();
+        let mut game2 = GameState::new(seed, tilemap, vec![], vec![]).unwrap();
+
+        // Add characters that use randomness in their behavior
+        let mut character1 = Character::new(1, 0);
+        character1.energy = 100;
+        character1.behaviors.push((0, 0));
+
+        let mut character2 = Character::new(1, 0);
+        character2.energy = 100;
+        character2.behaviors.push((0, 0));
+
+        game1.characters.push(character1);
+        game2.characters.push(character2);
+
+        // Add condition that uses random assignment
+        let condition = Condition {
+            id: 0,
+            energy_mul: Fixed::from_int(1),
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![
+                22, 0, // AssignRandom vars[0]
+                52, 1, 0, 10, // LessThan vars[1] = (vars[0] < 10)
+                0, 1, // Exit success
+            ],
+        };
+
+        let action = Action {
+            energy_cost: 5,
+            interval: 60,
+            duration: 30,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![0, 1], // Exit success
+        };
+
+        game1.condition_lookup.push(condition.clone());
+        game1.action_lookup.push(action.clone());
+        game2.condition_lookup.push(condition);
+        game2.action_lookup.push(action);
+
+        // Process frames and verify deterministic behavior despite randomness
+        for _ in 0..50 {
+            let energy1_before = game1.characters[0].energy;
+            let energy2_before = game2.characters[0].energy;
+
+            let _ = game1.advance_frame();
+            let _ = game2.advance_frame();
+
+            // Both games should have identical energy changes
+            assert_eq!(game1.characters[0].energy, game2.characters[0].energy);
+
+            // Verify that energy changes are consistent
+            let energy1_after = game1.characters[0].energy;
+            let energy2_after = game2.characters[0].energy;
+            assert_eq!(
+                energy1_after - energy1_before,
+                energy2_after - energy2_before
+            );
+        }
     }
 }
