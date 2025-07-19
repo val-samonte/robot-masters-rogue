@@ -117,7 +117,11 @@ pub struct Character {
     pub core: EntityCore,
     pub health: u8,
     pub energy: u8,
-    pub elemental_immunity: [u8; 8], // Armor values for all 8 elements (baseline 100)
+    pub armor: [u8; 8], // Armor values for all 8 elements (baseline 100)
+    pub energy_regen: u8, // Passive energy recovery amount per rate
+    pub energy_regen_rate: u8, // Tick interval for passive energy recovery
+    pub energy_charge: u8, // Active energy recovery amount per rate during Charge action
+    pub energy_charge_rate: u8, // Tick interval for active energy recovery during Charge action
     pub behaviors: Vec<(ConditionId, ActionId)>,
     pub locked_action: Option<ActionInstanceId>,
     pub status_effects: Vec<StatusEffectInstance>,
@@ -179,63 +183,10 @@ impl Element {
     }
 }
 
-/// Character elemental immunity values (0-255, baseline 100)
+/// Character armor values (0-255, baseline 100) - simplified elemental immunity
+/// Index corresponds to Element enum values: [Punct, Blast, Force, Sever, Heat, Cryo, Jolt, Virus]
 /// Lower values = more vulnerable, higher values = more resistant
-#[derive(Debug, Clone)]
-pub struct ElementalImmunity {
-    pub damage_punct: u8,  // Resistance to puncture/piercing damage
-    pub blast: u8,         // Resistance to explosive damage
-    pub force: u8,         // Resistance to blunt/impact damage
-    pub sever: u8,         // Resistance to critical/cutting damage
-    pub heat: u8,          // Resistance to burning effects
-    pub cryo: u8,          // Resistance to freezing/slowing effects
-    pub jolt: u8,          // Resistance to energy disruption effects
-    pub virus: u8,         // Resistance to behavior alteration effects
-}
-
-impl ElementalImmunity {
-    /// Create default immunity values (baseline 100 for all elements)
-    pub fn default() -> Self {
-        Self {
-            damage_punct: 100,
-            blast: 100,
-            force: 100,
-            sever: 100,
-            heat: 100,
-            cryo: 100,
-            jolt: 100,
-            virus: 100,
-        }
-    }
-
-    /// Get immunity value for a specific element
-    pub fn get_immunity(&self, element: Element) -> u8 {
-        match element {
-            Element::DamagePunct => self.damage_punct,
-            Element::Blast => self.blast,
-            Element::Force => self.force,
-            Element::Sever => self.sever,
-            Element::Heat => self.heat,
-            Element::Cryo => self.cryo,
-            Element::Jolt => self.jolt,
-            Element::Virus => self.virus,
-        }
-    }
-
-    /// Set immunity value for a specific element
-    pub fn set_immunity(&mut self, element: Element, value: u8) {
-        match element {
-            Element::DamagePunct => self.damage_punct = value,
-            Element::Blast => self.blast = value,
-            Element::Force => self.force = value,
-            Element::Sever => self.sever = value,
-            Element::Heat => self.heat = value,
-            Element::Cryo => self.cryo = value,
-            Element::Jolt => self.jolt = value,
-            Element::Virus => self.virus = value,
-        }
-    }
-}
+pub type Armor = [u8; 8];
 ```
 
 ### Script Engine
@@ -590,6 +541,20 @@ impl ScriptEngine {
             0x22 => self.vars[var_index] = self.character.health_cap,
             0x23 => self.vars[var_index] = self.character.energy,
             0x24 => self.vars[var_index] = self.character.energy_cap,
+            0x25 => self.vars[var_index] = self.character.energy_regen,
+            0x26 => self.vars[var_index] = self.character.energy_regen_rate,
+            0x27 => self.vars[var_index] = self.character.energy_charge,
+            0x28 => self.vars[var_index] = self.character.energy_charge_rate,
+
+            // Character armor values (Byte values) - addresses 0x40-0x47
+            0x40 => self.vars[var_index] = self.character.armor[0], // Punct
+            0x41 => self.vars[var_index] = self.character.armor[1], // Blast
+            0x42 => self.vars[var_index] = self.character.armor[2], // Force
+            0x43 => self.vars[var_index] = self.character.armor[3], // Sever
+            0x44 => self.vars[var_index] = self.character.armor[4], // Heat
+            0x45 => self.vars[var_index] = self.character.armor[5], // Cryo
+            0x46 => self.vars[var_index] = self.character.armor[6], // Jolt
+            0x47 => self.vars[var_index] = self.character.armor[7], // Virus
 
             // Character collision flags (Byte values)
             0x2B => self.vars[var_index] = if self.character.collision.0 { 1 } else { 0 },
@@ -615,6 +580,20 @@ impl ScriptEngine {
             0x22 => self.character.health_cap = self.vars[var_index],
             0x23 => self.character.energy = self.vars[var_index],
             0x24 => self.character.energy_cap = self.vars[var_index],
+            0x25 => self.character.energy_regen = self.vars[var_index],
+            0x26 => self.character.energy_regen_rate = self.vars[var_index],
+            0x27 => self.character.energy_charge = self.vars[var_index],
+            0x28 => self.character.energy_charge_rate = self.vars[var_index],
+
+            // Character armor values (Byte values) - addresses 0x40-0x47
+            0x40 => self.character.armor[0] = self.vars[var_index], // Punct
+            0x41 => self.character.armor[1] = self.vars[var_index], // Blast
+            0x42 => self.character.armor[2] = self.vars[var_index], // Force
+            0x43 => self.character.armor[3] = self.vars[var_index], // Sever
+            0x44 => self.character.armor[4] = self.vars[var_index], // Heat
+            0x45 => self.character.armor[5] = self.vars[var_index], // Cryo
+            0x46 => self.character.armor[6] = self.vars[var_index], // Jolt
+            0x47 => self.character.armor[7] = self.vars[var_index], // Virus
 
             // ... easily add more properties here
             _ => {}

@@ -715,11 +715,6 @@ impl GameState {
         let character_indices: Vec<usize> = (0..self.characters.len()).collect();
 
         for &i in &character_indices {
-            // Skip characters that are locked in actions (simplified for now)
-            if self.characters[i].locked_action.is_some() {
-                continue;
-            }
-
             // Create a temporary copy of the character for processing
             let mut character = self.characters[i].clone();
 

@@ -252,7 +252,7 @@ impl ScriptEngine {
             Operator::ReadProp => {
                 let var_index = self.read_u8(script)? as usize;
                 let prop_address = self.read_u8(script)?;
-                if var_index >= self.vars.len() && var_index < self.vars.len() + self.fixed.len() {
+                if var_index >= self.vars.len() + self.fixed.len() {
                     return Err(ScriptError::InvalidScript);
                 }
                 context.read_property(self, var_index, prop_address);
@@ -261,7 +261,7 @@ impl ScriptEngine {
             Operator::WriteProp => {
                 let prop_address = self.read_u8(script)?;
                 let var_index = self.read_u8(script)? as usize;
-                if var_index >= self.vars.len() && var_index < self.vars.len() + self.fixed.len() {
+                if var_index >= self.vars.len() + self.fixed.len() {
                     return Err(ScriptError::InvalidScript);
                 }
                 context.write_property(self, prop_address, var_index);

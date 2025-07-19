@@ -8,6 +8,7 @@ use crate::{
 };
 
 extern crate alloc;
+use alloc::vec;
 use alloc::vec::Vec;
 
 /// Condition definition with energy multiplier and script
@@ -48,6 +49,7 @@ pub struct ActionContext<'a> {
     pub character: &'a mut Character,
     pub action: &'a Action,
     pub condition: &'a Condition,
+    pub action_id: usize,
     pub to_spawn: Vec<SpawnInstance>,
 }
 
@@ -71,7 +73,7 @@ impl Condition {
         game_state: &mut GameState,
         character: &Character,
     ) -> Result<bool, ScriptError> {
-        let mut engine = ScriptEngine::new();
+        let mut engine = ScriptEngine::new_with_args(self.args);
         let mut context = ConditionContext {
             game_state,
             character,
@@ -104,13 +106,15 @@ impl Action {
         game_state: &mut GameState,
         character: &mut Character,
         condition: &Condition,
+        action_id: usize,
     ) -> Result<(bool, Vec<SpawnInstance>), ScriptError> {
-        let mut engine = ScriptEngine::new();
+        let mut engine = ScriptEngine::new_with_args(self.args);
         let mut context = ActionContext {
             game_state,
             character,
             action: self,
             condition,
+            action_id,
             to_spawn: Vec::new(),
         };
 
@@ -769,8 +773,8 @@ impl<'a> ScriptContext for ActionContext<'a> {
     }
 
     fn lock_action(&mut self) {
-        // Simplified - just use a placeholder value
-        self.character.locked_action = Some(1);
+        // Lock to the current action being executed
+        self.character.locked_action = Some(self.action_id as u8);
     }
 
     fn unlock_action(&mut self) {
@@ -819,7 +823,37 @@ pub fn execute_character_behaviors(
 ) -> Result<Vec<SpawnInstance>, ScriptError> {
     let mut spawns_to_create = Vec::new();
 
-    // Process behaviors in order (top-to-bottom until condition passes)
+    // Check if character has a locked action
+    if let Some(locked_action_id) = character.locked_action {
+        // Execute the locked action directly, skipping condition evaluation
+        let action_id = locked_action_id as usize;
+
+        if let Some(action) = actions.get(action_id) {
+            // For locked actions, we need a dummy condition since the action script
+            // will handle its own condition logic internally
+            let dummy_condition = Condition {
+                id: 0,
+                energy_mul: Fixed::ONE,
+                vars: [0; 8],
+                fixed: [Fixed::ZERO; 4],
+                args: [0; 8],
+                spawns: [0; 4],
+                script: vec![0, 1], // Always true condition
+            };
+
+            // Execute the locked action
+            let (success, mut spawns) =
+                action.execute(game_state, character, &dummy_condition, action_id)?;
+
+            if success {
+                spawns_to_create.append(&mut spawns);
+            }
+        }
+
+        return Ok(spawns_to_create);
+    }
+
+    // Normal behavior processing when not locked
     let behaviors = character.behaviors.clone();
     for behavior in &behaviors {
         let condition_id = behavior.0 as usize;
@@ -841,7 +875,8 @@ pub fn execute_character_behaviors(
             // Evaluate condition
             if condition.evaluate(game_state, character)? {
                 // Condition passed, execute action
-                let (success, mut spawns) = action.execute(game_state, character, condition)?;
+                let (success, mut spawns) =
+                    action.execute(game_state, character, condition, action_id)?;
 
                 if success {
                     // Apply energy cost
@@ -982,7 +1017,7 @@ mod tests {
         };
 
         let (success, spawns) = action
-            .execute(&mut game_state, &mut character, &condition)
+            .execute(&mut game_state, &mut character, &condition, 0)
             .unwrap();
         assert!(success);
         assert!(spawns.is_empty());
@@ -1036,7 +1071,7 @@ mod tests {
         };
 
         let (success, spawns) = action
-            .execute(&mut game_state, &mut character, &condition)
+            .execute(&mut game_state, &mut character, &condition, 0)
             .unwrap();
         assert!(success);
         assert_eq!(spawns.len(), 1);

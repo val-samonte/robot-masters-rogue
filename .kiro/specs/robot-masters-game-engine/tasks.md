@@ -120,7 +120,7 @@
   - Write unit tests to verify condition script accuracy and deterministic behavior
   - _Requirements: 6.1, 6.2, 5.4, 3.2, 4.3_
 
-- [ ] 11.3 Create essential Action scripts for character behaviors
+- [x] 11.3 Create essential Action scripts for character behaviors
 
   - Implement "Run" action script that modifies velocity.x based on move speed
   - Implement "Jump" action script that sets velocity.y to jump force when on ground
@@ -221,6 +221,43 @@
   - Implement energy recovery rate based on character properties
   - Write unit tests for energy charging mechanics and movement restriction
   - _Requirements: 6.2, 6.9, 6.10, 5.1_
+
+- [ ] 17. Update Character properties for energy regeneration and simplified armor
+- [ ] 17.1 Replace ElementalImmunity with simplified armor array and add energy regeneration properties
+
+  - Replace `elemental_immunity: ElementalImmunity` with `armor: [u8; 8]` in Character struct
+  - Add `energy_regen: u8` property for passive energy recovery amount per rate
+  - Add `energy_regen_rate: u8` property for tick interval for passive energy recovery
+  - Add `energy_charge: u8` property for active energy recovery amount per rate during Charge action
+  - Add `energy_charge_rate: u8` property for tick interval for active energy recovery during Charge action
+  - Initialize new properties to 0 in Character::new() (values will be set during new_game/game initialization)
+  - Update Character::get_armor() and Character::set_armor() methods to work with the new armor array
+  - Write unit tests for new energy regeneration properties and simplified armor access
+  - _Requirements: 11.2, 12.1, 12.2, 12.3, 12.4_
+
+- [ ] 17.2 Update script property access for new Character properties
+
+  - Add property addresses 0x25-0x28 for energy regeneration properties in script interpreters
+  - Ensure property addresses 0x40-0x47 work correctly for armor array access
+  - Update all script interpreters (Condition, Action, Spawn, StatusEffect) to support new properties
+  - Write unit tests for script property access to new Character properties
+  - _Requirements: 12.5, 11.6_
+
+- [ ] 17.3 Create passive energy regeneration StatusEffect (depends on Task 8.1 completion)
+
+  - Create "PassiveEnergyRegen" StatusEffect that reads character's energy_regen and energy_regen_rate properties
+  - Implement tick_script that increments energy every energy_regen_rate ticks by energy_regen amount
+  - Apply this StatusEffect to all characters during game initialization or as a permanent effect
+  - Write unit tests for passive energy regeneration through StatusEffect system
+  - _Requirements: 12.6, 7.1, 7.2_
+
+- [ ] 17.4 Update Charge Action to use energy_charge properties (depends on Task 16.3)
+
+  - Modify existing Charge Action script to read energy_charge and energy_charge_rate from character properties
+  - Implement energy recovery logic that uses these values instead of hardcoded rates
+  - Ensure Charge Action overrides passive regeneration while active
+  - Write unit tests for active energy charging mechanics
+  - _Requirements: 12.7, 6.2, 6.9, 6.10_
 
 - [ ] 20. Create integration tests and performance benchmarks
 - [ ] 20.1 Build end-to-end game scenarios and performance tests

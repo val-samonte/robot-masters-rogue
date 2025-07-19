@@ -114,6 +114,20 @@ The Robot Masters Game Engine is a specialized no_std Rust library designed to p
 5. WHEN characters are initialized THEN their armor values SHALL be set during new_game or loop 0
 6. WHEN scripts need armor access THEN property addresses 0x40-0x47 SHALL provide read/write access to character armor values
 
+### Requirement 12
+
+**User Story:** As a game designer, I want configurable energy regeneration systems for characters, so that different characters can have unique energy recovery patterns both passively and actively.
+
+#### Acceptance Criteria
+
+1. WHEN characters are created THEN they SHALL have energy_regen property (u8) defining passive energy recovery amount per rate
+2. WHEN characters are created THEN they SHALL have energy_regen_rate property (u8) defining tick interval for passive energy recovery
+3. WHEN characters are created THEN they SHALL have energy_charge property (u8) defining active energy recovery amount per rate during Charge action
+4. WHEN characters are created THEN they SHALL have energy_charge_rate property (u8) defining tick interval for active energy recovery during Charge action
+5. WHEN scripts need energy regen access THEN property addresses SHALL provide read/write access to all energy regeneration properties
+6. WHEN passive energy regeneration occurs THEN it SHALL be implemented through StatusEffect system that reads energy_regen and energy_regen_rate properties
+7. WHEN Charge action is active THEN energy recovery SHALL use energy_charge and energy_charge_rate values through Action script implementation
+
 ### Requirement 9
 
 **User Story:** As a blockchain developer, I want efficient serialization of the complete game state, so that it can be stored in Solana PDAs with minimal cost.
