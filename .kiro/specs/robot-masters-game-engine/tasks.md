@@ -109,7 +109,7 @@
   - Write unit tests for deterministic frame processing and game timing
   - _Requirements: 1.1, 1.2_
 
-- [ ] 11.2 Create essential Condition scripts for game loop testing
+- [x] 11.2 Create essential Condition scripts for game loop testing
 
   - Implement "Energy below 20%" condition script using property access and comparison operators
   - Implement "Energy below 10%" condition script for critical energy states
