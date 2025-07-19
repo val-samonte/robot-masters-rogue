@@ -75,6 +75,8 @@ The Robot Masters Game Engine is a specialized no_std Rust library designed to p
 6. WHEN scripts need working variables THEN they SHALL use the vars array for temporary storage and calculations
 7. WHEN scripts access args THEN the args array SHALL remain read-only throughout script execution
 8. WHEN scripts need spawn management THEN they SHALL use the spawns array for spawn ID storage
+9. WHEN Actions are locked THEN they SHALL continue executing until their condition expires or fails
+10. WHEN locked Actions are active THEN normal behavior processing SHALL be bypassed for that character
 
 ### Requirement 7
 

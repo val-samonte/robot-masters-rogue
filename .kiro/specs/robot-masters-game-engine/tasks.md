@@ -92,7 +92,7 @@
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
 - [x] 10. Implement game state management and serialization
-- [ ] 10.1 Create GameState structure with efficient serialization
+- [x] 10.1 Create GameState structure with efficient serialization
 
   - Define GameState with seed, frame, tilemap, status, and all entity collections
   - Implement compact binary serialization for Solana PDA storage
@@ -170,8 +170,78 @@
   - Add examples of reusable actions using args (like Shoot with ammo capacity)
   - _Requirements: 6.1, 6.2_
 
-- [ ] 16. Create integration tests and performance benchmarks
-- [ ] 16.1 Build end-to-end game scenarios and performance tests
+- [ ] 16. Create example Condition scripts for common game behaviors
+- [ ] 16.1 Implement energy-based condition scripts
+
+  - Create "Energy below 20%" condition script using property access and comparison operators
+  - Create "Energy below 10%" condition script for critical energy states
+  - Write unit tests to verify energy threshold detection accuracy
+  - _Requirements: 6.1, 6.2, 5.4_
+
+- [ ] 16.2 Implement probability-based condition scripts
+
+  - Create "Random 1 out of 20" condition script using seeded randomization
+  - Create "Random 1 out of 10" condition script for more frequent random behaviors
+  - Write unit tests to verify random distribution and deterministic behavior
+  - _Requirements: 6.1, 6.2, 3.2_
+
+- [ ] 16.3 Implement physics-based condition scripts
+
+  - Create "Character on ground" condition script using collision detection
+  - Create "Character leaning on wall" condition script for wall detection
+  - Create "Always true" condition script that never fails
+  - Write unit tests for collision-based condition accuracy
+  - _Requirements: 6.1, 6.2, 4.3_
+
+- [ ] 17. Create example Action scripts for character movement and combat
+- [ ] 17.1 Implement basic movement action scripts
+
+  - Create "Run" action script that modifies velocity.x based on move speed
+  - Create "Jump" action script that sets velocity.y to jump force when on ground
+  - Create "Turn around" action script that reverses velocity.x when on ground
+  - Write unit tests for movement action execution and physics integration
+  - _Requirements: 6.2, 6.3, 5.1_
+
+- [ ] 17.2 Implement advanced movement action scripts
+
+  - Create "Wall jump" action script for wall-based jumping when not on ground
+  - Implement locked action behavior where actions continue until condition expires
+  - Write unit tests for advanced movement mechanics and locked action states
+  - _Requirements: 6.2, 6.9, 6.10_
+
+- [ ] 18. Create complex Action scripts for combat and energy management
+- [ ] 18.1 Implement Shoot Action script with spawn management
+
+  - Create "Shoot" action script that spawns projectiles using spawn ID and ammo tracking
+  - Implement fire rate limiting and ammo consumption logic
+  - Use args array for configurable ammo capacity and spawns array for projectile management
+  - Write unit tests for shooting mechanics and spawn creation
+  - _Requirements: 6.2, 6.5, 6.8, 8.1_
+
+- [ ] 18.2 Implement Hurt Action as locked action script
+
+  - Create "Hurt" locked action script with short jump and backward movement
+  - Implement invulnerability frames and movement restriction during hurt state
+  - Write unit tests for hurt state behavior and locked action mechanics
+  - _Requirements: 6.2, 6.9, 6.10_
+
+- [ ] 18.3 Implement Charge Action for energy recovery
+
+  - Create "Charge" locked action script that stops movement and recovers energy
+  - Implement energy recovery rate based on character properties
+  - Write unit tests for energy charging mechanics and movement restriction
+  - _Requirements: 6.2, 6.9, 6.10, 5.1_
+
+- [ ] 19. Create example behavior combinations and integration tests
+- [ ] 19.1 Implement complete character behavior set
+
+  - Create behavior list combining conditions and actions: Energy below 10% → Charge, Leaning on wall → Turn around, Random 1/20 → Jump, Random 1/20 → Shoot, Always → Run
+  - Test behavior priority and execution order (top to bottom until condition passes)
+  - Write integration tests for complete character AI behavior
+  - _Requirements: 5.2, 5.3, 6.1, 6.2_
+
+- [ ] 20. Create integration tests and performance benchmarks
+- [ ] 20.1 Build end-to-end game scenarios and performance tests
   - Create multi-frame game scenarios with complex character behaviors
   - Implement cross-platform determinism verification tests
   - Build performance benchmarks for frame processing and serialization

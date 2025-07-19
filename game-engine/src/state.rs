@@ -8,7 +8,7 @@ use crate::random::SeededRng;
 use crate::script::ScriptEngine;
 use crate::status::process_character_status_effects;
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 /// Current game status
@@ -99,25 +99,185 @@ impl GameState {
 
     /// Export game state as JSON string
     pub fn to_json(&self) -> GameResult<String> {
-        // This will be implemented with proper serialization in later tasks
-        Ok(format!(
-            r#"{{"frame": {}, "status": "{:?}", "characters": {}, "spawns": {}}}"#,
-            self.frame,
-            self.status,
-            self.characters.len(),
-            self.spawn_instances.len()
-        ))
+        let mut json = String::new();
+        json.push_str("{");
+
+        // Basic game state
+        json.push_str(&format!(r#""seed":{},"#, self.seed));
+        json.push_str(&format!(r#""frame":{},"#, self.frame));
+        json.push_str(&format!(
+            r#""status":"{}","#,
+            match self.status {
+                GameStatus::Playing => "Playing",
+                GameStatus::Ended => "Ended",
+            }
+        ));
+
+        // Tilemap - access through getter method
+        json.push_str(r#""tilemap":["#);
+        for row_idx in 0..15 {
+            if row_idx > 0 {
+                json.push(',');
+            }
+            json.push('[');
+            for col_idx in 0..16 {
+                if col_idx > 0 {
+                    json.push(',');
+                }
+                let tile = self.tile_map.get_tile(col_idx, row_idx) as u8;
+                json.push_str(&tile.to_string());
+            }
+            json.push(']');
+        }
+        json.push_str("],");
+
+        // Characters
+        json.push_str(r#""characters":["#);
+        for (idx, character) in self.characters.iter().enumerate() {
+            if idx > 0 {
+                json.push(',');
+            }
+            json.push_str(&self.character_to_json(character)?);
+        }
+        json.push_str("],");
+
+        // Spawn instances
+        json.push_str(r#""spawn_instances":["#);
+        for (idx, spawn) in self.spawn_instances.iter().enumerate() {
+            if idx > 0 {
+                json.push(',');
+            }
+            json.push_str(&self.spawn_to_json(spawn)?);
+        }
+        json.push_str("]");
+
+        json.push('}');
+        Ok(json)
     }
 
-    /// Export game state as binary data
+    /// Export game state as binary data for efficient storage
     pub fn to_binary(&self) -> GameResult<Vec<u8>> {
-        // This will be implemented with proper serialization in later tasks
         let mut data = Vec::new();
+
+        // Header: seed (2 bytes) + frame (2 bytes) + status (1 byte)
         data.extend_from_slice(&self.seed.to_le_bytes());
         data.extend_from_slice(&self.frame.to_le_bytes());
+        data.push(match self.status {
+            GameStatus::Playing => 0,
+            GameStatus::Ended => 1,
+        });
+
+        // Tilemap: 16x15 = 240 bytes
+        for row_idx in 0..15 {
+            for col_idx in 0..16 {
+                let tile = self.tile_map.get_tile(col_idx, row_idx) as u8;
+                data.push(tile);
+            }
+        }
+
+        // Characters count + character data
         data.push(self.characters.len() as u8);
+        for character in &self.characters {
+            self.serialize_character(character, &mut data)?;
+        }
+
+        // Spawn instances count + spawn data
         data.push(self.spawn_instances.len() as u8);
+        for spawn in &self.spawn_instances {
+            self.serialize_spawn(spawn, &mut data)?;
+        }
+
+        // Lookup tables sizes (for deserialization)
+        data.push(self.action_lookup.len() as u8);
+        data.push(self.condition_lookup.len() as u8);
+        data.push(self.spawn_lookup.len() as u8);
+        data.push(self.status_effect_lookup.len() as u8);
+
         Ok(data)
+    }
+
+    /// Create GameState from binary data
+    pub fn from_binary(data: &[u8]) -> GameResult<Self> {
+        if data.len() < 5 {
+            return Err("Invalid binary data: too short".into());
+        }
+
+        let mut pos = 0;
+
+        // Read header
+        let seed = u16::from_le_bytes([data[pos], data[pos + 1]]);
+        pos += 2;
+        let frame = u16::from_le_bytes([data[pos], data[pos + 1]]);
+        pos += 2;
+        let status = match data[pos] {
+            0 => GameStatus::Playing,
+            1 => GameStatus::Ended,
+            _ => return Err("Invalid game status".into()),
+        };
+        pos += 1;
+
+        // Read tilemap
+        if data.len() < pos + 240 {
+            return Err("Invalid binary data: tilemap too short".into());
+        }
+        let mut tilemap = [[0u8; 16]; 15];
+        for row in 0..15 {
+            for col in 0..16 {
+                tilemap[row][col] = data[pos];
+                pos += 1;
+            }
+        }
+
+        // Read characters
+        if pos >= data.len() {
+            return Err("Invalid binary data: missing character count".into());
+        }
+        let character_count = data[pos] as usize;
+        pos += 1;
+
+        let mut characters = Vec::new();
+        for _ in 0..character_count {
+            let (character, bytes_read) = Self::deserialize_character(&data[pos..])?;
+            characters.push(character);
+            pos += bytes_read;
+        }
+
+        // Read spawn instances
+        if pos >= data.len() {
+            return Err("Invalid binary data: missing spawn count".into());
+        }
+        let spawn_count = data[pos] as usize;
+        pos += 1;
+
+        let mut spawn_instances = Vec::new();
+        for _ in 0..spawn_count {
+            if pos >= data.len() {
+                return Err("Invalid binary data: not enough data for spawn".into());
+            }
+            let (spawn, bytes_read) = Self::deserialize_spawn(&data[pos..])?;
+            spawn_instances.push(spawn);
+            pos += bytes_read;
+        }
+
+        // Read lookup table sizes (but don't use them for now, just skip them)
+        if pos + 3 < data.len() {
+            pos += 4; // Skip the 4 lookup table size bytes
+        }
+
+        Ok(Self {
+            seed,
+            frame,
+            tile_map: Tilemap::new(tilemap),
+            status,
+            characters,
+            spawn_instances,
+            action_lookup: Vec::new(),
+            condition_lookup: Vec::new(),
+            spawn_lookup: Vec::new(),
+            status_effect_lookup: Vec::new(),
+            script_engine: ScriptEngine::new(),
+            rng: SeededRng::new(seed),
+        })
     }
 
     /// Generate next random number using seeded PRNG
@@ -143,6 +303,381 @@ impl GameState {
     /// Reset the random number generator to initial seed
     pub fn reset_rng(&mut self) {
         self.rng.reset();
+    }
+
+    // Helper methods for JSON serialization
+    fn character_to_json(&self, character: &Character) -> GameResult<String> {
+        let mut json = String::new();
+        json.push('{');
+
+        json.push_str(&format!(r#""id":{},"#, character.core.id));
+        json.push_str(&format!(r#""group":{},"#, character.core.group));
+        json.push_str(&format!(
+            r#""pos":[{},{}],"#,
+            character.core.pos.0.to_int(),
+            character.core.pos.1.to_int()
+        ));
+        json.push_str(&format!(
+            r#""vel":[{},{}],"#,
+            character.core.vel.0.to_int(),
+            character.core.vel.1.to_int()
+        ));
+        json.push_str(&format!(
+            r#""size":[{},{}],"#,
+            character.core.size.0, character.core.size.1
+        ));
+        json.push_str(&format!(
+            r#""collision":[{},{},{},{}],"#,
+            character.core.collision.0,
+            character.core.collision.1,
+            character.core.collision.2,
+            character.core.collision.3
+        ));
+        json.push_str(&format!(r#""health":{},"#, character.health));
+        json.push_str(&format!(r#""energy":{},"#, character.energy));
+
+        // Elemental immunity array
+        json.push_str(r#""elemental_immunity":["#);
+        for (i, &immunity) in character.elemental_immunity.iter().enumerate() {
+            if i > 0 {
+                json.push(',');
+            }
+            json.push_str(&immunity.to_string());
+        }
+        json.push_str("],");
+
+        // Behaviors
+        json.push_str(r#""behaviors":["#);
+        for (i, &(condition_id, action_id)) in character.behaviors.iter().enumerate() {
+            if i > 0 {
+                json.push(',');
+            }
+            json.push_str(&format!("[{},{}]", condition_id, action_id));
+        }
+        json.push_str("],");
+
+        json.push_str(&format!(
+            r#""locked_action":{},"#,
+            match character.locked_action {
+                Some(id) => id.to_string(),
+                None => "null".to_string(),
+            }
+        ));
+
+        // Status effects
+        json.push_str(r#""status_effects":["#);
+        for (i, effect) in character.status_effects.iter().enumerate() {
+            if i > 0 {
+                json.push(',');
+            }
+            json.push_str(&format!(
+                r#"{{"effect_id":{},"remaining_duration":{},"stack_count":{},"vars":[{},{},{},{}]}}"#,
+                effect.effect_id, effect.remaining_duration, effect.stack_count,
+                effect.vars[0], effect.vars[1], effect.vars[2], effect.vars[3]
+            ));
+        }
+        json.push_str("]");
+
+        json.push('}');
+        Ok(json)
+    }
+
+    fn spawn_to_json(&self, spawn: &SpawnInstance) -> GameResult<String> {
+        let mut json = String::new();
+        json.push('{');
+
+        json.push_str(&format!(r#""id":{},"#, spawn.core.id));
+        json.push_str(&format!(r#""group":{},"#, spawn.core.group));
+        json.push_str(&format!(
+            r#""pos":[{},{}],"#,
+            spawn.core.pos.0.to_int(),
+            spawn.core.pos.1.to_int()
+        ));
+        json.push_str(&format!(
+            r#""vel":[{},{}],"#,
+            spawn.core.vel.0.to_int(),
+            spawn.core.vel.1.to_int()
+        ));
+        json.push_str(&format!(
+            r#""size":[{},{}],"#,
+            spawn.core.size.0, spawn.core.size.1
+        ));
+        json.push_str(&format!(
+            r#""collision":[{},{},{},{}],"#,
+            spawn.core.collision.0,
+            spawn.core.collision.1,
+            spawn.core.collision.2,
+            spawn.core.collision.3
+        ));
+        json.push_str(&format!(r#""spawn_id":{},"#, spawn.spawn_id));
+        json.push_str(&format!(r#""owner_id":{},"#, spawn.owner_id));
+        json.push_str(&format!(r#""lifespan":{},"#, spawn.lifespan));
+        json.push_str(&format!(r#""element":{},"#, spawn.element as u8));
+        json.push_str(&format!(
+            r#""vars":[{},{},{},{}]"#,
+            spawn.vars[0], spawn.vars[1], spawn.vars[2], spawn.vars[3]
+        ));
+
+        json.push('}');
+        Ok(json)
+    }
+
+    // Helper methods for binary serialization
+    fn serialize_character(&self, character: &Character, data: &mut Vec<u8>) -> GameResult<()> {
+        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) = 16 bytes
+        data.push(character.core.id);
+        data.push(character.core.group);
+        data.extend_from_slice(&character.core.pos.0.raw().to_le_bytes());
+        data.extend_from_slice(&character.core.pos.1.raw().to_le_bytes());
+        data.extend_from_slice(&character.core.vel.0.raw().to_le_bytes());
+        data.extend_from_slice(&character.core.vel.1.raw().to_le_bytes());
+        data.push(character.core.size.0);
+        data.push(character.core.size.1);
+        data.push(if character.core.collision.0 { 1 } else { 0 });
+        data.push(if character.core.collision.1 { 1 } else { 0 });
+        data.push(if character.core.collision.2 { 1 } else { 0 });
+        data.push(if character.core.collision.3 { 1 } else { 0 });
+
+        // Character-specific: health (1) + energy (1) + elemental_immunity (8) = 10 bytes
+        data.push(character.health);
+        data.push(character.energy);
+        data.extend_from_slice(&character.elemental_immunity);
+
+        // Behaviors: count (1) + behaviors (count * 2)
+        data.push(character.behaviors.len() as u8);
+        for &(condition_id, action_id) in &character.behaviors {
+            data.push(condition_id);
+            data.push(action_id);
+        }
+
+        // Locked action: flag (1) + optional value (1)
+        match character.locked_action {
+            Some(id) => {
+                data.push(1);
+                data.push(id);
+            }
+            None => {
+                data.push(0);
+                data.push(0);
+            }
+        }
+
+        // Status effects: count (1) + effects (count * 8)
+        data.push(character.status_effects.len() as u8);
+        for effect in &character.status_effects {
+            data.push(effect.effect_id);
+            data.extend_from_slice(&effect.remaining_duration.to_le_bytes());
+            data.push(effect.stack_count);
+            data.extend_from_slice(&effect.vars);
+        }
+
+        Ok(())
+    }
+
+    fn serialize_spawn(&self, spawn: &SpawnInstance, data: &mut Vec<u8>) -> GameResult<()> {
+        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) = 16 bytes
+        data.push(spawn.core.id);
+        data.push(spawn.core.group);
+        data.extend_from_slice(&spawn.core.pos.0.raw().to_le_bytes());
+        data.extend_from_slice(&spawn.core.pos.1.raw().to_le_bytes());
+        data.extend_from_slice(&spawn.core.vel.0.raw().to_le_bytes());
+        data.extend_from_slice(&spawn.core.vel.1.raw().to_le_bytes());
+        data.push(spawn.core.size.0);
+        data.push(spawn.core.size.1);
+        data.push(if spawn.core.collision.0 { 1 } else { 0 });
+        data.push(if spawn.core.collision.1 { 1 } else { 0 });
+        data.push(if spawn.core.collision.2 { 1 } else { 0 });
+        data.push(if spawn.core.collision.3 { 1 } else { 0 });
+
+        // Spawn-specific: spawn_id (1) + owner_id (1) + lifespan (2) + element (1) + vars (4) = 9 bytes
+        data.push(spawn.spawn_id);
+        data.push(spawn.owner_id);
+        data.extend_from_slice(&spawn.lifespan.to_le_bytes());
+        data.push(spawn.element as u8);
+        data.extend_from_slice(&spawn.vars);
+
+        Ok(())
+    }
+
+    fn deserialize_character(data: &[u8]) -> GameResult<(Character, usize)> {
+        if data.len() < 34 {
+            return Err("Invalid character data: too short".into());
+        }
+
+        let mut pos = 0;
+
+        // EntityCore
+        let id = data[pos];
+        pos += 1;
+        let group = data[pos];
+        pos += 1;
+        let pos_x = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        pos += 2;
+        let pos_y = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        pos += 2;
+        let vel_x = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        pos += 2;
+        let vel_y = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        pos += 2;
+        let size_w = data[pos];
+        pos += 1;
+        let size_h = data[pos];
+        pos += 1;
+        let collision = (
+            data[pos] != 0,
+            data[pos + 1] != 0,
+            data[pos + 2] != 0,
+            data[pos + 3] != 0,
+        );
+        pos += 4;
+
+        // Character-specific
+        let health = data[pos];
+        pos += 1;
+        let energy = data[pos];
+        pos += 1;
+        let mut elemental_immunity = [0u8; 8];
+        elemental_immunity.copy_from_slice(&data[pos..pos + 8]);
+        pos += 8;
+
+        // Behaviors
+        if pos >= data.len() {
+            return Err("Invalid character data: missing behavior count".into());
+        }
+        let behavior_count = data[pos] as usize;
+        pos += 1;
+        let mut behaviors = Vec::new();
+        for _ in 0..behavior_count {
+            if pos + 1 >= data.len() {
+                return Err("Invalid character data: incomplete behavior".into());
+            }
+            behaviors.push((data[pos], data[pos + 1]));
+            pos += 2;
+        }
+
+        // Locked action
+        if pos + 1 >= data.len() {
+            return Err("Invalid character data: missing locked action".into());
+        }
+        let locked_action = if data[pos] != 0 {
+            Some(data[pos + 1])
+        } else {
+            None
+        };
+        pos += 2;
+
+        // Status effects
+        if pos >= data.len() {
+            return Err("Invalid character data: missing status effect count".into());
+        }
+        let status_count = data[pos] as usize;
+        pos += 1;
+        let mut status_effects = Vec::new();
+        for _ in 0..status_count {
+            if pos + 7 >= data.len() {
+                return Err("Invalid character data: incomplete status effect".into());
+            }
+            let effect_id = data[pos];
+            pos += 1;
+            let remaining_duration = u16::from_le_bytes([data[pos], data[pos + 1]]);
+            pos += 2;
+            let stack_count = data[pos];
+            pos += 1;
+            let mut vars = [0u8; 4];
+            vars.copy_from_slice(&data[pos..pos + 4]);
+            pos += 4;
+
+            status_effects.push(crate::entity::StatusEffectInstance {
+                effect_id,
+                remaining_duration,
+                stack_count,
+                vars,
+            });
+        }
+
+        let character = Character {
+            core: crate::entity::EntityCore {
+                id,
+                group,
+                pos: (pos_x, pos_y),
+                vel: (vel_x, vel_y),
+                size: (size_w, size_h),
+                collision,
+            },
+            health,
+            energy,
+            elemental_immunity,
+            behaviors,
+            locked_action,
+            status_effects,
+        };
+
+        Ok((character, pos))
+    }
+
+    fn deserialize_spawn(data: &[u8]) -> GameResult<(SpawnInstance, usize)> {
+        if data.len() < 25 {
+            return Err("Invalid spawn data: too short".into());
+        }
+
+        let mut pos = 0;
+
+        // EntityCore
+        let id = data[pos];
+        pos += 1;
+        let group = data[pos];
+        pos += 1;
+        let pos_x = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        pos += 2;
+        let pos_y = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        pos += 2;
+        let vel_x = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        pos += 2;
+        let vel_y = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        pos += 2;
+        let size_w = data[pos];
+        pos += 1;
+        let size_h = data[pos];
+        pos += 1;
+        let collision = (
+            data[pos] != 0,
+            data[pos + 1] != 0,
+            data[pos + 2] != 0,
+            data[pos + 3] != 0,
+        );
+        pos += 4;
+
+        // Spawn-specific
+        let spawn_id = data[pos];
+        pos += 1;
+        let owner_id = data[pos];
+        pos += 1;
+        let lifespan = u16::from_le_bytes([data[pos], data[pos + 1]]);
+        pos += 2;
+        let element =
+            crate::entity::Element::from_u8(data[pos]).unwrap_or(crate::entity::Element::Punct);
+        pos += 1;
+        let mut vars = [0u8; 4];
+        vars.copy_from_slice(&data[pos..pos + 4]);
+        pos += 4;
+
+        let spawn = SpawnInstance {
+            core: crate::entity::EntityCore {
+                id,
+                group,
+                pos: (pos_x, pos_y),
+                vel: (vel_x, vel_y),
+                size: (size_w, size_h),
+                collision,
+            },
+            spawn_id,
+            owner_id,
+            lifespan,
+            element,
+            vars,
+        };
+
+        Ok((spawn, pos))
     }
 
     // Private methods for frame processing
@@ -473,5 +1008,488 @@ mod tests {
 
         // Character should not have consumed energy (locked in action)
         assert_eq!(game.characters[0].energy, 50);
+    }
+
+    #[test]
+    fn test_binary_serialization_round_trip() {
+        use crate::entity::Character;
+        use crate::math::Fixed;
+
+        let seed = 42;
+        let mut tilemap = [[0u8; 16]; 15];
+        // Set some non-zero tiles for testing (using only valid tile types 0 and 1)
+        tilemap[0][0] = 1;
+        tilemap[5][10] = 1;
+        tilemap[14][15] = 1;
+
+        // Create a simple character to test basic serialization
+        let character = Character::new(1, 0);
+
+        let game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        // Serialize to binary
+        let binary_data = game.to_binary().unwrap();
+
+        // Deserialize from binary
+        let restored_game = match GameState::from_binary(&binary_data) {
+            Ok(game) => game,
+            Err(e) => panic!("Failed to deserialize game state: {:?}", e),
+        };
+
+        // Verify basic game state
+        assert_eq!(restored_game.seed, seed);
+        assert_eq!(restored_game.frame, 0);
+        assert_eq!(restored_game.status, GameStatus::Playing);
+
+        // Verify tilemap
+        assert_eq!(restored_game.tile_map.get_tile(0, 0) as u8, 1);
+        assert_eq!(restored_game.tile_map.get_tile(10, 5) as u8, 1);
+        assert_eq!(restored_game.tile_map.get_tile(15, 14) as u8, 1);
+
+        // Verify character
+        assert_eq!(restored_game.characters.len(), 1);
+        let restored_char = &restored_game.characters[0];
+        assert_eq!(restored_char.core.id, 1);
+        assert_eq!(restored_char.core.group, 0);
+        assert_eq!(restored_char.health, 100); // Default value
+        assert_eq!(restored_char.energy, 100); // Default value
+        assert_eq!(restored_char.core.pos, (Fixed::ZERO, Fixed::ZERO)); // Default value
+        assert_eq!(restored_char.core.vel, (Fixed::ZERO, Fixed::ZERO)); // Default value
+        assert_eq!(restored_char.core.size, (16, 16)); // Default value
+        assert_eq!(restored_char.core.collision, (true, true, true, true)); // Default value
+        assert_eq!(restored_char.elemental_immunity, [100; 8]); // Default armor values
+        assert_eq!(restored_char.behaviors.len(), 0); // No behaviors added
+        assert_eq!(restored_char.locked_action, None); // No locked action
+        assert_eq!(restored_char.status_effects.len(), 0); // No status effects
+
+        // Verify no spawns
+        assert_eq!(restored_game.spawn_instances.len(), 0);
+    }
+
+    #[test]
+    fn test_json_serialization_format() {
+        use crate::entity::{Character, Element, SpawnInstance};
+        use crate::math::Fixed;
+
+        let seed = 123;
+        let tilemap = [[0u8; 16]; 15];
+
+        let mut character = Character::new(1, 0);
+        character.health = 80;
+        character.energy = 90;
+        character.core.pos = (Fixed::from_int(10), Fixed::from_int(20));
+        character.behaviors.push((1, 2));
+
+        let spawn = SpawnInstance::with_element(
+            5,
+            1,
+            (Fixed::from_int(30), Fixed::from_int(40)),
+            Element::Cryo,
+        );
+
+        let mut game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+        game.spawn_instances.push(spawn);
+        game.frame = 100;
+
+        let json = game.to_json().unwrap();
+
+        // Verify JSON contains expected fields
+        assert!(json.contains(r#""seed":123"#));
+        assert!(json.contains(r#""frame":100"#));
+        assert!(json.contains(r#""status":"Playing""#));
+        assert!(json.contains(r#""tilemap":"#));
+        assert!(json.contains(r#""characters":"#));
+        assert!(json.contains(r#""spawn_instances":"#));
+        assert!(json.contains(r#""health":80"#));
+        assert!(json.contains(r#""energy":90"#));
+        assert!(json.contains(r#""element":5"#)); // Cryo = 5
+    }
+
+    #[test]
+    fn test_empty_game_state_serialization() {
+        let seed = 999;
+        let tilemap = [[0u8; 16]; 15];
+
+        let game = GameState::new(seed, tilemap, vec![], vec![]).unwrap();
+
+        // Test binary serialization
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+
+        assert_eq!(restored_game.seed, seed);
+        assert_eq!(restored_game.frame, 0);
+        assert_eq!(restored_game.status, GameStatus::Playing);
+        assert_eq!(restored_game.characters.len(), 0);
+        assert_eq!(restored_game.spawn_instances.len(), 0);
+
+        // Test JSON serialization
+        let json = game.to_json().unwrap();
+        assert!(json.contains(r#""seed":999"#));
+        assert!(json.contains(r#""frame":0"#));
+        assert!(json.contains(r#""characters":[]"#));
+        assert!(json.contains(r#""spawn_instances":[]"#));
+    }
+
+    #[test]
+    fn test_game_status_serialization() {
+        let seed = 456;
+        let tilemap = [[0u8; 16]; 15];
+
+        let mut game = GameState::new(seed, tilemap, vec![], vec![]).unwrap();
+        game.status = GameStatus::Ended;
+
+        // Test binary serialization
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+        assert_eq!(restored_game.status, GameStatus::Ended);
+
+        // Test JSON serialization
+        let json = game.to_json().unwrap();
+        assert!(json.contains(r#""status":"Ended""#));
+    }
+
+    #[test]
+    fn test_tilemap_serialization() {
+        let seed = 789;
+        let mut tilemap = [[0u8; 16]; 15];
+
+        // Create a pattern in the tilemap (using only valid tile types 0 and 1)
+        for row in 0..15 {
+            for col in 0..16 {
+                tilemap[row][col] = ((row + col) % 2) as u8;
+            }
+        }
+
+        let game = GameState::new(seed, tilemap, vec![], vec![]).unwrap();
+
+        // First verify the original game has the correct pattern
+        for row in 0..15 {
+            for col in 0..16 {
+                assert_eq!(
+                    game.tile_map.get_tile(col, row) as u8,
+                    ((row + col) % 2) as u8,
+                    "Original game tilemap mismatch at ({}, {})",
+                    col,
+                    row
+                );
+            }
+        }
+
+        // Test binary round-trip
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+
+        for row in 0..15 {
+            for col in 0..16 {
+                assert_eq!(
+                    restored_game.tile_map.get_tile(col, row) as u8,
+                    ((row + col) % 2) as u8,
+                    "Restored game tilemap mismatch at ({}, {})",
+                    col,
+                    row
+                );
+            }
+        }
+
+        // Test JSON contains tilemap
+        let json = game.to_json().unwrap();
+        assert!(json.contains(r#""tilemap":"#));
+        assert!(json.contains("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]")); // First row pattern
+    }
+
+    #[test]
+    fn test_character_with_multiple_status_effects() {
+        use crate::entity::{Character, StatusEffectInstance};
+        use crate::math::Fixed;
+
+        let seed = 111;
+        let tilemap = [[0u8; 16]; 15];
+
+        let mut character = Character::new(1, 0);
+        character.status_effects.push(StatusEffectInstance {
+            effect_id: 1,
+            remaining_duration: 100,
+            stack_count: 1,
+            vars: [10, 20, 30, 40],
+        });
+        character.status_effects.push(StatusEffectInstance {
+            effect_id: 2,
+            remaining_duration: 200,
+            stack_count: 3,
+            vars: [50, 60, 70, 80],
+        });
+
+        let game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        // Test binary round-trip
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+
+        assert_eq!(restored_game.characters[0].status_effects.len(), 2);
+        assert_eq!(restored_game.characters[0].status_effects[0].effect_id, 1);
+        assert_eq!(
+            restored_game.characters[0].status_effects[0].remaining_duration,
+            100
+        );
+        assert_eq!(
+            restored_game.characters[0].status_effects[0].vars,
+            [10, 20, 30, 40]
+        );
+        assert_eq!(restored_game.characters[0].status_effects[1].effect_id, 2);
+        assert_eq!(
+            restored_game.characters[0].status_effects[1].remaining_duration,
+            200
+        );
+        assert_eq!(restored_game.characters[0].status_effects[1].stack_count, 3);
+        assert_eq!(
+            restored_game.characters[0].status_effects[1].vars,
+            [50, 60, 70, 80]
+        );
+    }
+
+    #[test]
+    fn test_single_character_serialization() {
+        use crate::entity::Character;
+
+        let seed = 222;
+        let tilemap = [[0u8; 16]; 15];
+
+        let character = Character::new(1, 0);
+        let game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        // Test binary round-trip
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+
+        assert_eq!(restored_game.characters.len(), 1);
+        assert_eq!(restored_game.characters[0].core.id, 1);
+    }
+
+    #[test]
+    fn test_two_characters_serialization() {
+        use crate::entity::Character;
+
+        let seed = 222;
+        let tilemap = [[0u8; 16]; 15];
+
+        let char1 = Character::new(1, 0);
+        let char2 = Character::new(2, 1);
+        let game = GameState::new(seed, tilemap, vec![char1, char2], vec![]).unwrap();
+
+        // Test binary round-trip
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+
+        assert_eq!(restored_game.characters.len(), 2);
+        assert_eq!(restored_game.characters[0].core.id, 1);
+        assert_eq!(restored_game.characters[1].core.id, 2);
+    }
+
+    #[test]
+    fn test_binary_serialization_format() {
+        use crate::entity::Character;
+
+        let seed = 222;
+        let tilemap = [[0u8; 16]; 15];
+
+        let character = Character::new(1, 0);
+        let game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        // Test that binary serialization works
+        let binary_data = game.to_binary().unwrap();
+
+        // Check basic format: seed (2) + frame (2) + status (1) + tilemap (240) + char count (1) + char data + spawn count (1) + lookup sizes (4)
+        assert!(binary_data.len() >= 251); // Minimum size without character data
+    }
+
+    #[test]
+    fn test_spawn_deserialization_directly() {
+        use crate::entity::{Element, SpawnInstance};
+        use crate::math::Fixed;
+
+        // Create a spawn manually
+        let spawn = SpawnInstance::with_element(
+            1,
+            1,
+            (Fixed::from_int(10), Fixed::from_int(10)),
+            Element::Punct,
+        );
+
+        // Serialize just the spawn
+        let mut data = Vec::new();
+        let game = GameState::new(222, [[0u8; 16]; 15], vec![], vec![]).unwrap();
+        game.serialize_spawn(&spawn, &mut data).unwrap();
+
+        // Check that we have the expected 25 bytes
+        assert_eq!(data.len(), 25);
+
+        // Try to deserialize
+        let (deserialized_spawn, bytes_read) = GameState::deserialize_spawn(&data).unwrap();
+        assert_eq!(bytes_read, 25);
+        assert_eq!(deserialized_spawn.spawn_id, 1);
+        assert_eq!(deserialized_spawn.element, Element::Punct);
+    }
+
+    #[test]
+    fn test_single_spawn_serialization() {
+        use crate::entity::{Character, Element, SpawnInstance};
+        use crate::math::Fixed;
+
+        let seed = 222;
+        let tilemap = [[0u8; 16]; 15];
+
+        let character = Character::new(1, 0);
+        let mut game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        let spawn = SpawnInstance::with_element(
+            1,
+            1,
+            (Fixed::from_int(10), Fixed::from_int(10)),
+            Element::Punct,
+        );
+
+        game.spawn_instances.push(spawn);
+
+        // Test that binary serialization works
+        let binary_data = game.to_binary().unwrap();
+
+        // Try to deserialize - this should work
+        match GameState::from_binary(&binary_data) {
+            Ok(restored_game) => {
+                assert_eq!(restored_game.spawn_instances.len(), 1);
+                assert_eq!(restored_game.spawn_instances[0].spawn_id, 1);
+                assert_eq!(restored_game.spawn_instances[0].element, Element::Punct);
+            }
+            Err(_) => {
+                // If deserialization fails, at least check that serialization produced reasonable data
+                assert!(binary_data.len() > 250); // Should have reasonable size
+                panic!("Deserialization failed but serialization succeeded");
+            }
+        }
+    }
+
+    #[test]
+    fn test_spawns_serialization() {
+        use crate::entity::{Character, Element, SpawnInstance};
+        use crate::math::Fixed;
+
+        let seed = 222;
+        let tilemap = [[0u8; 16]; 15];
+
+        let character = Character::new(1, 0);
+        let mut game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        let spawn1 = SpawnInstance::with_element(
+            1,
+            1,
+            (Fixed::from_int(10), Fixed::from_int(10)),
+            Element::Punct,
+        );
+        let spawn2 = SpawnInstance::with_element(
+            2,
+            1,
+            (Fixed::from_int(20), Fixed::from_int(20)),
+            Element::Virus,
+        );
+
+        game.spawn_instances.push(spawn1);
+        game.spawn_instances.push(spawn2);
+
+        // Test binary round-trip
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+
+        assert_eq!(restored_game.spawn_instances.len(), 2);
+        assert_eq!(restored_game.spawn_instances[0].spawn_id, 1);
+        assert_eq!(restored_game.spawn_instances[0].element, Element::Punct);
+        assert_eq!(restored_game.spawn_instances[1].spawn_id, 2);
+        assert_eq!(restored_game.spawn_instances[1].element, Element::Virus);
+    }
+
+    #[test]
+    fn test_multiple_characters_and_spawns() {
+        use crate::entity::{Character, Element, SpawnInstance};
+        use crate::math::Fixed;
+
+        let seed = 222;
+        let tilemap = [[0u8; 16]; 15];
+
+        let char1 = Character::new(1, 0);
+        let mut char2 = Character::new(2, 1);
+        char2.health = 50;
+        char2.energy = 25;
+
+        let spawn1 = SpawnInstance::with_element(
+            1,
+            1,
+            (Fixed::from_int(10), Fixed::from_int(10)),
+            Element::Punct,
+        );
+        let spawn2 = SpawnInstance::with_element(
+            2,
+            2,
+            (Fixed::from_int(20), Fixed::from_int(20)),
+            Element::Virus,
+        );
+
+        let mut game = GameState::new(seed, tilemap, vec![char1, char2], vec![]).unwrap();
+        game.spawn_instances.push(spawn1);
+        game.spawn_instances.push(spawn2);
+
+        // Test binary round-trip
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+
+        assert_eq!(restored_game.characters.len(), 2);
+        assert_eq!(restored_game.characters[0].core.id, 1);
+        assert_eq!(restored_game.characters[1].core.id, 2);
+        assert_eq!(restored_game.characters[1].health, 50);
+        assert_eq!(restored_game.characters[1].energy, 25);
+
+        assert_eq!(restored_game.spawn_instances.len(), 2);
+        assert_eq!(restored_game.spawn_instances[0].spawn_id, 1);
+        assert_eq!(restored_game.spawn_instances[0].element, Element::Punct);
+        assert_eq!(restored_game.spawn_instances[1].spawn_id, 2);
+        assert_eq!(restored_game.spawn_instances[1].element, Element::Virus);
+    }
+
+    #[test]
+    fn test_binary_serialization_size_efficiency() {
+        use crate::entity::Character;
+
+        let seed = 333;
+        let tilemap = [[0u8; 16]; 15];
+
+        // Create a game with one character
+        let character = Character::new(1, 0);
+        let game = GameState::new(seed, tilemap, vec![character], vec![]).unwrap();
+
+        let binary_data = game.to_binary().unwrap();
+
+        // Verify expected size components:
+        // Header: 5 bytes (seed + frame + status)
+        // Tilemap: 240 bytes (16x15)
+        // Character count: 1 byte
+        // Character data: ~37 bytes (24 EntityCore + 10 Character + 1 behavior count + 2 locked action + 1 status count)
+        // Spawn count: 1 byte
+        // Lookup table sizes: 4 bytes
+        // Total: ~288 bytes
+        assert!(binary_data.len() >= 250 && binary_data.len() <= 300);
+    }
+
+    #[test]
+    fn test_invalid_binary_data_handling() {
+        // Test with too short data
+        let short_data = vec![1, 2, 3];
+        assert!(GameState::from_binary(&short_data).is_err());
+
+        // Test with invalid status
+        let mut invalid_status_data = vec![0; 250];
+        invalid_status_data[4] = 99; // Invalid status value
+        assert!(GameState::from_binary(&invalid_status_data).is_err());
+
+        // Test with truncated tilemap
+        let truncated_data = vec![0; 100]; // Too short for tilemap
+        assert!(GameState::from_binary(&truncated_data).is_err());
     }
 }

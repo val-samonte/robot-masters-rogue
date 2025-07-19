@@ -20,6 +20,13 @@ pub enum GameError {
     ScriptExecutionError,
 }
 
+impl From<&str> for GameError {
+    fn from(msg: &str) -> Self {
+        // For debugging, we could store the message, but for now just return SerializationError
+        GameError::SerializationError
+    }
+}
+
 /// Initialize a new game instance
 ///
 /// # Arguments
