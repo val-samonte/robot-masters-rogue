@@ -11,6 +11,7 @@ extern crate alloc;
 pub mod actions_simple;
 pub mod api;
 pub mod behavior;
+pub mod behavior_integration;
 pub mod conditions;
 pub mod conditions_simple;
 pub mod core;

@@ -259,6 +259,62 @@
   - Write unit tests for active energy charging mechanics
   - _Requirements: 12.7, 6.2, 6.9, 6.10_
 
+- [ ] 18. Implement Action cooldown system for behavior timing control
+- [ ] 18.1 Add cooldown fields to Action and Character structures
+
+  - Add `cooldown: u16` field to Action struct for cooldown duration in frames (read-only, set only during new_game)
+  - Add `action_last_used: Vec<u16>` field to Character struct to track when each action was last executed (stores game frame timestamp)
+  - Initialize action_last_used vector with appropriate size based on number of actions in game
+  - Update Character::new() to initialize action_last_used as empty vector (will be sized during game initialization)
+  - Write unit tests for new cooldown field initialization and management
+  - _Requirements: 5.1, 6.1_
+
+- [ ] 18.2 Implement cooldown script operators for reading and writing cooldown state
+
+  - Add `ReadActionCooldown` operator (0x92) to read Action cooldown value into vars array
+  - Add `ReadActionLastUsed` operator (0x93) to read when action was last used from character state
+  - Add `WriteActionLastUsed` operator (0x94) to update when action was last used (typically set to current game frame)
+  - Add `IsActionOnCooldown` operator (0x95) to check if action is currently on cooldown (compares current frame vs last used + cooldown)
+  - Update script engine to handle new cooldown operators
+  - Write unit tests for cooldown operator functionality
+  - _Requirements: 6.1, 6.3_
+
+- [ ] 18.3 Update behavior evaluation to skip actions on cooldown
+
+  - Modify execute_character_behaviors function to check action cooldown before evaluating conditions
+  - Skip behavior evaluation if action is currently on cooldown (current_frame < last_used + cooldown)
+  - Ensure cooldown check happens before energy requirement check for optimal performance
+  - Update action execution to automatically set last_used timestamp when action succeeds
+  - Write unit tests for cooldown-based behavior skipping and timing accuracy
+  - _Requirements: 5.2, 5.4, 6.1_
+
+- [ ] 18.4 Update script property access for cooldown management
+
+  - Add property address 0x48 for reading Action cooldown value in script contexts
+  - Add property address 0x49 for reading current action's last used timestamp
+  - Add property address 0x4A for writing current action's last used timestamp
+  - Update all script interpreters to support cooldown property access
+  - Write unit tests for script-based cooldown property access and manipulation
+  - _Requirements: 6.1, 6.2_
+
+- [ ] 18.5 Create cooldown-aware Action scripts and integration tests
+
+  - Update existing Action scripts to use cooldown operators where appropriate
+  - Create test Action scripts that demonstrate cooldown functionality (e.g., rapid-fire vs slow attacks)
+  - Implement integration tests that verify cooldown timing across multiple frames
+  - Test cooldown behavior with locked actions and status effects
+  - Write unit tests for complete cooldown system integration with game loop
+  - _Requirements: 6.2, 6.4, 1.1_
+
+- [ ] 18.6 Remove automatic cooldown setting from behavior execution
+
+  - Remove automatic `action_last_used[action_id] = game_state.frame` assignment from `execute_character_behaviors` function in behavior.rs
+  - Ensure cooldown setting becomes manual and script-controlled only through `WriteActionLastUsed` operator
+  - Update existing Action scripts to explicitly set their cooldown using `WriteActionLastUsed` when appropriate
+  - Modify Shoot Action example to demonstrate conditional cooldown setting (e.g., only set cooldown after successful reload)
+  - Write unit tests to verify that actions without explicit cooldown setting do not automatically update last_used timestamp
+  - _Requirements: 6.1, 6.2, 5.2_
+
 - [ ] 20. Create integration tests and performance benchmarks
 - [ ] 20.1 Build end-to-end game scenarios and performance tests
   - Create multi-frame game scenarios with complex character behaviors

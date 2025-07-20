@@ -88,10 +88,19 @@ pub enum Operator {
     // Debug
     LogVariable = 90, // [LogVariable, var_index]
 
+    // Conditional exit
+    ExitWithVar = 91, // [ExitWithVar, var_index] - Exit with value from variable
+
+    // Cooldown operators
+    ReadActionCooldown = 92, // [ReadActionCooldown, var_index] - Read Action cooldown into vars
+    ReadActionLastUsed = 93, // [ReadActionLastUsed, var_index] - Read when action was last used
+    WriteActionLastUsed = 94, // [WriteActionLastUsed, var_index] - Update last used timestamp
+    IsActionOnCooldown = 95, // [IsActionOnCooldown, var_index] - Check if action is on cooldown
+
     // Args and Spawns access (read-only)
-    ReadArg = 95,    // [ReadArg, var_index, arg_index] - Copy arg to var
-    ReadSpawn = 96,  // [ReadSpawn, var_index, spawn_index] - Copy spawn ID to var
-    WriteSpawn = 97, // [WriteSpawn, spawn_index, var_index] - Copy var to spawn ID
+    ReadArg = 96,    // [ReadArg, var_index, arg_index] - Copy arg to var
+    ReadSpawn = 97,  // [ReadSpawn, var_index, spawn_index] - Copy spawn ID to var
+    WriteSpawn = 98, // [WriteSpawn, spawn_index, var_index] - Copy var to spawn ID
 }
 
 impl Operator {
@@ -137,9 +146,14 @@ impl Operator {
             84 => Some(Operator::Spawn),
             85 => Some(Operator::SpawnWithVars),
             90 => Some(Operator::LogVariable),
-            95 => Some(Operator::ReadArg),
-            96 => Some(Operator::ReadSpawn),
-            97 => Some(Operator::WriteSpawn),
+            91 => Some(Operator::ExitWithVar),
+            92 => Some(Operator::ReadActionCooldown),
+            93 => Some(Operator::ReadActionLastUsed),
+            94 => Some(Operator::WriteActionLastUsed),
+            95 => Some(Operator::IsActionOnCooldown),
+            96 => Some(Operator::ReadArg),
+            97 => Some(Operator::ReadSpawn),
+            98 => Some(Operator::WriteSpawn),
             _ => None,
         }
     }
@@ -414,6 +428,49 @@ impl ScriptEngine {
                 }
             }
 
+            Operator::ExitWithVar => {
+                let var_index = self.read_u8(script)? as usize;
+                if var_index >= self.vars.len() {
+                    return Err(ScriptError::InvalidScript);
+                }
+                self.exit_flag = self.vars[var_index];
+                self.pos = script.len();
+            }
+
+            // Cooldown operators
+            Operator::ReadActionCooldown => {
+                let var_index = self.read_u8(script)? as usize;
+                if var_index >= self.vars.len() {
+                    return Err(ScriptError::InvalidScript);
+                }
+                // This will be handled by context-specific implementations
+                context.read_action_cooldown(self, var_index);
+            }
+
+            Operator::ReadActionLastUsed => {
+                let var_index = self.read_u8(script)? as usize;
+                if var_index >= self.vars.len() {
+                    return Err(ScriptError::InvalidScript);
+                }
+                context.read_action_last_used(self, var_index);
+            }
+
+            Operator::WriteActionLastUsed => {
+                let var_index = self.read_u8(script)? as usize;
+                if var_index >= self.vars.len() {
+                    return Err(ScriptError::InvalidScript);
+                }
+                context.write_action_last_used(self, var_index);
+            }
+
+            Operator::IsActionOnCooldown => {
+                let var_index = self.read_u8(script)? as usize;
+                if var_index >= self.vars.len() {
+                    return Err(ScriptError::InvalidScript);
+                }
+                self.vars[var_index] = if context.is_on_cooldown() { 1 } else { 0 };
+            }
+
             // Args and Spawns access operations
             Operator::ReadArg => {
                 let var_index = self.read_u8(script)? as usize;
@@ -635,6 +692,12 @@ pub trait ScriptContext {
     fn create_spawn(&mut self, spawn_id: usize, vars: Option<[u8; 4]>);
     /// Log debug message
     fn log_debug(&self, message: &str);
+    /// Read action cooldown value
+    fn read_action_cooldown(&self, engine: &mut ScriptEngine, var_index: usize);
+    /// Read action last used timestamp
+    fn read_action_last_used(&self, engine: &mut ScriptEngine, var_index: usize);
+    /// Write action last used timestamp
+    fn write_action_last_used(&mut self, engine: &mut ScriptEngine, var_index: usize);
 }
 
 /// Script execution errors
@@ -822,6 +885,27 @@ mod tests {
 
         fn log_debug(&self, _message: &str) {
             // In real implementation, this would log to appropriate system
+        }
+
+        fn read_action_cooldown(&self, engine: &mut ScriptEngine, var_index: usize) {
+            // Mock implementation - return a test cooldown value
+            if var_index < engine.vars.len() {
+                engine.vars[var_index] = 30; // Mock 30-frame cooldown
+            }
+        }
+
+        fn read_action_last_used(&self, engine: &mut ScriptEngine, var_index: usize) {
+            // Mock implementation - return a test timestamp
+            if var_index < engine.vars.len() {
+                engine.vars[var_index] = 100; // Mock frame 100
+            }
+        }
+
+        fn write_action_last_used(&mut self, engine: &mut ScriptEngine, var_index: usize) {
+            // Mock implementation - no-op for testing
+            if var_index < engine.vars.len() {
+                // In real implementation, this would update the character's action_last_used
+            }
         }
     }
 

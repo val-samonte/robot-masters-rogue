@@ -17,18 +17,9 @@ use alloc::vec;
 pub fn energy_below_20_percent() -> Condition {
     let script = vec![
         10, 0, 0x23, // ReadProp: Read energy into vars[0]
-        20, 1, 20, // AssignByte: vars[1] = 20
+        20, 1, 20, // AssignByte: vars[1] = 20 (20% threshold)
         52, 2, 0, 1, // LessThan: vars[2] = (vars[0] < vars[1])
-        // vars[2] is now 0 or 1, exit with 1 if vars[2] == 1, else exit with 0
-        20, 3, 0, // AssignByte: vars[3] = 0
-        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
-        // If vars[4] == 1 (condition is false), skip next instruction
-        20, 5, 1, // AssignByte: vars[5] = 1
-        50, 6, 4, 5, // Equal: vars[6] = (vars[4] == vars[5])
-        // If vars[6] == 1, skip 2 bytes (the "exit 1")
-        3, 2, // Skip 2 bytes if vars[6] != 0
-        0, 1, // Exit with 1 (condition true)
-        0, 0, // Exit with 0 (condition false)
+        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
     ];
 
     Condition {
@@ -51,17 +42,9 @@ pub fn energy_below_20_percent() -> Condition {
 pub fn energy_below_10_percent() -> Condition {
     let script = vec![
         10, 0, 0x23, // ReadProp: Read energy into vars[0]
-        20, 1, 10, // AssignByte: vars[1] = 10
+        20, 1, 10, // AssignByte: vars[1] = 10 (10% threshold)
         52, 2, 0, 1, // LessThan: vars[2] = (vars[0] < vars[1])
-        // If vars[2] == 0 (false), jump to exit with 0
-        20, 3, 0, // AssignByte: vars[3] = 0
-        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
-        20, 5, 1, // AssignByte: vars[5] = 1
-        50, 6, 4, 5, // Equal: vars[6] = (vars[4] == vars[5])
-        // If vars[6] == 1 (condition is false), goto exit with 0
-        4, 18, // Goto position 18 (exit 0) if condition is false
-        0, 1, // Exit with 1 (condition true)
-        0, 0, // Exit with 0 (condition false) - position 18
+        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
     ];
 
     Condition {
@@ -83,15 +66,7 @@ pub fn energy_below_10_percent() -> Condition {
 pub fn character_on_ground() -> Condition {
     let script = vec![
         10, 0, 0x2D, // ReadProp: Read bottom collision into vars[0]
-        // If vars[0] == 0 (false), jump to exit with 0
-        20, 1, 0, // AssignByte: vars[1] = 0
-        50, 2, 0, 1, // Equal: vars[2] = (vars[0] == vars[1])
-        20, 3, 1, // AssignByte: vars[3] = 1
-        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
-        // If vars[4] == 1 (condition is false), goto exit with 0
-        4, 16, // Goto position 16 (exit 0) if condition is false
-        0, 1, // Exit with 1 (condition true)
-        0, 0, // Exit with 0 (condition false) - position 16
+        91, 0, // ExitWithVar: Exit with value from vars[0] (0 or 1)
     ];
 
     Condition {
@@ -117,15 +92,7 @@ pub fn character_leaning_on_wall() -> Condition {
         10, 0, 0x2E, // ReadProp: Read left collision into vars[0]
         10, 1, 0x2C, // ReadProp: Read right collision into vars[1]
         61, 2, 0, 1, // Or: vars[2] = (vars[0] OR vars[1])
-        // If vars[2] == 0 (false), jump to exit with 0
-        20, 3, 0, // AssignByte: vars[3] = 0
-        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
-        20, 5, 1, // AssignByte: vars[5] = 1
-        50, 6, 4, 5, // Equal: vars[6] = (vars[4] == vars[5])
-        // If vars[6] == 1 (condition is false), goto exit with 0
-        4, 18, // Goto position 18 (exit 0) if condition is false
-        0, 1, // Exit with 1 (condition true)
-        0, 0, // Exit with 0 (condition false) - position 18
+        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
     ];
 
     Condition {
@@ -169,18 +136,11 @@ pub fn always_true() -> Condition {
 pub fn random_1_out_of_20() -> Condition {
     let script = vec![
         22, 0, // AssignRandom: Generate random into vars[0]
-        44, 1, 0, 20, // ModByte: vars[1] = vars[0] % 20
-        20, 2, 0, // AssignByte: vars[2] = 0
-        50, 3, 1, 2, // Equal: vars[3] = (vars[1] == vars[2])
-        // If vars[3] == 0 (false), jump to exit with 0
-        20, 4, 0, // AssignByte: vars[4] = 0
-        50, 5, 3, 4, // Equal: vars[5] = (vars[3] == vars[4])
-        20, 6, 1, // AssignByte: vars[6] = 1
-        50, 7, 5, 6, // Equal: vars[7] = (vars[5] == vars[6])
-        // If vars[7] == 1 (condition is false), goto exit with 0
-        4, 20, // Goto position 20 (exit 0) if condition is false
-        0, 1, // Exit with 1 (condition true)
-        0, 0, // Exit with 0 (condition false) - position 20
+        20, 1, 20, // AssignByte: vars[1] = 20
+        44, 2, 0, 1, // ModByte: vars[2] = vars[0] % vars[1]
+        20, 3, 0, // AssignByte: vars[3] = 0
+        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
+        91, 4, // ExitWithVar: Exit with value from vars[4] (0 or 1)
     ];
 
     Condition {
@@ -204,18 +164,11 @@ pub fn random_1_out_of_20() -> Condition {
 pub fn random_1_out_of_10() -> Condition {
     let script = vec![
         22, 0, // AssignRandom: Generate random into vars[0]
-        44, 1, 0, 10, // ModByte: vars[1] = vars[0] % 10
-        20, 2, 0, // AssignByte: vars[2] = 0
-        50, 3, 1, 2, // Equal: vars[3] = (vars[1] == vars[2])
-        // If vars[3] == 0 (false), jump to exit with 0
-        20, 4, 0, // AssignByte: vars[4] = 0
-        50, 5, 3, 4, // Equal: vars[5] = (vars[3] == vars[4])
-        20, 6, 1, // AssignByte: vars[6] = 1
-        50, 7, 5, 6, // Equal: vars[7] = (vars[5] == vars[6])
-        // If vars[7] == 1 (condition is false), goto exit with 0
-        4, 20, // Goto position 20 (exit 0) if condition is false
-        0, 1, // Exit with 1 (condition true)
-        0, 0, // Exit with 0 (condition false) - position 20
+        20, 1, 10, // AssignByte: vars[1] = 10
+        44, 2, 0, 1, // ModByte: vars[2] = vars[0] % vars[1]
+        20, 3, 0, // AssignByte: vars[3] = 0
+        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
+        91, 4, // ExitWithVar: Exit with value from vars[4] (0 or 1)
     ];
 
     Condition {

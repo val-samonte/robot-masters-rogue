@@ -610,6 +610,7 @@ impl GameState {
             behaviors,
             locked_action,
             status_effects,
+            action_last_used: Vec::new(),
         };
 
         Ok((character, pos))
@@ -884,6 +885,7 @@ mod tests {
             energy_cost: 10,
             interval: 60,
             duration: 30,
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [0; 8],
@@ -935,6 +937,7 @@ mod tests {
             energy_cost: 10,
             interval: 60,
             duration: 30,
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [0; 8],
@@ -986,6 +989,7 @@ mod tests {
             energy_cost: 10,
             interval: 60,
             duration: 30,
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [0; 8],
@@ -1528,6 +1532,7 @@ mod tests {
             energy_cost: 10,
             interval: 60,
             duration: 30,
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [0; 8],
@@ -1659,6 +1664,7 @@ mod tests {
             energy_cost: 5,
             interval: 60,
             duration: 30,
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [0; 8],

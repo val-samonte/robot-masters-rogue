@@ -128,6 +128,20 @@ The Robot Masters Game Engine is a specialized no_std Rust library designed to p
 6. WHEN passive energy regeneration occurs THEN it SHALL be implemented through StatusEffect system that reads energy_regen and energy_regen_rate properties
 7. WHEN Charge action is active THEN energy recovery SHALL use energy_charge and energy_charge_rate values through Action script implementation
 
+### Requirement 13
+
+**User Story:** As a game designer, I want Action cooldown systems for behavior timing control, so that actions cannot be executed too frequently and strategic timing becomes important.
+
+#### Acceptance Criteria
+
+1. WHEN Actions are defined THEN they SHALL have a cooldown property (u16) specifying cooldown duration in frames
+2. WHEN Characters are created THEN they SHALL track when each action was last executed using frame timestamps
+3. WHEN behavior evaluation occurs THEN actions SHALL be skipped if they are currently on cooldown
+4. WHEN actions are successfully executed THEN their last used timestamp SHALL be updated to the current game frame
+5. WHEN scripts need cooldown access THEN operators SHALL provide read/write access to cooldown state and timing
+6. WHEN cooldown calculations occur THEN they SHALL use deterministic frame-based timing for cross-platform consistency
+7. WHEN actions have zero cooldown THEN they SHALL be executable every frame (backwards compatibility)
+
 ### Requirement 9
 
 **User Story:** As a blockchain developer, I want efficient serialization of the complete game state, so that it can be stored in Solana PDAs with minimal cost.

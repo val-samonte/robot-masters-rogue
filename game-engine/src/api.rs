@@ -21,7 +21,7 @@ pub enum GameError {
 }
 
 impl From<&str> for GameError {
-    fn from(msg: &str) -> Self {
+    fn from(_msg: &str) -> Self {
         // For debugging, we could store the message, but for now just return SerializationError
         GameError::SerializationError
     }

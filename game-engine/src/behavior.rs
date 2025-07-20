@@ -29,10 +29,11 @@ pub struct Action {
     pub energy_cost: u8,
     pub interval: u16,
     pub duration: u16,
-    pub vars: [u8; 8],     // Variable storage (u8)
+    pub cooldown: u16, // Cooldown duration in frames (read-only, set only during new_game)
+    pub vars: [u8; 8], // Variable storage (u8)
     pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
-    pub args: [u8; 8],     // Passed when calling scripts (read-only)
-    pub spawns: [u8; 4],   // Spawn IDs
+    pub args: [u8; 8], // Passed when calling scripts (read-only)
+    pub spawns: [u8; 4], // Spawn IDs
     pub script: Vec<u8>,
 }
 
@@ -92,6 +93,7 @@ impl Action {
             energy_cost: props[0] as u8,
             interval: props[1],
             duration: props[2],
+            cooldown: 0, // Default cooldown, set during new_game
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: copy_args_8(&props, 3),
@@ -385,6 +387,18 @@ impl<'a> ScriptContext for ConditionContext<'a> {
     fn log_debug(&self, _message: &str) {
         // TODO: Implement logging when available
     }
+
+    fn read_action_cooldown(&self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Conditions don't have access to action cooldown data
+    }
+
+    fn read_action_last_used(&self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Conditions don't have access to action last used data
+    }
+
+    fn write_action_last_used(&mut self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Conditions can't modify action last used data
+    }
 }
 
 impl<'a> ScriptContext for ActionContext<'a> {
@@ -632,6 +646,23 @@ impl<'a> ScriptContext for ActionContext<'a> {
                 }
             }
 
+            // Cooldown properties (0x48-0x4A)
+            0x48 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = (self.action.cooldown & 0xFF) as u8;
+                    // Action cooldown (low byte)
+                }
+            }
+            0x49 => {
+                if var_index < engine.vars.len()
+                    && self.action_id < self.character.action_last_used.len()
+                {
+                    engine.vars[var_index] =
+                        (self.character.action_last_used[self.action_id] & 0xFF) as u8;
+                    // Action last used timestamp (low byte)
+                }
+            }
+
             _ => {}
         }
     }
@@ -749,6 +780,19 @@ impl<'a> ScriptContext for ActionContext<'a> {
                 }
             }
 
+            // Cooldown properties (0x4A for write)
+            0x4A => {
+                if var_index < engine.vars.len()
+                    && self.action_id < self.character.action_last_used.len()
+                {
+                    // Update last used timestamp (preserving high byte)
+                    let current_high = self.character.action_last_used[self.action_id] & 0xFF00;
+                    self.character.action_last_used[self.action_id] =
+                        current_high | (engine.vars[var_index] as u16);
+                    // Action last used timestamp (low byte)
+                }
+            }
+
             _ => {}
         }
     }
@@ -764,7 +808,29 @@ impl<'a> ScriptContext for ActionContext<'a> {
     }
 
     fn is_on_cooldown(&self) -> bool {
-        false // Simplified for now - no action instance tracking
+        // Check if action is on cooldown
+        if self.action.cooldown == 0 {
+            return false; // No cooldown
+        }
+
+        // Get when this action was last used
+        let last_used = if self.action_id < self.character.action_last_used.len() {
+            self.character.action_last_used[self.action_id]
+        } else {
+            0 // Never used before
+        };
+
+        // Calculate frames since last use
+        let current_frame = self.game_state.frame;
+        let frames_since_last_use = if current_frame >= last_used {
+            current_frame - last_used
+        } else {
+            // Handle overflow case (shouldn't happen in 64-second game)
+            (u16::MAX - last_used) + current_frame + 1
+        };
+
+        // Action is on cooldown if not enough frames have passed
+        frames_since_last_use < self.action.cooldown
     }
 
     fn get_random_u8(&mut self) -> u8 {
@@ -805,6 +871,29 @@ impl<'a> ScriptContext for ActionContext<'a> {
     fn log_debug(&self, _message: &str) {
         // TODO: Implement logging when available
     }
+
+    fn read_action_cooldown(&self, engine: &mut ScriptEngine, var_index: usize) {
+        if var_index < engine.vars.len() {
+            // Store low byte of cooldown (u16 -> u8)
+            engine.vars[var_index] = (self.action.cooldown & 0xFF) as u8;
+        }
+    }
+
+    fn read_action_last_used(&self, engine: &mut ScriptEngine, var_index: usize) {
+        if var_index < engine.vars.len() && self.action_id < self.character.action_last_used.len() {
+            // Store low byte of last used timestamp (u16 -> u8)
+            engine.vars[var_index] = (self.character.action_last_used[self.action_id] & 0xFF) as u8;
+        }
+    }
+
+    fn write_action_last_used(&mut self, engine: &mut ScriptEngine, var_index: usize) {
+        if var_index < engine.vars.len() && self.action_id < self.character.action_last_used.len() {
+            // Update last used timestamp from variable (u8 -> u16, preserving high byte)
+            let current_high = self.character.action_last_used[self.action_id] & 0xFF00;
+            self.character.action_last_used[self.action_id] =
+                current_high | (engine.vars[var_index] as u16);
+        }
+    }
 }
 
 /// Helper function to extract script bytes from definition
@@ -812,6 +901,24 @@ fn extract_script(props: &[u16], from: usize) -> Vec<u8> {
     props
         .get(from..)
         .map_or_else(Vec::new, |slice| slice.iter().map(|&x| x as u8).collect())
+}
+
+/// Check if an action is on cooldown
+fn is_action_on_cooldown(current_frame: u16, last_used: u16, cooldown: u16) -> bool {
+    if cooldown == 0 {
+        return false; // No cooldown
+    }
+
+    // Calculate frames since last use
+    let frames_since_last_use = if current_frame >= last_used {
+        current_frame - last_used
+    } else {
+        // Handle overflow case (shouldn't happen in 64-second game)
+        (u16::MAX - last_used) + current_frame + 1
+    };
+
+    // Action is on cooldown if not enough frames have passed
+    frames_since_last_use < cooldown
 }
 
 /// Execute character behaviors in order until one succeeds
@@ -863,6 +970,19 @@ pub fn execute_character_behaviors(
         if let (Some(condition), Some(action)) =
             (conditions.get(condition_id), actions.get(action_id))
         {
+            // Check cooldown FIRST (before energy check for performance)
+            if is_action_on_cooldown(
+                game_state.frame,
+                character
+                    .action_last_used
+                    .get(action_id)
+                    .copied()
+                    .unwrap_or(0),
+                action.cooldown,
+            ) {
+                continue; // Skip this behavior - action is on cooldown
+            }
+
             // Check if character has enough energy for this action
             let energy_requirement = condition
                 .energy_mul
@@ -879,6 +999,15 @@ pub fn execute_character_behaviors(
                     action.execute(game_state, character, condition, action_id)?;
 
                 if success {
+                    // Update last used timestamp
+                    if action_id < character.action_last_used.len() {
+                        character.action_last_used[action_id] = game_state.frame;
+                    } else {
+                        // Extend the vector if needed
+                        character.action_last_used.resize(action_id + 1, 0);
+                        character.action_last_used[action_id] = game_state.frame;
+                    }
+
                     // Apply energy cost
                     character.energy = character.energy.saturating_sub(energy_requirement);
                     spawns_to_create.append(&mut spawns);
@@ -999,6 +1128,7 @@ mod tests {
             energy_cost: 10,
             interval: 60,
             duration: 30,
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [0; 8],
@@ -1053,6 +1183,7 @@ mod tests {
             energy_cost: 10,
             interval: 0,
             duration: 0,
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [0; 8],
@@ -1118,6 +1249,7 @@ mod tests {
                 energy_cost: 10,
                 interval: 0,
                 duration: 0,
+                cooldown: 0,
                 vars: [0; 8],
                 fixed: [Fixed::ZERO; 4],
                 args: [0; 8],
@@ -1129,6 +1261,7 @@ mod tests {
                 energy_cost: 15,
                 interval: 0,
                 duration: 0,
+                cooldown: 0,
                 vars: [0; 8],
                 fixed: [Fixed::ZERO; 4],
                 args: [0; 8],
@@ -1173,6 +1306,7 @@ mod tests {
             energy_cost: 10, // Requires 20 energy with 2x multiplier
             interval: 0,
             duration: 0,
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [0; 8],

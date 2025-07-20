@@ -258,6 +258,18 @@ impl<'a> ScriptContext for SpawnBehaviorContext<'a> {
     }
 
     fn log_debug(&self, _message: &str) {}
+
+    fn read_action_cooldown(&self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Spawns don't have access to action cooldown data
+    }
+
+    fn read_action_last_used(&self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Spawns don't have access to action last used data
+    }
+
+    fn write_action_last_used(&mut self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Spawns can't modify action last used data
+    }
 }
 
 /// Process all spawn instances for one frame

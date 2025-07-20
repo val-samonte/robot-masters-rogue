@@ -13,7 +13,7 @@ use alloc::vec;
 pub fn run_action() -> Action {
     let script = vec![
         // Read move speed from args[0] into vars[0] (default: 3)
-        95, 0, 0, // ReadArg: vars[0] = args[0] (move speed)
+        96, 0, 0, // ReadArg: vars[0] = args[0] (move speed)
         // Convert move speed to fixed-point in fixed[0]
         24, 0, 0, // ToFixed: fixed[0] = Fixed::from_int(vars[0])
         // Set velocity.x = move_speed
@@ -25,6 +25,7 @@ pub fn run_action() -> Action {
         energy_cost: 1,
         interval: 1,
         duration: 1,
+        cooldown: 0,
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
         args: [3, 0, 0, 0, 0, 0, 0, 0], // Default move speed: 3
@@ -47,7 +48,7 @@ pub fn jump_action() -> Action {
         // For now, continue with jump logic
 
         // Read jump force from args[0] into vars[3]
-        95, 3, 0, // ReadArg: vars[3] = args[0] (jump force)
+        96, 3, 0, // ReadArg: vars[3] = args[0] (jump force)
         // Convert jump force to fixed-point (negative for upward)
         24, 0, 3, // ToFixed: fixed[0] = Fixed::from_int(vars[3])
         // Negate the value to make it negative (upward)
@@ -61,6 +62,7 @@ pub fn jump_action() -> Action {
         energy_cost: 5,
         interval: 1,
         duration: 1,
+        cooldown: 0,
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
         args: [8, 0, 0, 0, 0, 0, 0, 0], // Default jump force: 8 (will be negated)
@@ -93,6 +95,7 @@ pub fn turn_around_action() -> Action {
         energy_cost: 1,
         interval: 1,
         duration: 1,
+        cooldown: 0,
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
@@ -119,13 +122,13 @@ pub fn wall_jump_action() -> Action {
         // For now, continue with wall jump logic
 
         // Read jump force from args[0] and convert to fixed-point
-        95, 6, 0, // ReadArg: vars[6] = args[0] (jump force)
+        96, 6, 0, // ReadArg: vars[6] = args[0] (jump force)
         24, 0, 6, // ToFixed: fixed[0] = Fixed::from_int(vars[6])
         34, 0, // Negate: fixed[0] = -fixed[0] (upward)
         // Set velocity.y = jump_force
         11, 0x1C, 0, // WriteProp: velocity.y = fixed[0]
         // Read horizontal push force from args[1]
-        95, 7, 1, // ReadArg: vars[7] = args[1] (horizontal push)
+        96, 7, 1, // ReadArg: vars[7] = args[1] (horizontal push)
         24, 1, 7, // ToFixed: fixed[1] = Fixed::from_int(vars[7])
         // Determine push direction based on which wall we're touching
         // If touching right wall, push left (negative)
@@ -141,6 +144,7 @@ pub fn wall_jump_action() -> Action {
         energy_cost: 8,
         interval: 1,
         duration: 1,
+        cooldown: 0,
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
         args: [6, 4, 0, 0, 0, 0, 0, 0], // Jump force: 6, horizontal push: 4
@@ -166,6 +170,7 @@ pub fn locked_test_action() -> Action {
         energy_cost: 2,
         interval: 1,
         duration: 30, // Lock for 30 frames (0.5 seconds at 60 FPS)
+        cooldown: 0,
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
         args: [30, 0, 0, 0, 0, 0, 0, 0], // Duration: 30 frames
@@ -458,6 +463,40 @@ pub fn shoot_action() -> Action {
         energy_cost: 3,
         interval: 1,
         duration: 60, // Lock for 60 frames (1 second at 60 FPS)
+        cooldown: 0,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+/// Create action script: "Charge"
+/// This locked action stops movement and recovers energy
+pub fn charge_action() -> Action {
+    let script = vec![
+        // Lock this action
+        80, // LockAction
+        // Stop horizontal movement
+        21, 0, 0, 1, // AssignFixed: fixed[0] = 0/1 = 0
+        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0]
+        // Recover energy (add 2 energy per frame while charging)
+        10, 0, 0x23, // ReadProp: Read current energy into vars[0]
+        20, 1, 2, // AssignByte: vars[1] = 2 (energy recovery amount)
+        40, 2, 0, 1, // AddByte: vars[2] = vars[0] + vars[1]
+        // Cap energy at 100
+        20, 3, 100, // AssignByte: vars[3] = 100 (max energy)
+        71, 4, 2, 3, // Min: vars[4] = min(vars[2], vars[3])
+        11, 0x23, 4, // WriteProp: energy = vars[4]
+        0, 1, // Exit with success
+    ];
+
+    Action {
+        energy_cost: 0, // Charging doesn't cost energy
+        interval: 1,
+        duration: 120, // Lock for 120 frames (2 seconds at 60 FPS)
+        cooldown: 0,
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],

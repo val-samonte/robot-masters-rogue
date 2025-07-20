@@ -32,6 +32,7 @@ pub struct Character {
     pub behaviors: Vec<(ConditionId, ActionId)>,
     pub locked_action: Option<ActionInstanceId>,
     pub status_effects: Vec<StatusEffectInstance>,
+    pub action_last_used: Vec<u16>, // Tracks when each action was last executed (game frame timestamp)
 }
 
 /// Projectiles and temporary objects
@@ -147,7 +148,9 @@ pub struct Condition {
 #[derive(Debug, Clone)]
 pub struct Action {
     pub energy_cost: u8,
+    pub interval: u16,
     pub duration: u16,     // Frames this action locks the character
+    pub cooldown: u16,     // Cooldown duration in frames (read-only, set only during new_game)
     pub vars: [u8; 8],     // Variable storage (u8)
     pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
     pub args: [u8; 8],     // Passed when calling scripts (read-only)
@@ -178,6 +181,7 @@ impl Character {
             behaviors: Vec::new(),
             locked_action: None,
             status_effects: Vec::new(),
+            action_last_used: Vec::new(), // Will be sized during game initialization
         }
     }
 }
@@ -510,7 +514,9 @@ mod tests {
 
         let action = Action {
             energy_cost: 15,
+            interval: 0,
             duration: 30, // 0.5 seconds at 60 FPS
+            cooldown: 0,
             vars: [0; 8],
             fixed: [Fixed::ZERO; 4],
             args: [5, 10, 15, 20, 25, 30, 35, 40],

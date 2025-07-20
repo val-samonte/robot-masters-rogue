@@ -48,18 +48,120 @@ pub fn always_false() -> Condition {
 pub fn character_on_ground() -> Condition {
     let script = vec![
         10, 0, 0x2D, // ReadProp: Read bottom collision into vars[0]
-        // Since collision flags are 0 or 1, we can use them directly
-        // But Exit only accepts literals, so we need conditional logic
-        20, 1, 0, // AssignByte: vars[1] = 0
-        50, 2, 0, 1, // Equal: vars[2] = (vars[0] == vars[1])
-        // If vars[2] == 1 (collision is false), exit with 0
-        // If vars[2] == 0 (collision is true), exit with 1
-        // For now, just exit with 1 to test the basic functionality
-        0, 1, // Exit with 1 (will fix conditional logic later)
+        91, 0, // ExitWithVar: Exit with value from vars[0] (0 or 1)
     ];
 
     Condition {
         id: 2,
+        energy_mul: Fixed::ONE,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+/// Create condition script: "Character leaning on wall"
+/// This checks if character is touching left or right wall
+pub fn character_leaning_on_wall() -> Condition {
+    let script = vec![
+        10, 0, 0x2C, // ReadProp: Read right collision into vars[0]
+        10, 1, 0x2E, // ReadProp: Read left collision into vars[1]
+        61, 2, 0, 1, // Or: vars[2] = (vars[0] || vars[1])
+        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
+    ];
+
+    Condition {
+        id: 3,
+        energy_mul: Fixed::ONE,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+/// Create condition script: "Energy below 20%"
+/// This checks if character energy is below 20% of maximum (assuming max 100)
+pub fn energy_below_20_percent() -> Condition {
+    let script = vec![
+        10, 0, 0x23, // ReadProp: Read energy into vars[0]
+        20, 1, 20, // AssignByte: vars[1] = 20 (20% threshold)
+        52, 2, 0, 1, // LessThan: vars[2] = (vars[0] < vars[1])
+        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
+    ];
+
+    Condition {
+        id: 4,
+        energy_mul: Fixed::ONE,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+/// Create condition script: "Energy below 10%"
+/// This checks if character energy is below 10% of maximum (assuming max 100)
+pub fn energy_below_10_percent() -> Condition {
+    let script = vec![
+        10, 0, 0x23, // ReadProp: Read energy into vars[0]
+        20, 1, 10, // AssignByte: vars[1] = 10 (10% threshold)
+        52, 2, 0, 1, // LessThan: vars[2] = (vars[0] < vars[1])
+        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
+    ];
+
+    Condition {
+        id: 5,
+        energy_mul: Fixed::ONE,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+/// Create condition script: "Random 1 out of 20"
+/// This uses seeded randomization to return true 1/20 of the time
+pub fn random_1_out_of_20() -> Condition {
+    let script = vec![
+        22, 0, // AssignRandom: vars[0] = random_u8()
+        20, 1, 20, // AssignByte: vars[1] = 20 (divisor)
+        44, 2, 0, 1, // ModByte: vars[2] = vars[0] % vars[1]
+        20, 3, 0, // AssignByte: vars[3] = 0 (comparison value)
+        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
+        91, 4, // ExitWithVar: Exit with value from vars[4] (0 or 1)
+    ];
+
+    Condition {
+        id: 6,
+        energy_mul: Fixed::ONE,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+/// Create condition script: "Random 1 out of 10"
+/// This uses seeded randomization to return true 1/10 of the time
+pub fn random_1_out_of_10() -> Condition {
+    let script = vec![
+        22, 0, // AssignRandom: vars[0] = random_u8()
+        20, 1, 10, // AssignByte: vars[1] = 10 (divisor)
+        44, 2, 0, 1, // ModByte: vars[2] = vars[0] % vars[1]
+        20, 3, 0, // AssignByte: vars[3] = 0 (comparison value)
+        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
+        91, 4, // ExitWithVar: Exit with value from vars[4] (0 or 1)
+    ];
+
+    Condition {
+        id: 7,
         energy_mul: Fixed::ONE,
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],

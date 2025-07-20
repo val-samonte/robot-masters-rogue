@@ -189,6 +189,52 @@ impl Element {
 pub type Armor = [u8; 8];
 ```
 
+### Action Cooldown System
+
+The cooldown system provides timing control for actions to prevent them from being executed too frequently. This adds strategic depth by requiring players to time their actions carefully and prevents rapid-fire exploitation of powerful abilities.
+
+**Cooldown Architecture:**
+
+```rust
+pub struct Action {
+    pub energy_cost: u8,
+    pub interval: u16,
+    pub duration: u16,
+    pub cooldown: u16,        // Cooldown duration in frames (read-only after initialization)
+    pub vars: [u8; 8],
+    pub fixed: [Fixed; 4],
+    pub args: [u8; 8],
+    pub spawns: [u8; 4],
+    pub script: Vec<u8>,
+}
+
+pub struct Character {
+    // ... existing fields ...
+    pub action_last_used: Vec<u16>,  // Tracks when each action was last executed (by action index)
+}
+```
+
+**Cooldown Evaluation Flow:**
+
+1. **Behavior Processing**: Before evaluating conditions, check if action is on cooldown
+2. **Cooldown Check**: Compare current frame vs (last_used + cooldown)
+3. **Skip if On Cooldown**: Continue to next behavior if action is cooling down
+4. **Update Timestamp**: Set last_used to current frame when action executes successfully
+
+**Script Integration:**
+
+The cooldown system integrates with the script engine through dedicated operators:
+
+```rust
+// Cooldown management operators
+ReadActionCooldown = 92,    // Read action cooldown duration
+ReadActionLastUsed = 93,    // Read when action was last used
+WriteActionLastUsed = 94,   // Update when action was last used
+IsActionOnCooldown = 95,    // Check if action is currently on cooldown
+```
+
+This allows actions to implement their own cooldown logic or modify cooldown behavior dynamically.
+
 ### Script Engine
 
 The script engine uses a scalable approach that improves upon traditional match-based interpreters. While still using match syntax for clarity and performance, it eliminates repetitive code through structured operand patterns and generic operation handling.
