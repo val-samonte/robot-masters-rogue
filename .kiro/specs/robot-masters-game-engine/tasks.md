@@ -351,8 +351,36 @@
   - Write unit tests for direction property serialization and deserialization
   - _Requirements: 9.1, 9.2, 1.3_
 
-- [ ] 20. Create integration tests and performance benchmarks
-- [ ] 20.1 Build end-to-end game scenarios and performance tests
+- [x] 20. Refactor address byte constants for maintainable testing
+- [x] 20.1 Create centralized address byte constants enum
+
+  - Define AddressBytes enum with all operator and property accessor byte values as named constants
+  - Replace hardcoded byte values throughout codebase with enum references
+  - Ensure enum values match existing byte assignments to maintain compatibility
+  - Create comprehensive documentation for each address byte constant
+  - Write unit tests to verify enum values match expected byte assignments
+  - _Requirements: 6.1, 6.3_
+
+- [x] 20.2 Update all test files to use address byte constants
+
+  - Replace all hardcoded address bytes in test files with AddressBytes enum references
+  - Update script creation tests to use named constants instead of raw byte values
+  - Refactor operator tests to reference constants for improved readability and maintainability
+  - Ensure test consistency by using centralized constants across all test modules
+  - Write integration tests to verify constant usage doesn't break existing functionality
+  - _Requirements: 6.1, 6.2, 6.4_
+
+- [x] 20.3 Update script engine and property access to use constants
+
+  - Refactor script execution engine to use AddressBytes constants for operator matching
+  - Update property access functions to use constants for address validation
+  - Replace magic numbers in script interpreters with named constants
+  - Ensure backward compatibility while improving code maintainability
+  - Write unit tests for script engine functionality with constant-based addressing
+  - _Requirements: 6.1, 6.2, 6.3_
+
+- [ ] 21. Create integration tests and performance benchmarks
+- [ ] 21.1 Build end-to-end game scenarios and performance tests
   - Create multi-frame game scenarios with complex character behaviors
   - Implement cross-platform determinism verification tests
   - Build performance benchmarks for frame processing and serialization

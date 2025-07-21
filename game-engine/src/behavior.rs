@@ -1,6 +1,7 @@
 //! Character behavior system with condition and action execution
 
 use crate::{
+    constants::PropertyAddress,
     entity::{Character, SpawnInstance},
     math::Fixed,
     script::{ScriptContext, ScriptEngine, ScriptError},

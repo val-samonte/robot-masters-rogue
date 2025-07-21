@@ -14,6 +14,9 @@ pub mod behavior;
 pub mod behavior_integration;
 pub mod conditions;
 pub mod conditions_simple;
+pub mod constants;
+#[cfg(test)]
+mod constants_test;
 pub mod core;
 pub mod entity;
 pub mod math;

@@ -4,6 +4,7 @@
 //! for testing the game loop and character behaviors.
 
 use crate::behavior::Condition;
+use crate::constants::{AddressBytes, PropertyAddress};
 use crate::math::Fixed;
 
 use alloc::vec;
@@ -11,15 +12,23 @@ use alloc::vec;
 /// Create condition script: "Energy below 20%"
 ///
 /// Script logic:
-/// 1. Read character energy (property 0x23) into vars[0]
+/// 1. Read character energy (property CharacterEnergy) into vars[0]
 /// 2. Compare if energy < 20
 /// 3. Exit with result (1 if true, 0 if false)
 pub fn energy_below_20_percent() -> Condition {
     let script = vec![
-        10, 0, 0x23, // ReadProp: Read energy into vars[0]
-        20, 1, 20, // AssignByte: vars[1] = 20 (20% threshold)
-        52, 2, 0, 1, // LessThan: vars[2] = (vars[0] < vars[1])
-        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
+        AddressBytes::ReadProp as u8,
+        0,
+        PropertyAddress::CharacterEnergy as u8, // ReadProp: Read energy into vars[0]
+        AddressBytes::AssignByte as u8,
+        1,
+        20, // AssignByte: vars[1] = 20 (20% threshold)
+        AddressBytes::LessThan as u8,
+        2,
+        0,
+        1, // LessThan: vars[2] = (vars[0] < vars[1])
+        AddressBytes::ExitWithVar as u8,
+        2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
     ];
 
     Condition {
@@ -36,15 +45,23 @@ pub fn energy_below_20_percent() -> Condition {
 /// Create condition script: "Energy below 10%"
 ///
 /// Script logic:
-/// 1. Read character energy (property 0x23) into vars[0]
+/// 1. Read character energy (property CharacterEnergy) into vars[0]
 /// 2. Compare if energy < 10
 /// 3. Exit with result (1 if true, 0 if false)
 pub fn energy_below_10_percent() -> Condition {
     let script = vec![
-        10, 0, 0x23, // ReadProp: Read energy into vars[0]
-        20, 1, 10, // AssignByte: vars[1] = 10 (10% threshold)
-        52, 2, 0, 1, // LessThan: vars[2] = (vars[0] < vars[1])
-        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
+        AddressBytes::ReadProp as u8,
+        0,
+        PropertyAddress::CharacterEnergy as u8, // ReadProp: Read energy into vars[0]
+        AddressBytes::AssignByte as u8,
+        1,
+        10, // AssignByte: vars[1] = 10 (10% threshold)
+        AddressBytes::LessThan as u8,
+        2,
+        0,
+        1, // LessThan: vars[2] = (vars[0] < vars[1])
+        AddressBytes::ExitWithVar as u8,
+        2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
     ];
 
     Condition {
@@ -61,12 +78,15 @@ pub fn energy_below_10_percent() -> Condition {
 /// Create condition script: "Character on ground"
 ///
 /// Script logic:
-/// 1. Read bottom collision flag (property 0x2D) into vars[0]
+/// 1. Read bottom collision flag (property CharacterCollisionBottom) into vars[0]
 /// 2. Exit with collision flag as result
 pub fn character_on_ground() -> Condition {
     let script = vec![
-        10, 0, 0x2D, // ReadProp: Read bottom collision into vars[0]
-        91, 0, // ExitWithVar: Exit with value from vars[0] (0 or 1)
+        AddressBytes::ReadProp as u8,
+        0,
+        PropertyAddress::CharacterCollisionBottom as u8, // ReadProp: Read bottom collision into vars[0]
+        AddressBytes::ExitWithVar as u8,
+        0, // ExitWithVar: Exit with value from vars[0] (0 or 1)
     ];
 
     Condition {
@@ -83,16 +103,24 @@ pub fn character_on_ground() -> Condition {
 /// Create condition script: "Character leaning on wall"
 ///
 /// Script logic:
-/// 1. Read left collision flag (property 0x2E) into vars[0]
-/// 2. Read right collision flag (property 0x2C) into vars[1]
+/// 1. Read left collision flag (property CharacterCollisionLeft) into vars[0]
+/// 2. Read right collision flag (property CharacterCollisionRight) into vars[1]
 /// 3. Check if either left OR right collision is true
 /// 4. Exit with result
 pub fn character_leaning_on_wall() -> Condition {
     let script = vec![
-        10, 0, 0x2E, // ReadProp: Read left collision into vars[0]
-        10, 1, 0x2C, // ReadProp: Read right collision into vars[1]
-        61, 2, 0, 1, // Or: vars[2] = (vars[0] OR vars[1])
-        91, 2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
+        AddressBytes::ReadProp as u8,
+        0,
+        PropertyAddress::CharacterCollisionLeft as u8, // ReadProp: Read left collision into vars[0]
+        AddressBytes::ReadProp as u8,
+        1,
+        PropertyAddress::CharacterCollisionRight as u8, // ReadProp: Read right collision into vars[1]
+        AddressBytes::Or as u8,
+        2,
+        0,
+        1, // Or: vars[2] = (vars[0] OR vars[1])
+        AddressBytes::ExitWithVar as u8,
+        2, // ExitWithVar: Exit with value from vars[2] (0 or 1)
     ];
 
     Condition {
@@ -112,7 +140,8 @@ pub fn character_leaning_on_wall() -> Condition {
 /// 1. Exit immediately with flag 1 (true)
 pub fn always_true() -> Condition {
     let script = vec![
-        0, 1, // Exit with flag 1 (always true)
+        AddressBytes::Exit as u8,
+        1, // Exit with flag 1 (always true)
     ];
 
     Condition {
@@ -135,12 +164,24 @@ pub fn always_true() -> Condition {
 /// 4. Exit with result
 pub fn random_1_out_of_20() -> Condition {
     let script = vec![
-        22, 0, // AssignRandom: Generate random into vars[0]
-        20, 1, 20, // AssignByte: vars[1] = 20
-        44, 2, 0, 1, // ModByte: vars[2] = vars[0] % vars[1]
-        20, 3, 0, // AssignByte: vars[3] = 0
-        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
-        91, 4, // ExitWithVar: Exit with value from vars[4] (0 or 1)
+        AddressBytes::AssignRandom as u8,
+        0, // AssignRandom: Generate random into vars[0]
+        AddressBytes::AssignByte as u8,
+        1,
+        20, // AssignByte: vars[1] = 20
+        AddressBytes::ModByte as u8,
+        2,
+        0,
+        1, // ModByte: vars[2] = vars[0] % vars[1]
+        AddressBytes::AssignByte as u8,
+        3,
+        0, // AssignByte: vars[3] = 0
+        AddressBytes::Equal as u8,
+        4,
+        2,
+        3, // Equal: vars[4] = (vars[2] == vars[3])
+        AddressBytes::ExitWithVar as u8,
+        4, // ExitWithVar: Exit with value from vars[4] (0 or 1)
     ];
 
     Condition {
@@ -163,12 +204,24 @@ pub fn random_1_out_of_20() -> Condition {
 /// 4. Exit with result
 pub fn random_1_out_of_10() -> Condition {
     let script = vec![
-        22, 0, // AssignRandom: Generate random into vars[0]
-        20, 1, 10, // AssignByte: vars[1] = 10
-        44, 2, 0, 1, // ModByte: vars[2] = vars[0] % vars[1]
-        20, 3, 0, // AssignByte: vars[3] = 0
-        50, 4, 2, 3, // Equal: vars[4] = (vars[2] == vars[3])
-        91, 4, // ExitWithVar: Exit with value from vars[4] (0 or 1)
+        AddressBytes::AssignRandom as u8,
+        0, // AssignRandom: Generate random into vars[0]
+        AddressBytes::AssignByte as u8,
+        1,
+        10, // AssignByte: vars[1] = 10
+        AddressBytes::ModByte as u8,
+        2,
+        0,
+        1, // ModByte: vars[2] = vars[0] % vars[1]
+        AddressBytes::AssignByte as u8,
+        3,
+        0, // AssignByte: vars[3] = 0
+        AddressBytes::Equal as u8,
+        4,
+        2,
+        3, // Equal: vars[4] = (vars[2] == vars[3])
+        AddressBytes::ExitWithVar as u8,
+        4, // ExitWithVar: Exit with value from vars[4] (0 or 1)
     ];
 
     Condition {

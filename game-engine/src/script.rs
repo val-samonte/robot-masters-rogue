@@ -1,5 +1,6 @@
 //! Bytecode scripting system for game logic
 
+use crate::constants::{AddressBytes, PropertyAddress};
 use crate::math::Fixed;
 
 extern crate alloc;
@@ -26,76 +27,79 @@ pub struct ScriptEngine {
 }
 
 /// Bytecode operators with explicit byte values
+///
+/// This enum is kept for backward compatibility but uses the values from AddressBytes.
+/// New code should use AddressBytes directly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Operator {
     // Control flow
-    Exit = 0,
-    ExitIfNoEnergy = 1,
-    ExitIfCooldown = 2,
-    Skip = 3,
-    Goto = 4,
+    Exit = AddressBytes::Exit as u8,
+    ExitIfNoEnergy = AddressBytes::ExitIfNoEnergy as u8,
+    ExitIfCooldown = AddressBytes::ExitIfCooldown as u8,
+    Skip = AddressBytes::Skip as u8,
+    Goto = AddressBytes::Goto as u8,
 
     // Property operations (scalable approach)
-    ReadProp = 10,  // [ReadProp, var_index, prop_address]
-    WriteProp = 11, // [WriteProp, prop_address, var_index]
+    ReadProp = AddressBytes::ReadProp as u8, // [ReadProp, var_index, prop_address]
+    WriteProp = AddressBytes::WriteProp as u8, // [WriteProp, prop_address, var_index]
 
     // Variable operations
-    AssignByte = 20,   // [AssignByte, var_index, literal_value]
-    AssignFixed = 21,  // [AssignFixed, var_index, numerator, denominator]
-    AssignRandom = 22, // [AssignRandom, var_index]
-    ToByte = 23,       // [ToByte, to_var_index, from_fixed_index]
-    ToFixed = 24,      // [ToFixed, to_fixed_index, from_var_index]
+    AssignByte = AddressBytes::AssignByte as u8, // [AssignByte, var_index, literal_value]
+    AssignFixed = AddressBytes::AssignFixed as u8, // [AssignFixed, var_index, numerator, denominator]
+    AssignRandom = AddressBytes::AssignRandom as u8, // [AssignRandom, var_index]
+    ToByte = AddressBytes::ToByte as u8,           // [ToByte, to_var_index, from_fixed_index]
+    ToFixed = AddressBytes::ToFixed as u8,         // [ToFixed, to_fixed_index, from_var_index]
 
     // Arithmetic (Fixed-point) - generic 3-operand pattern
-    Add = 30,    // [Add, dest_fixed, left_fixed, right_fixed]
-    Sub = 31,    // [Sub, dest_fixed, left_fixed, right_fixed]
-    Mul = 32,    // [Mul, dest_fixed, left_fixed, right_fixed]
-    Div = 33,    // [Div, dest_fixed, left_fixed, right_fixed]
-    Negate = 34, // [Negate, fixed_index]
+    Add = AddressBytes::Add as u8, // [Add, dest_fixed, left_fixed, right_fixed]
+    Sub = AddressBytes::Sub as u8, // [Sub, dest_fixed, left_fixed, right_fixed]
+    Mul = AddressBytes::Mul as u8, // [Mul, dest_fixed, left_fixed, right_fixed]
+    Div = AddressBytes::Div as u8, // [Div, dest_fixed, left_fixed, right_fixed]
+    Negate = AddressBytes::Negate as u8, // [Negate, fixed_index]
 
     // Arithmetic (Byte) - generic 3-operand pattern
-    AddByte = 40,     // [AddByte, dest_var, left_var, right_var]
-    SubByte = 41,     // [SubByte, dest_var, left_var, right_var]
-    MulByte = 42,     // [MulByte, dest_var, left_var, right_var]
-    DivByte = 43,     // [DivByte, dest_var, left_var, right_var]
-    ModByte = 44,     // [ModByte, dest_var, left_var, right_var]
-    WrappingAdd = 45, // [WrappingAdd, dest_var, left_var, right_var]
+    AddByte = AddressBytes::AddByte as u8, // [AddByte, dest_var, left_var, right_var]
+    SubByte = AddressBytes::SubByte as u8, // [SubByte, dest_var, left_var, right_var]
+    MulByte = AddressBytes::MulByte as u8, // [MulByte, dest_var, left_var, right_var]
+    DivByte = AddressBytes::DivByte as u8, // [DivByte, dest_var, left_var, right_var]
+    ModByte = AddressBytes::ModByte as u8, // [ModByte, dest_var, left_var, right_var]
+    WrappingAdd = AddressBytes::WrappingAdd as u8, // [WrappingAdd, dest_var, left_var, right_var]
 
     // Conditionals - generic 3-operand pattern
-    Equal = 50,           // [Equal, dest_var, left_var, right_var]
-    NotEqual = 51,        // [NotEqual, dest_var, left_var, right_var]
-    LessThan = 52,        // [LessThan, dest_var, left_var, right_var]
-    LessThanOrEqual = 53, // [LessThanOrEqual, dest_var, left_var, right_var]
+    Equal = AddressBytes::Equal as u8, // [Equal, dest_var, left_var, right_var]
+    NotEqual = AddressBytes::NotEqual as u8, // [NotEqual, dest_var, left_var, right_var]
+    LessThan = AddressBytes::LessThan as u8, // [LessThan, dest_var, left_var, right_var]
+    LessThanOrEqual = AddressBytes::LessThanOrEqual as u8, // [LessThanOrEqual, dest_var, left_var, right_var]
 
     // Logical operations - generic patterns
-    Not = 60, // [Not, dest_var, source_var]
-    Or = 61,  // [Or, dest_var, left_var, right_var]
-    And = 62, // [And, dest_var, left_var, right_var]
+    Not = AddressBytes::Not as u8, // [Not, dest_var, source_var]
+    Or = AddressBytes::Or as u8,   // [Or, dest_var, left_var, right_var]
+    And = AddressBytes::And as u8, // [And, dest_var, left_var, right_var]
 
     // Utility operations
-    Min = 70, // [Min, dest_var, left_var, right_var]
-    Max = 71, // [Max, dest_var, left_var, right_var]
+    Min = AddressBytes::Min as u8, // [Min, dest_var, left_var, right_var]
+    Max = AddressBytes::Max as u8, // [Max, dest_var, left_var, right_var]
 
     // Game actions
-    LockAction = 80,
-    UnlockAction = 81,
-    ApplyEnergyCost = 82,
-    ApplyDuration = 83,
-    Spawn = 84,         // [Spawn, spawn_id_var]
-    SpawnWithVars = 85, // [SpawnWithVars, spawn_id_var, var1, var2, var3, var4]
+    LockAction = AddressBytes::LockAction as u8,
+    UnlockAction = AddressBytes::UnlockAction as u8,
+    ApplyEnergyCost = AddressBytes::ApplyEnergyCost as u8,
+    ApplyDuration = AddressBytes::ApplyDuration as u8,
+    Spawn = AddressBytes::Spawn as u8, // [Spawn, spawn_id_var]
+    SpawnWithVars = AddressBytes::SpawnWithVars as u8, // [SpawnWithVars, spawn_id_var, var1, var2, var3, var4]
 
     // Debug
-    LogVariable = 90, // [LogVariable, var_index]
+    LogVariable = AddressBytes::LogVariable as u8, // [LogVariable, var_index]
 
     // Conditional exit
-    ExitWithVar = 91, // [ExitWithVar, var_index] - Exit with value from variable
+    ExitWithVar = AddressBytes::ExitWithVar as u8, // [ExitWithVar, var_index] - Exit with value from variable
 
     // Cooldown operators
-    ReadActionCooldown = 92, // [ReadActionCooldown, var_index] - Read Action cooldown into vars
-    ReadActionLastUsed = 93, // [ReadActionLastUsed, var_index] - Read when action was last used
-    WriteActionLastUsed = 94, // [WriteActionLastUsed, var_index] - Update last used timestamp
-    IsActionOnCooldown = 95, // [IsActionOnCooldown, var_index] - Check if action is on cooldown
+    ReadActionCooldown = AddressBytes::ReadActionCooldown as u8, // [ReadActionCooldown, var_index] - Read Action cooldown into vars
+    ReadActionLastUsed = AddressBytes::ReadActionLastUsed as u8, // [ReadActionLastUsed, var_index] - Read when action was last used
+    WriteActionLastUsed = AddressBytes::WriteActionLastUsed as u8, // [WriteActionLastUsed, var_index] - Update last used timestamp
+    IsActionOnCooldown = AddressBytes::IsActionOnCooldown as u8, // [IsActionOnCooldown, var_index] - Check if action is on cooldown
 
     // Args and Spawns access (read-only)
     ReadArg = 96,    // [ReadArg, var_index, arg_index] - Copy arg to var
@@ -105,56 +109,63 @@ pub enum Operator {
 
 impl Operator {
     /// Simple byte-to-enum conversion
+    ///
+    /// This method now uses AddressBytes for conversion to maintain consistency
     pub fn from_u8(byte: u8) -> Option<Operator> {
-        match byte {
-            0 => Some(Operator::Exit),
-            1 => Some(Operator::ExitIfNoEnergy),
-            2 => Some(Operator::ExitIfCooldown),
-            3 => Some(Operator::Skip),
-            4 => Some(Operator::Goto),
-            10 => Some(Operator::ReadProp),
-            11 => Some(Operator::WriteProp),
-            20 => Some(Operator::AssignByte),
-            21 => Some(Operator::AssignFixed),
-            22 => Some(Operator::AssignRandom),
-            23 => Some(Operator::ToByte),
-            24 => Some(Operator::ToFixed),
-            30 => Some(Operator::Add),
-            31 => Some(Operator::Sub),
-            32 => Some(Operator::Mul),
-            33 => Some(Operator::Div),
-            34 => Some(Operator::Negate),
-            40 => Some(Operator::AddByte),
-            41 => Some(Operator::SubByte),
-            42 => Some(Operator::MulByte),
-            43 => Some(Operator::DivByte),
-            44 => Some(Operator::ModByte),
-            45 => Some(Operator::WrappingAdd),
-            50 => Some(Operator::Equal),
-            51 => Some(Operator::NotEqual),
-            52 => Some(Operator::LessThan),
-            53 => Some(Operator::LessThanOrEqual),
-            60 => Some(Operator::Not),
-            61 => Some(Operator::Or),
-            62 => Some(Operator::And),
-            70 => Some(Operator::Min),
-            71 => Some(Operator::Max),
-            80 => Some(Operator::LockAction),
-            81 => Some(Operator::UnlockAction),
-            82 => Some(Operator::ApplyEnergyCost),
-            83 => Some(Operator::ApplyDuration),
-            84 => Some(Operator::Spawn),
-            85 => Some(Operator::SpawnWithVars),
-            90 => Some(Operator::LogVariable),
-            91 => Some(Operator::ExitWithVar),
-            92 => Some(Operator::ReadActionCooldown),
-            93 => Some(Operator::ReadActionLastUsed),
-            94 => Some(Operator::WriteActionLastUsed),
-            95 => Some(Operator::IsActionOnCooldown),
-            96 => Some(Operator::ReadArg),
-            97 => Some(Operator::ReadSpawn),
-            98 => Some(Operator::WriteSpawn),
-            _ => None,
+        // Use AddressBytes for conversion to maintain consistency
+        if let Some(address_byte) = AddressBytes::from_u8(byte) {
+            // Map AddressBytes to Operator
+            match address_byte {
+                AddressBytes::Exit => Some(Operator::Exit),
+                AddressBytes::ExitIfNoEnergy => Some(Operator::ExitIfNoEnergy),
+                AddressBytes::ExitIfCooldown => Some(Operator::ExitIfCooldown),
+                AddressBytes::Skip => Some(Operator::Skip),
+                AddressBytes::Goto => Some(Operator::Goto),
+                AddressBytes::ReadProp => Some(Operator::ReadProp),
+                AddressBytes::WriteProp => Some(Operator::WriteProp),
+                AddressBytes::AssignByte => Some(Operator::AssignByte),
+                AddressBytes::AssignFixed => Some(Operator::AssignFixed),
+                AddressBytes::AssignRandom => Some(Operator::AssignRandom),
+                AddressBytes::ToByte => Some(Operator::ToByte),
+                AddressBytes::ToFixed => Some(Operator::ToFixed),
+                AddressBytes::Add => Some(Operator::Add),
+                AddressBytes::Sub => Some(Operator::Sub),
+                AddressBytes::Mul => Some(Operator::Mul),
+                AddressBytes::Div => Some(Operator::Div),
+                AddressBytes::Negate => Some(Operator::Negate),
+                AddressBytes::AddByte => Some(Operator::AddByte),
+                AddressBytes::SubByte => Some(Operator::SubByte),
+                AddressBytes::MulByte => Some(Operator::MulByte),
+                AddressBytes::DivByte => Some(Operator::DivByte),
+                AddressBytes::ModByte => Some(Operator::ModByte),
+                AddressBytes::WrappingAdd => Some(Operator::WrappingAdd),
+                AddressBytes::Equal => Some(Operator::Equal),
+                AddressBytes::NotEqual => Some(Operator::NotEqual),
+                AddressBytes::LessThan => Some(Operator::LessThan),
+                AddressBytes::LessThanOrEqual => Some(Operator::LessThanOrEqual),
+                AddressBytes::Not => Some(Operator::Not),
+                AddressBytes::Or => Some(Operator::Or),
+                AddressBytes::And => Some(Operator::And),
+                AddressBytes::Min => Some(Operator::Min),
+                AddressBytes::Max => Some(Operator::Max),
+                AddressBytes::LockAction => Some(Operator::LockAction),
+                AddressBytes::UnlockAction => Some(Operator::UnlockAction),
+                AddressBytes::ApplyEnergyCost => Some(Operator::ApplyEnergyCost),
+                AddressBytes::ApplyDuration => Some(Operator::ApplyDuration),
+                AddressBytes::Spawn => Some(Operator::Spawn),
+                AddressBytes::SpawnWithVars => Some(Operator::SpawnWithVars),
+                AddressBytes::LogVariable => Some(Operator::LogVariable),
+                AddressBytes::ExitWithVar => Some(Operator::ExitWithVar),
+                AddressBytes::ReadActionCooldown => Some(Operator::ReadActionCooldown),
+                AddressBytes::ReadActionLastUsed => Some(Operator::ReadActionLastUsed),
+                AddressBytes::WriteActionLastUsed => Some(Operator::WriteActionLastUsed),
+                AddressBytes::IsActionOnCooldown => Some(Operator::IsActionOnCooldown),
+                AddressBytes::ReadArg => Some(Operator::ReadArg),
+                AddressBytes::ReadSpawn => Some(Operator::ReadSpawn),
+                AddressBytes::WriteSpawn => Some(Operator::WriteSpawn),
+            }
+        } else {
+            None
         }
     }
 }
@@ -751,54 +762,57 @@ mod tests {
 
     impl ScriptContext for MockContext {
         fn read_property(&mut self, engine: &mut ScriptEngine, var_index: usize, prop_address: u8) {
-            match prop_address {
-                // Game state properties (Fixed-point values)
-                0x01 => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = Fixed::from_int(123); // Mock seed
+            // Convert raw property address to PropertyAddress enum for better readability
+            if let Some(property) = PropertyAddress::from_u8(prop_address) {
+                match property {
+                    // Game state properties (Fixed-point values)
+                    PropertyAddress::GameSeed => {
+                        if var_index < engine.fixed.len() {
+                            engine.fixed[var_index] = Fixed::from_int(123); // Mock seed
+                        }
                     }
-                }
-                0x02 => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = Fixed::from_int(456); // Mock frame
+                    PropertyAddress::GameFrame => {
+                        if var_index < engine.fixed.len() {
+                            engine.fixed[var_index] = Fixed::from_int(456); // Mock frame
+                        }
                     }
-                }
 
-                // Character position and movement (Fixed-point values)
-                0x19 => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.position.0;
+                    // Character position and movement (Fixed-point values)
+                    PropertyAddress::CharacterPosX => {
+                        if var_index < engine.fixed.len() {
+                            engine.fixed[var_index] = self.position.0;
+                        }
                     }
-                }
-                0x1A => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.position.1;
+                    PropertyAddress::CharacterPosY => {
+                        if var_index < engine.fixed.len() {
+                            engine.fixed[var_index] = self.position.1;
+                        }
                     }
-                }
-                0x1B => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.velocity.0;
+                    PropertyAddress::CharacterVelX => {
+                        if var_index < engine.fixed.len() {
+                            engine.fixed[var_index] = self.velocity.0;
+                        }
                     }
-                }
-                0x1C => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.velocity.1;
+                    PropertyAddress::CharacterVelY => {
+                        if var_index < engine.fixed.len() {
+                            engine.fixed[var_index] = self.velocity.1;
+                        }
                     }
-                }
 
-                // Character stats (Byte values)
-                0x21 => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.health;
+                    // Character stats (Byte values)
+                    PropertyAddress::CharacterHealth => {
+                        if var_index < engine.vars.len() {
+                            engine.vars[var_index] = self.health;
+                        }
                     }
-                }
-                0x23 => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.energy;
+                    PropertyAddress::CharacterEnergy => {
+                        if var_index < engine.vars.len() {
+                            engine.vars[var_index] = self.energy;
+                        }
                     }
-                }
 
-                _ => {}
+                    _ => {}
+                }
             }
         }
 
@@ -808,42 +822,42 @@ mod tests {
             prop_address: u8,
             var_index: usize,
         ) {
-            match prop_address {
-                // Character position and movement (Fixed-point values)
-                0x19 => {
-                    if var_index < engine.fixed.len() {
-                        self.position.0 = engine.fixed[var_index];
+            // Convert raw property address to PropertyAddress enum for better readability
+            if let Some(property) = PropertyAddress::from_u8(prop_address) {
+                match property {
+                    // Character position and movement (Fixed-point values)
+                    PropertyAddress::CharacterPosX => {
+                        if var_index < engine.fixed.len() {
+                            self.position.0 = engine.fixed[var_index];
+                        }
                     }
-                }
-                0x1A => {
-                    if var_index < engine.fixed.len() {
-                        self.position.1 = engine.fixed[var_index];
+                    PropertyAddress::CharacterPosY => {
+                        if var_index < engine.fixed.len() {
+                            self.position.1 = engine.fixed[var_index];
+                        }
                     }
-                }
-                0x1B => {
-                    if var_index < engine.fixed.len() {
-                        self.velocity.0 = engine.fixed[var_index];
+                    PropertyAddress::CharacterVelX => {
+                        if var_index < engine.fixed.len() {
+                            self.velocity.0 = engine.fixed[var_index];
+                        }
                     }
-                }
-                0x1C => {
-                    if var_index < engine.fixed.len() {
-                        self.velocity.1 = engine.fixed[var_index];
+                    PropertyAddress::CharacterVelY => {
+                        if var_index < engine.fixed.len() {
+                            self.velocity.1 = engine.fixed[var_index];
+                        }
                     }
-                }
-
-                // Character stats (Byte values)
-                0x21 => {
-                    if var_index < engine.vars.len() {
-                        self.health = engine.vars[var_index];
+                    PropertyAddress::CharacterHealth => {
+                        if var_index < engine.vars.len() {
+                            self.health = engine.vars[var_index];
+                        }
                     }
-                }
-                0x23 => {
-                    if var_index < engine.vars.len() {
-                        self.energy = engine.vars[var_index];
+                    PropertyAddress::CharacterEnergy => {
+                        if var_index < engine.vars.len() {
+                            self.energy = engine.vars[var_index];
+                        }
                     }
+                    _ => {}
                 }
-
-                _ => {}
             }
         }
 

@@ -12,6 +12,7 @@ use crate::behavior::{execute_character_behaviors, Action, Condition};
 use crate::conditions_simple::{
     always_true, character_leaning_on_wall, energy_below_10_percent, random_1_out_of_20,
 };
+use crate::constants::{AddressBytes, PropertyAddress};
 use crate::entity::Character;
 use crate::math::Fixed;
 use crate::state::GameState;
@@ -23,20 +24,44 @@ use alloc::vec::Vec;
 /// Overrides passive regeneration while active
 fn charge_action() -> Action {
     let script = vec![
-        80, // LockAction
-        21, 0, 0, 1, // AssignFixed: fixed[0] = 0
-        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0] (stop horizontal movement)
-        11, 0x1C, 0, // WriteProp: velocity.y = fixed[0] (stop vertical movement)
+        AddressBytes::LockAction as u8, // LockAction
+        AddressBytes::AssignFixed as u8,
+        0,
+        0,
+        1, // AssignFixed: fixed[0] = 0
+        AddressBytes::WriteProp as u8,
+        PropertyAddress::CharacterVelX as u8,
+        0, // WriteProp: velocity.x = fixed[0] (stop horizontal movement)
+        AddressBytes::WriteProp as u8,
+        PropertyAddress::CharacterVelY as u8,
+        0, // WriteProp: velocity.y = fixed[0] (stop vertical movement)
         // Read current energy and energy charge properties
-        10, 0, 0x23, // ReadProp: vars[0] = current_energy
-        10, 1, 0x27, // ReadProp: vars[1] = energy_charge (recovery amount per rate)
-        10, 2, 0x28, // ReadProp: vars[2] = energy_charge_rate (frames between recovery)
+        AddressBytes::ReadProp as u8,
+        0,
+        PropertyAddress::CharacterEnergy as u8, // ReadProp: vars[0] = current_energy
+        AddressBytes::ReadProp as u8,
+        1,
+        PropertyAddress::CharacterEnergyCharge as u8, // ReadProp: vars[1] = energy_charge (recovery amount per rate)
+        AddressBytes::ReadProp as u8,
+        2,
+        PropertyAddress::CharacterEnergyChargeRate as u8, // ReadProp: vars[2] = energy_charge_rate (frames between recovery)
         // Simple energy recovery logic: recover energy_charge amount every frame (overriding passive regen)
-        40, 3, 0, 1, // AddByte: vars[3] = current_energy + energy_charge
-        20, 4, 100, // AssignByte: vars[4] = 100 (max energy cap)
-        70, 5, 3, 4, // Min: vars[5] = min(new_energy, 100)
-        11, 0x23, 5, // WriteProp: energy = vars[5]
-        0, 1, // Exit with success
+        AddressBytes::AddByte as u8,
+        3,
+        0,
+        1, // AddByte: vars[3] = current_energy + energy_charge
+        AddressBytes::AssignByte as u8,
+        4,
+        100, // AssignByte: vars[4] = 100 (max energy cap)
+        AddressBytes::Min as u8,
+        5,
+        3,
+        4, // Min: vars[5] = min(new_energy, 100)
+        AddressBytes::WriteProp as u8,
+        PropertyAddress::CharacterEnergy as u8,
+        5, // WriteProp: energy = vars[5]
+        AddressBytes::Exit as u8,
+        1, // Exit with success
     ];
 
     Action {
@@ -54,10 +79,17 @@ fn charge_action() -> Action {
 
 fn run_action() -> Action {
     let script = vec![
-        96, 0, 0, // ReadArg: vars[0] = args[0]
-        24, 0, 0, // ToFixed: fixed[0] = Fixed::from_int(vars[0])
-        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0]
-        0, 1, // Exit with success
+        AddressBytes::ReadArg as u8,
+        0,
+        0, // ReadArg: vars[0] = args[0]
+        AddressBytes::ToFixed as u8,
+        0,
+        0, // ToFixed: fixed[0] = Fixed::from_int(vars[0])
+        AddressBytes::WriteProp as u8,
+        PropertyAddress::CharacterVelX as u8,
+        0, // WriteProp: velocity.x = fixed[0]
+        AddressBytes::Exit as u8,
+        1, // Exit with success
     ];
 
     Action {
@@ -75,11 +107,19 @@ fn run_action() -> Action {
 
 fn jump_action() -> Action {
     let script = vec![
-        96, 3, 0, // ReadArg: vars[3] = args[0]
-        24, 0, 3, // ToFixed: fixed[0] = Fixed::from_int(vars[3])
-        34, 0, // Negate: fixed[0] = -fixed[0]
-        11, 0x1C, 0, // WriteProp: velocity.y = fixed[0]
-        0, 1, // Exit with success
+        AddressBytes::ReadArg as u8,
+        3,
+        0, // ReadArg: vars[3] = args[0]
+        AddressBytes::ToFixed as u8,
+        0,
+        3, // ToFixed: fixed[0] = Fixed::from_int(vars[3])
+        AddressBytes::Negate as u8,
+        0, // Negate: fixed[0] = -fixed[0]
+        AddressBytes::WriteProp as u8,
+        PropertyAddress::CharacterVelY as u8,
+        0, // WriteProp: velocity.y = fixed[0]
+        AddressBytes::Exit as u8,
+        1, // Exit with success
     ];
 
     Action {
@@ -97,10 +137,16 @@ fn jump_action() -> Action {
 
 fn turn_around_action() -> Action {
     let script = vec![
-        10, 0, 0x1B, // ReadProp: fixed[0] = velocity.x
-        34, 0, // Negate: fixed[0] = -fixed[0]
-        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0]
-        0, 1, // Exit with success
+        AddressBytes::ReadProp as u8,
+        0,
+        PropertyAddress::CharacterVelX as u8, // ReadProp: fixed[0] = velocity.x
+        AddressBytes::Negate as u8,
+        0, // Negate: fixed[0] = -fixed[0]
+        AddressBytes::WriteProp as u8,
+        PropertyAddress::CharacterVelX as u8,
+        0, // WriteProp: velocity.x = fixed[0]
+        AddressBytes::Exit as u8,
+        1, // Exit with success
     ];
 
     Action {
@@ -118,9 +164,13 @@ fn turn_around_action() -> Action {
 
 fn shoot_action() -> Action {
     let script = vec![
-        20, 0, 1, // AssignByte: vars[0] = 1 (spawn_id)
-        84, 0, // Spawn: create spawn with ID from vars[0]
-        0, 1, // Exit with success
+        AddressBytes::AssignByte as u8,
+        0,
+        1, // AssignByte: vars[0] = 1 (spawn_id)
+        AddressBytes::Spawn as u8,
+        0, // Spawn: create spawn with ID from vars[0]
+        AddressBytes::Exit as u8,
+        1, // Exit with success
     ];
 
     Action {
