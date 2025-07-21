@@ -7,9 +7,7 @@
 //! - Random 1/20 → Shoot
 //! - Always → Run
 
-use crate::actions_simple::{
-    charge_action, jump_action, run_action, shoot_action, turn_around_action,
-};
+// use crate::actions_simple::charge_action;
 use crate::behavior::{execute_character_behaviors, Action, Condition};
 use crate::conditions_simple::{
     always_true, character_leaning_on_wall, energy_below_10_percent, random_1_out_of_20,
@@ -17,7 +15,121 @@ use crate::conditions_simple::{
 use crate::entity::Character;
 use crate::math::Fixed;
 use crate::state::GameState;
+use alloc::vec;
 use alloc::vec::Vec;
+
+/// Create action script: "Charge" for energy recovery
+fn charge_action() -> Action {
+    let script = vec![
+        80, // LockAction
+        21, 0, 0, 1, // AssignFixed: fixed[0] = 0
+        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0]
+        11, 0x1C, 0, // WriteProp: velocity.y = fixed[0]
+        10, 0, 0x23, // ReadProp: vars[0] = current_energy
+        96, 1, 0, // ReadArg: vars[1] = args[0]
+        40, 2, 0, 1, // AddByte: vars[2] = current_energy + recovery_amount
+        96, 3, 1, // ReadArg: vars[3] = args[1]
+        70, 4, 2, 3, // Min: vars[4] = min(new_energy, max_cap)
+        11, 0x23, 4, // WriteProp: energy = vars[4]
+        0, 1, // Exit with success
+    ];
+
+    Action {
+        energy_cost: 0,
+        interval: 1,
+        duration: 120,
+        cooldown: 0,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [2, 100, 0, 0, 0, 0, 0, 0],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+fn run_action() -> Action {
+    let script = vec![
+        96, 0, 0, // ReadArg: vars[0] = args[0]
+        24, 0, 0, // ToFixed: fixed[0] = Fixed::from_int(vars[0])
+        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0]
+        0, 1, // Exit with success
+    ];
+
+    Action {
+        energy_cost: 1,
+        interval: 1,
+        duration: 1,
+        cooldown: 0,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [3, 0, 0, 0, 0, 0, 0, 0],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+fn jump_action() -> Action {
+    let script = vec![
+        96, 3, 0, // ReadArg: vars[3] = args[0]
+        24, 0, 3, // ToFixed: fixed[0] = Fixed::from_int(vars[3])
+        34, 0, // Negate: fixed[0] = -fixed[0]
+        11, 0x1C, 0, // WriteProp: velocity.y = fixed[0]
+        0, 1, // Exit with success
+    ];
+
+    Action {
+        energy_cost: 5,
+        interval: 1,
+        duration: 1,
+        cooldown: 0,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [8, 0, 0, 0, 0, 0, 0, 0],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+fn turn_around_action() -> Action {
+    let script = vec![
+        10, 0, 0x1B, // ReadProp: fixed[0] = velocity.x
+        34, 0, // Negate: fixed[0] = -fixed[0]
+        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0]
+        0, 1, // Exit with success
+    ];
+
+    Action {
+        energy_cost: 1,
+        interval: 1,
+        duration: 1,
+        cooldown: 0,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script,
+    }
+}
+
+fn shoot_action() -> Action {
+    let script = vec![
+        20, 0, 1, // AssignByte: vars[0] = 1 (spawn_id)
+        84, 0, // Spawn: create spawn with ID from vars[0]
+        0, 1, // Exit with success
+    ];
+
+    Action {
+        energy_cost: 3,
+        interval: 1,
+        duration: 1,
+        cooldown: 0,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [30, 10, 1, 0, 0, 0, 0, 0],
+        spawns: [0; 4],
+        script,
+    }
+}
 
 /// Create a complete behavior set for a character
 /// This implements the behavior priority system:

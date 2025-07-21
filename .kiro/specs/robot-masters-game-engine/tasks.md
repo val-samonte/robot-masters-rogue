@@ -165,7 +165,7 @@
   - Write unit tests for error handling and recovery scenarios
   - _Requirements: 6.4, 9.4_
 
-- [ ] 15. Enhance script system with ARGS and spawn ID support
+- [x] 15. Enhance script system with ARGS and spawn ID support
 - [x] 15.1 Update ScriptEngine with args and spawns arrays
 
   - Add `args: [u8; 8]` array for read-only script parameters
@@ -199,8 +199,8 @@
   - Add examples of reusable actions using args (like Shoot with ammo capacity)
   - _Requirements: 6.1, 6.2_
 
-- [ ] 16. Create complex Action scripts for combat and energy management
-- [ ] 16.1 Implement Shoot Action script with spawn management
+- [x] 16. Create complex Action scripts for combat and energy management
+- [x] 16.1 Implement Shoot Action script with spawn management
 
   - Create "Shoot" action script that spawns projectiles using spawn ID and ammo tracking
   - Implement fire rate limiting and ammo consumption logic
@@ -208,14 +208,14 @@
   - Write unit tests for shooting mechanics and spawn creation
   - _Requirements: 6.2, 6.5, 6.8, 8.1_
 
-- [ ] 16.2 Implement Hurt Action as locked action script
+- [x] 16.2 Implement Hurt Action as locked action script
 
   - Create "Hurt" locked action script with short jump and backward movement
   - Implement invulnerability frames and movement restriction during hurt state
   - Write unit tests for hurt state behavior and locked action mechanics
   - _Requirements: 6.2, 6.9, 6.10_
 
-- [ ] 16.3 Implement Charge Action for energy recovery
+- [x] 16.3 Implement Charge Action for energy recovery
 
   - Create "Charge" locked action script that stops movement and recovers energy
   - Implement energy recovery rate based on character properties

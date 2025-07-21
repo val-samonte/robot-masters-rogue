@@ -412,4 +412,14 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_actions_simple_import() {
+        // Test that we can import and use functions from actions_simple
+        let result = crate::actions_simple::test_function();
+        assert_eq!(result, 42);
+
+        // let action = crate::actions_simple::shoot_action_with_ammo();
+        // assert_eq!(action.energy_cost, 5);
+    }
 }

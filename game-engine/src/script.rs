@@ -1288,4 +1288,176 @@ mod tests {
         assert_eq!(context.spawns_created.len(), 1);
         assert_eq!(context.spawns_created[0], (5, None));
     }
+
+    #[test]
+    fn test_args_access_operations() {
+        // Test ReadArg operator functionality
+        let args = [10, 20, 30, 40, 50, 60, 70, 80];
+        let mut engine = ScriptEngine::new_with_args(args);
+        let mut context = MockContext::new();
+
+        // Test reading different args into vars
+        // [ReadArg, 0, 0, ReadArg, 1, 3, ReadArg, 2, 7, Exit, 1]
+        let script = [
+            96, 0, 0, // ReadArg: vars[0] = args[0] (10)
+            96, 1, 3, // ReadArg: vars[1] = args[3] (40)
+            96, 2, 7, // ReadArg: vars[2] = args[7] (80)
+            0, 1, // Exit 1
+        ];
+        let result = engine.execute(&script, &mut context).unwrap();
+
+        assert_eq!(result, 1);
+        assert_eq!(engine.vars[0], 10); // args[0]
+        assert_eq!(engine.vars[1], 40); // args[3]
+        assert_eq!(engine.vars[2], 80); // args[7]
+
+        // Verify args remain unchanged (read-only)
+        assert_eq!(engine.args, args);
+    }
+
+    #[test]
+    fn test_spawns_access_operations() {
+        let mut engine = ScriptEngine::new();
+        let mut context = MockContext::new();
+
+        // Test WriteSpawn and ReadSpawn operations
+        // [AssignByte, 0, 15, WriteSpawn, 0, 0, AssignByte, 1, 25, WriteSpawn, 1, 1, ReadSpawn, 2, 0, ReadSpawn, 3, 1, Exit, 1]
+        let script = [
+            20, 0, 15, // AssignByte: vars[0] = 15
+            98, 0, 0, // WriteSpawn: spawns[0] = vars[0] (15)
+            20, 1, 25, // AssignByte: vars[1] = 25
+            98, 1, 1, // WriteSpawn: spawns[1] = vars[1] (25)
+            97, 2, 0, // ReadSpawn: vars[2] = spawns[0] (15)
+            97, 3, 1, // ReadSpawn: vars[3] = spawns[1] (25)
+            0, 1, // Exit 1
+        ];
+        let result = engine.execute(&script, &mut context).unwrap();
+
+        assert_eq!(result, 1);
+        assert_eq!(engine.vars[0], 15);
+        assert_eq!(engine.vars[1], 25);
+        assert_eq!(engine.vars[2], 15); // Read back from spawns[0]
+        assert_eq!(engine.vars[3], 25); // Read back from spawns[1]
+        assert_eq!(engine.spawns[0], 15);
+        assert_eq!(engine.spawns[1], 25);
+        assert_eq!(engine.spawns[2], 0); // Unchanged
+        assert_eq!(engine.spawns[3], 0); // Unchanged
+    }
+
+    #[test]
+    fn test_args_read_only_behavior() {
+        let args = [100, 200, 50, 75, 0, 0, 0, 0];
+        let mut engine = ScriptEngine::new_with_args(args);
+        let mut context = MockContext::new();
+
+        // Test that args cannot be modified directly (they should remain read-only)
+        // We can only read from args, not write to them
+        // [ReadArg, 0, 0, ReadArg, 1, 1, Exit, 1]
+        let script = [
+            96, 0, 0, // ReadArg: vars[0] = args[0] (100)
+            96, 1, 1, // ReadArg: vars[1] = args[1] (200)
+            0, 1, // Exit 1
+        ];
+        let result = engine.execute(&script, &mut context).unwrap();
+
+        assert_eq!(result, 1);
+        assert_eq!(engine.vars[0], 100);
+        assert_eq!(engine.vars[1], 200);
+
+        // Args should remain unchanged
+        assert_eq!(engine.args, args);
+    }
+
+    #[test]
+    fn test_args_spawns_error_handling() {
+        let mut engine = ScriptEngine::new();
+        let mut context = MockContext::new();
+
+        // Test ReadArg with invalid arg index
+        let script = [96, 0, 8, 0, 1]; // ReadArg vars[0] = args[8] (out of bounds)
+        let result = engine.execute(&script, &mut context);
+        assert!(matches!(result, Err(ScriptError::InvalidScript)));
+
+        engine.reset();
+
+        // Test ReadArg with invalid var index
+        let script = [96, 8, 0, 0, 1]; // ReadArg vars[8] = args[0] (out of bounds)
+        let result = engine.execute(&script, &mut context);
+        assert!(matches!(result, Err(ScriptError::InvalidScript)));
+
+        engine.reset();
+
+        // Test WriteSpawn with invalid spawn index
+        let script = [20, 0, 42, 98, 4, 0, 0, 1]; // WriteSpawn spawns[4] = vars[0] (out of bounds)
+        let result = engine.execute(&script, &mut context);
+        assert!(matches!(result, Err(ScriptError::InvalidScript)));
+
+        engine.reset();
+
+        // Test ReadSpawn with invalid spawn index
+        let script = [97, 0, 4, 0, 1]; // ReadSpawn vars[0] = spawns[4] (out of bounds)
+        let result = engine.execute(&script, &mut context);
+        assert!(matches!(result, Err(ScriptError::InvalidScript)));
+    }
+
+    #[test]
+    fn test_script_engine_with_args_creation() {
+        let args = [1, 2, 3, 4, 5, 6, 7, 8];
+        let engine = ScriptEngine::new_with_args(args);
+
+        assert_eq!(engine.args, args);
+        assert_eq!(engine.vars, [0; 8]);
+        assert_eq!(engine.spawns, [0; 4]);
+        assert_eq!(engine.pos, 0);
+        assert_eq!(engine.exit_flag, 0);
+    }
+
+    #[test]
+    fn test_script_engine_reset_with_args() {
+        let initial_args = [10, 20, 30, 40, 50, 60, 70, 80];
+        let mut engine = ScriptEngine::new_with_args(initial_args);
+
+        // Modify engine state
+        engine.vars[0] = 99;
+        engine.spawns[0] = 88;
+        engine.pos = 5;
+        engine.exit_flag = 2;
+
+        // Reset with new args
+        let new_args = [11, 22, 33, 44, 55, 66, 77, 88];
+        engine.reset_with_args(new_args);
+
+        assert_eq!(engine.args, new_args);
+        assert_eq!(engine.vars, [0; 8]); // Should be reset
+        assert_eq!(engine.spawns, [0; 4]); // Should be reset
+        assert_eq!(engine.pos, 0); // Should be reset
+        assert_eq!(engine.exit_flag, 0); // Should be reset
+    }
+
+    #[test]
+    fn test_reusable_action_with_args() {
+        // Test a reusable action pattern using args for configuration
+        let move_speed = 5;
+        let args = [move_speed, 0, 0, 0, 0, 0, 0, 0];
+        let mut engine = ScriptEngine::new_with_args(args);
+        let mut context = MockContext::new();
+
+        // Simulate a "Run" action that uses args[0] for move speed
+        // [ReadArg, 0, 0, ToFixed, 0, 0, ReadProp, 0, 0x1B, Add, 0, 0, 0, WriteProp, 0x1B, 0, Exit, 1]
+        let script = [
+            96, 0, 0, // ReadArg: vars[0] = args[0] (move speed)
+            24, 0, 0, // ToFixed: fixed[0] = Fixed::from_int(vars[0])
+            10, 0, 0x1B, // ReadProp: fixed[0] = velocity.x (current velocity)
+            30, 0, 0,
+            0, // Add: fixed[0] = fixed[0] + fixed[0] (double current velocity for test)
+            11, 0x1B, 0, // WriteProp: velocity.x = fixed[0]
+            0, 1, // Exit 1
+        ];
+        let result = engine.execute(&script, &mut context).unwrap();
+
+        assert_eq!(result, 1);
+        assert_eq!(engine.vars[0], move_speed);
+        // The velocity should have been modified based on the move speed from args
+        assert_eq!(context.velocity.0, Fixed::from_int(-4)); // -2 + -2 = -4 (doubled)
+    }
 }
