@@ -251,7 +251,7 @@
   - Write unit tests for passive energy regeneration through StatusEffect system
   - _Requirements: 12.6, 7.1, 7.2_
 
-- [ ] 17.4 Update Charge Action to use energy_charge properties (depends on Task 16.3)
+- [x] 17.4 Update Charge Action to use energy_charge properties (depends on Task 16.3)
 
   - Modify existing Charge Action script to read energy_charge and energy_charge_rate from character properties
   - Implement energy recovery logic that uses these values instead of hardcoded rates

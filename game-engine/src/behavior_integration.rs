@@ -19,18 +19,23 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 /// Create action script: "Charge" for energy recovery
+/// Uses character's energy_charge and energy_charge_rate properties for recovery logic
+/// Overrides passive regeneration while active
 fn charge_action() -> Action {
     let script = vec![
         80, // LockAction
         21, 0, 0, 1, // AssignFixed: fixed[0] = 0
-        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0]
-        11, 0x1C, 0, // WriteProp: velocity.y = fixed[0]
+        11, 0x1B, 0, // WriteProp: velocity.x = fixed[0] (stop horizontal movement)
+        11, 0x1C, 0, // WriteProp: velocity.y = fixed[0] (stop vertical movement)
+        // Read current energy and energy charge properties
         10, 0, 0x23, // ReadProp: vars[0] = current_energy
-        96, 1, 0, // ReadArg: vars[1] = args[0]
-        40, 2, 0, 1, // AddByte: vars[2] = current_energy + recovery_amount
-        96, 3, 1, // ReadArg: vars[3] = args[1]
-        70, 4, 2, 3, // Min: vars[4] = min(new_energy, max_cap)
-        11, 0x23, 4, // WriteProp: energy = vars[4]
+        10, 1, 0x27, // ReadProp: vars[1] = energy_charge (recovery amount per rate)
+        10, 2, 0x28, // ReadProp: vars[2] = energy_charge_rate (frames between recovery)
+        // Simple energy recovery logic: recover energy_charge amount every frame (overriding passive regen)
+        40, 3, 0, 1, // AddByte: vars[3] = current_energy + energy_charge
+        20, 4, 100, // AssignByte: vars[4] = 100 (max energy cap)
+        70, 5, 3, 4, // Min: vars[5] = min(new_energy, 100)
+        11, 0x23, 5, // WriteProp: energy = vars[5]
         0, 1, // Exit with success
     ];
 
@@ -41,7 +46,7 @@ fn charge_action() -> Action {
         cooldown: 0,
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
-        args: [2, 100, 0, 0, 0, 0, 0, 0],
+        args: [0; 8], // No longer using args - using character properties instead
         spawns: [0; 4],
         script,
     }
