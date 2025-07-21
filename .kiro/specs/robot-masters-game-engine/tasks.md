@@ -130,7 +130,7 @@
   - Write unit tests for movement action execution and physics integration
   - _Requirements: 6.2, 6.3, 5.1, 6.9, 6.10_
 
-- [ ] 11.4 Implement complete character behavior integration
+- [x] 11.4 Implement complete character behavior integration
 
   - Create behavior list combining conditions and actions: Energy below 10% → Charge, Leaning on wall → Turn around, Random 1/20 → Jump, Random 1/20 → Shoot, Always → Run
   - Test behavior priority and execution order (top to bottom until condition passes)
@@ -138,8 +138,8 @@
   - Write integration tests for complete character AI behavior within game loop
   - _Requirements: 5.2, 5.3, 6.1, 6.2_
 
-- [ ] 12. Create public API functions
-- [ ] 12.1 Implement new_game, game_loop, and game_state functions
+- [x] 12. Create public API functions
+- [x] 12.1 Implement new_game, game_loop, and game_state functions
 
   - Create new_game function accepting seed, tilemap, and entity definitions
   - Ensure game_loop advances state by one frame deterministically
@@ -222,8 +222,8 @@
   - Write unit tests for energy charging mechanics and movement restriction
   - _Requirements: 6.2, 6.9, 6.10, 5.1_
 
-- [ ] 17. Update Character properties for energy regeneration and simplified armor
-- [ ] 17.1 Replace ElementalImmunity with simplified armor array and add energy regeneration properties
+- [-] 17. Update Character properties for energy regeneration and simplified armor
+- [x] 17.1 Replace ElementalImmunity with simplified armor array and add energy regeneration properties
 
   - Replace `elemental_immunity: ElementalImmunity` with `armor: [u8; 8]` in Character struct
   - Add `energy_regen: u8` property for passive energy recovery amount per rate
@@ -235,7 +235,7 @@
   - Write unit tests for new energy regeneration properties and simplified armor access
   - _Requirements: 11.2, 12.1, 12.2, 12.3, 12.4_
 
-- [ ] 17.2 Update script property access for new Character properties
+- [x] 17.2 Update script property access for new Character properties
 
   - Add property addresses 0x25-0x28 for energy regeneration properties in script interpreters
   - Ensure property addresses 0x40-0x47 work correctly for armor array access
@@ -243,7 +243,7 @@
   - Write unit tests for script property access to new Character properties
   - _Requirements: 12.5, 11.6_
 
-- [ ] 17.3 Create passive energy regeneration StatusEffect (depends on Task 8.1 completion)
+- [x] 17.3 Create passive energy regeneration StatusEffect (depends on Task 8.1 completion)
 
   - Create "PassiveEnergyRegen" StatusEffect that reads character's energy_regen and energy_regen_rate properties
   - Implement tick_script that increments energy every energy_regen_rate ticks by energy_regen amount
@@ -314,6 +314,42 @@
   - Modify Shoot Action example to demonstrate conditional cooldown setting (e.g., only set cooldown after successful reload)
   - Write unit tests to verify that actions without explicit cooldown setting do not automatically update last_used timestamp
   - _Requirements: 6.1, 6.2, 5.2_
+
+- [ ] 19. Implement facing direction and gravity direction properties for entities
+- [ ] 19.1 Add facing direction property to EntityCore with automatic Fixed conversion
+
+  - Add `facing: u8` field to EntityCore struct (0 for left, 1 for right)
+  - Implement property access methods that automatically convert to Fixed values when reading (0 → -1.0, 1 → 1.0)
+  - Implement property write methods that automatically convert from Fixed values when writing (-1.0 → 0, 1.0 → 1)
+  - Update EntityCore::new() to initialize facing to 1 (right) by default
+  - Write unit tests for facing direction property access and conversion logic
+  - _Requirements: 5.1_
+
+- [ ] 19.2 Add gravity direction property to EntityCore with automatic Fixed conversion
+
+  - Add `gravity_dir: u8` field to EntityCore struct (0 for upward, 1 for downward)
+  - Implement property access methods that automatically convert to Fixed values when reading (0 → -1.0, 1 → 1.0)
+  - Implement property write methods that automatically convert from Fixed values when writing (-1.0 → 0, 1.0 → 1)
+  - Update EntityCore::new() to initialize gravity_dir to 1 (downward) by default
+  - Write unit tests for gravity direction property access and conversion logic
+  - _Requirements: 5.1_
+
+- [ ] 19.3 Update script property access for facing and gravity direction
+
+  - Add property address 0x4B for reading/writing facing direction (automatically converts u8 ↔ Fixed)
+  - Add property address 0x4C for reading/writing gravity direction (automatically converts u8 ↔ Fixed)
+  - Update all script interpreters (Condition, Action, Spawn, StatusEffect) to support new direction properties
+  - Ensure property access handles the automatic conversion between u8 storage and Fixed script values
+  - Write unit tests for script-based direction property access and conversion
+  - _Requirements: 6.1, 6.2_
+
+- [ ] 19.4 Update entity serialization and initialization for direction properties
+
+  - Update GameState serialization to include facing and gravity direction fields
+  - Ensure new_game function can initialize entities with custom facing and gravity directions
+  - Update JSON serialization to include direction properties for debugging
+  - Write unit tests for direction property serialization and deserialization
+  - _Requirements: 9.1, 9.2, 1.3_
 
 - [ ] 20. Create integration tests and performance benchmarks
 - [ ] 20.1 Build end-to-end game scenarios and performance tests

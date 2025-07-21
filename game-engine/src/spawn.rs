@@ -195,6 +195,8 @@ impl<'a> ScriptContext for SpawnBehaviorContext<'a> {
                     engine.vars[var_index] = self.spawn_def.damage_base;
                 }
             }
+            // Note: Energy regeneration properties (0x25-0x28) and armor properties (0x40-0x47)
+            // are not available in spawn context as spawns don't have direct access to character data
             _ => {}
         }
     }

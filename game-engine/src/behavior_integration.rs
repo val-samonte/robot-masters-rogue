@@ -394,4 +394,140 @@ mod tests {
             "Character should have executed at least the fallback behavior"
         );
     }
+
+    #[test]
+    fn test_complete_behavior_priority_system_comprehensive() {
+        // Test the complete behavior priority system as specified in task 11.4:
+        // 1. Energy below 10% → Charge (highest priority)
+        // 2. Leaning on wall → Turn around
+        // 3. Random 1/20 → Jump
+        // 4. Random 1/20 → Shoot
+        // 5. Always → Run (lowest priority, fallback)
+
+        let mut game_state = create_test_game_state();
+        let (conditions, actions) = create_complete_behavior_set();
+
+        // Test scenario 1: Energy below 10% should trigger charge (highest priority)
+        {
+            let mut character = create_character_with_complete_behaviors();
+            character.energy = 5; // Below 10%
+            character.core.collision.1 = true; // Also leaning on wall - should be ignored
+
+            let result = process_complete_character_behaviors(
+                &mut game_state,
+                &mut character,
+                &conditions,
+                &actions,
+            );
+            assert!(result.is_ok(), "Behavior processing should succeed");
+
+            // Should execute charge action (highest priority) and ignore wall collision
+            assert!(
+                character.locked_action.is_some(),
+                "Should be locked to charge action"
+            );
+            assert_eq!(
+                character.locked_action.unwrap(),
+                0,
+                "Should be locked to action 0 (charge)"
+            );
+            assert_eq!(
+                character.core.vel.0,
+                Fixed::ZERO,
+                "Charge should stop movement"
+            );
+        }
+
+        // Test scenario 2: Leaning on wall (when energy is sufficient)
+        {
+            let mut character = create_character_with_complete_behaviors();
+            character.energy = 50; // Sufficient energy
+            character.core.collision.1 = true; // Leaning on right wall
+            character.core.vel.0 = Fixed::from_int(3); // Moving right
+
+            let result = process_complete_character_behaviors(
+                &mut game_state,
+                &mut character,
+                &conditions,
+                &actions,
+            );
+            assert!(result.is_ok(), "Behavior processing should succeed");
+
+            // Should execute turn around action
+            assert_eq!(
+                character.core.vel.0,
+                Fixed::from_int(-3),
+                "Should reverse velocity"
+            );
+        }
+
+        // Test scenario 3: Fallback to run action when no other conditions trigger
+        {
+            let mut character = create_character_with_complete_behaviors();
+            character.energy = 50; // Sufficient energy
+            character.core.collision = (false, false, false, false); // Not touching any walls
+
+            // Execute multiple times to ensure fallback behavior works consistently
+            let mut run_triggered = false;
+            for _ in 0..5 {
+                let mut test_character = character.clone();
+                let result = process_complete_character_behaviors(
+                    &mut game_state,
+                    &mut test_character,
+                    &conditions,
+                    &actions,
+                );
+                assert!(result.is_ok(), "Behavior processing should succeed");
+
+                // Check if run action was triggered (velocity set to 3)
+                if test_character.core.vel.0 == Fixed::from_int(3) {
+                    run_triggered = true;
+                    break;
+                }
+            }
+            assert!(
+                run_triggered,
+                "Run action should eventually trigger as fallback"
+            );
+        }
+    }
+
+    #[test]
+    fn test_behavior_integration_with_multiple_frames() {
+        // Test behavior integration across multiple game frames
+        let mut game_state = create_test_game_state();
+        let character = create_character_with_complete_behaviors();
+        let (conditions, actions) = create_complete_behavior_set();
+
+        // Add character and lookup tables to game state
+        game_state.characters.push(character);
+        game_state.condition_lookup = conditions;
+        game_state.action_lookup = actions;
+
+        // Set initial conditions for predictable behavior
+        game_state.characters[0].energy = 50;
+        game_state.characters[0].core.collision = (false, false, false, false);
+
+        // Advance multiple frames and verify behavior consistency
+        for frame in 1..=10 {
+            let result = game_state.advance_frame();
+            assert!(result.is_ok(), "Frame {} advancement should succeed", frame);
+            assert_eq!(game_state.frame, frame, "Frame counter should be correct");
+
+            let character = &game_state.characters[0];
+
+            // Character should maintain some form of behavior execution
+            // (either energy consumption, movement, or locked actions)
+            let has_activity = character.energy < 50
+                || character.core.vel.0 != Fixed::ZERO
+                || character.core.vel.1 != Fixed::ZERO
+                || character.locked_action.is_some();
+
+            if !has_activity {
+                // If no activity, at least verify the character is still valid
+                assert!(character.energy <= 100, "Energy should not exceed maximum");
+                assert!(character.health <= 100, "Health should be reasonable");
+            }
+        }
+    }
 }

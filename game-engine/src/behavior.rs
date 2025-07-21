@@ -236,6 +236,27 @@ impl<'a> ScriptContext for ConditionContext<'a> {
                     engine.vars[var_index] = self.character.energy;
                 }
             }
+            // Energy regeneration properties (0x25-0x28)
+            0x25 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_regen;
+                }
+            }
+            0x26 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_regen_rate;
+                }
+            }
+            0x27 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_charge;
+                }
+            }
+            0x28 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_charge_rate;
+                }
+            }
             0x2B => {
                 if var_index < engine.vars.len() {
                     engine.vars[var_index] = if self.character.core.collision.0 {
@@ -291,49 +312,49 @@ impl<'a> ScriptContext for ConditionContext<'a> {
             // Character armor properties (0x40-0x47)
             0x40 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[0];
+                    engine.vars[var_index] = self.character.armor[0];
                     // Punct
                 }
             }
             0x41 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[1];
+                    engine.vars[var_index] = self.character.armor[1];
                     // Blast
                 }
             }
             0x42 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[2];
+                    engine.vars[var_index] = self.character.armor[2];
                     // Force
                 }
             }
             0x43 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[3];
+                    engine.vars[var_index] = self.character.armor[3];
                     // Sever
                 }
             }
             0x44 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[4];
+                    engine.vars[var_index] = self.character.armor[4];
                     // Heat
                 }
             }
             0x45 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[5];
+                    engine.vars[var_index] = self.character.armor[5];
                     // Cryo
                 }
             }
             0x46 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[6];
+                    engine.vars[var_index] = self.character.armor[6];
                     // Jolt
                 }
             }
             0x47 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[7];
+                    engine.vars[var_index] = self.character.armor[7];
                     // Virus
                 }
             }
@@ -544,6 +565,27 @@ impl<'a> ScriptContext for ActionContext<'a> {
                     engine.vars[var_index] = self.character.energy;
                 }
             }
+            // Energy regeneration properties (0x25-0x28)
+            0x25 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_regen;
+                }
+            }
+            0x26 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_regen_rate;
+                }
+            }
+            0x27 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_charge;
+                }
+            }
+            0x28 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_charge_rate;
+                }
+            }
             0x2B => {
                 if var_index < engine.vars.len() {
                     engine.vars[var_index] = if self.character.core.collision.0 {
@@ -599,49 +641,49 @@ impl<'a> ScriptContext for ActionContext<'a> {
             // Character armor properties (0x40-0x47)
             0x40 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[0];
+                    engine.vars[var_index] = self.character.armor[0];
                     // Punct
                 }
             }
             0x41 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[1];
+                    engine.vars[var_index] = self.character.armor[1];
                     // Blast
                 }
             }
             0x42 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[2];
+                    engine.vars[var_index] = self.character.armor[2];
                     // Force
                 }
             }
             0x43 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[3];
+                    engine.vars[var_index] = self.character.armor[3];
                     // Sever
                 }
             }
             0x44 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[4];
+                    engine.vars[var_index] = self.character.armor[4];
                     // Heat
                 }
             }
             0x45 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[5];
+                    engine.vars[var_index] = self.character.armor[5];
                     // Cryo
                 }
             }
             0x46 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[6];
+                    engine.vars[var_index] = self.character.armor[6];
                     // Jolt
                 }
             }
             0x47 => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.elemental_immunity[7];
+                    engine.vars[var_index] = self.character.armor[7];
                     // Virus
                 }
             }
@@ -700,6 +742,27 @@ impl<'a> ScriptContext for ActionContext<'a> {
                     self.character.energy = engine.vars[var_index];
                 }
             }
+            // Energy regeneration properties (0x25-0x28) - write support
+            0x25 => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_regen = engine.vars[var_index];
+                }
+            }
+            0x26 => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_regen_rate = engine.vars[var_index];
+                }
+            }
+            0x27 => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_charge = engine.vars[var_index];
+                }
+            }
+            0x28 => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_charge_rate = engine.vars[var_index];
+                }
+            }
             0x2B => {
                 if var_index < engine.vars.len() {
                     self.character.core.collision.0 = engine.vars[var_index] != 0;
@@ -733,49 +796,49 @@ impl<'a> ScriptContext for ActionContext<'a> {
             // Character armor properties (0x40-0x47) - write support
             0x40 => {
                 if var_index < engine.vars.len() {
-                    self.character.elemental_immunity[0] = engine.vars[var_index];
+                    self.character.armor[0] = engine.vars[var_index];
                     // Punct
                 }
             }
             0x41 => {
                 if var_index < engine.vars.len() {
-                    self.character.elemental_immunity[1] = engine.vars[var_index];
+                    self.character.armor[1] = engine.vars[var_index];
                     // Blast
                 }
             }
             0x42 => {
                 if var_index < engine.vars.len() {
-                    self.character.elemental_immunity[2] = engine.vars[var_index];
+                    self.character.armor[2] = engine.vars[var_index];
                     // Force
                 }
             }
             0x43 => {
                 if var_index < engine.vars.len() {
-                    self.character.elemental_immunity[3] = engine.vars[var_index];
+                    self.character.armor[3] = engine.vars[var_index];
                     // Sever
                 }
             }
             0x44 => {
                 if var_index < engine.vars.len() {
-                    self.character.elemental_immunity[4] = engine.vars[var_index];
+                    self.character.armor[4] = engine.vars[var_index];
                     // Heat
                 }
             }
             0x45 => {
                 if var_index < engine.vars.len() {
-                    self.character.elemental_immunity[5] = engine.vars[var_index];
+                    self.character.armor[5] = engine.vars[var_index];
                     // Cryo
                 }
             }
             0x46 => {
                 if var_index < engine.vars.len() {
-                    self.character.elemental_immunity[6] = engine.vars[var_index];
+                    self.character.armor[6] = engine.vars[var_index];
                     // Jolt
                 }
             }
             0x47 => {
                 if var_index < engine.vars.len() {
-                    self.character.elemental_immunity[7] = engine.vars[var_index];
+                    self.character.armor[7] = engine.vars[var_index];
                     // Virus
                 }
             }
@@ -1324,5 +1387,135 @@ mod tests {
 
         // Character energy should remain unchanged
         assert_eq!(character.energy, 5);
+    }
+
+    #[test]
+    fn test_energy_regeneration_property_access() {
+        let mut game_state = create_test_game_state();
+        let mut character = Character::new(1, 0);
+
+        // Set energy regeneration properties
+        character.energy_regen = 5;
+        character.energy_regen_rate = 60;
+        character.energy_charge = 10;
+        character.energy_charge_rate = 30;
+
+        // Test condition context reading energy regeneration properties
+        let condition = Condition {
+            id: 1,
+            energy_mul: Fixed::ONE,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![
+                10, 0, 0x25, // ReadProp vars[0] = energy_regen
+                10, 1, 0x26, // ReadProp vars[1] = energy_regen_rate
+                10, 2, 0x27, // ReadProp vars[2] = energy_charge
+                10, 3, 0x28, // ReadProp vars[3] = energy_charge_rate
+                0, 1, // Exit with success
+            ],
+        };
+
+        let result = condition.evaluate(&mut game_state, &character);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), true);
+
+        // Test action context reading and writing energy regeneration properties
+        let action = Action {
+            energy_cost: 0,
+            interval: 0,
+            duration: 0,
+            cooldown: 0,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![
+                10, 0, 0x25, // ReadProp vars[0] = energy_regen (5)
+                10, 1, 0x26, // ReadProp vars[1] = energy_regen_rate (60)
+                20, 2, 15, // AssignByte vars[2] = 15 (new energy_regen)
+                20, 3, 45, // AssignByte vars[3] = 45 (new energy_regen_rate)
+                11, 0x25, 2, // WriteProp energy_regen = vars[2] (15)
+                11, 0x26, 3, // WriteProp energy_regen_rate = vars[3] (45)
+                0, 1, // Exit with success
+            ],
+        };
+
+        let result = action.execute(&mut game_state, &mut character, &condition, 0);
+        assert!(result.is_ok());
+        let (success, _spawns) = result.unwrap();
+        assert_eq!(success, true);
+
+        // Verify properties were updated
+        assert_eq!(character.energy_regen, 15);
+        assert_eq!(character.energy_regen_rate, 45);
+        assert_eq!(character.energy_charge, 10); // Unchanged
+        assert_eq!(character.energy_charge_rate, 30); // Unchanged
+    }
+
+    #[test]
+    fn test_armor_property_access() {
+        let mut game_state = create_test_game_state();
+        let mut character = Character::new(1, 0);
+
+        // Set armor values
+        character.armor[0] = 75; // Punct
+        character.armor[1] = 125; // Blast
+        character.armor[4] = 50; // Heat
+        character.armor[7] = 200; // Virus
+
+        // Test condition context reading armor properties
+        let condition = Condition {
+            id: 1,
+            energy_mul: Fixed::ONE,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![
+                10, 0, 0x40, // ReadProp vars[0] = armor[0] (Punct)
+                10, 1, 0x41, // ReadProp vars[1] = armor[1] (Blast)
+                10, 2, 0x44, // ReadProp vars[2] = armor[4] (Heat)
+                10, 3, 0x47, // ReadProp vars[3] = armor[7] (Virus)
+                0, 1, // Exit with success
+            ],
+        };
+
+        let result = condition.evaluate(&mut game_state, &character);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), true);
+
+        // Test action context reading and writing armor properties
+        let action = Action {
+            energy_cost: 0,
+            interval: 0,
+            duration: 0,
+            cooldown: 0,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script: vec![
+                10, 0, 0x40, // ReadProp vars[0] = armor[0] (75)
+                10, 1, 0x44, // ReadProp vars[1] = armor[4] (50)
+                20, 2, 90, // AssignByte vars[2] = 90 (new Punct armor)
+                20, 3, 150, // AssignByte vars[3] = 150 (new Heat armor)
+                11, 0x40, 2, // WriteProp armor[0] = vars[2] (90)
+                11, 0x44, 3, // WriteProp armor[4] = vars[3] (150)
+                0, 1, // Exit with success
+            ],
+        };
+
+        let result = action.execute(&mut game_state, &mut character, &condition, 0);
+        assert!(result.is_ok());
+        let (success, _spawns) = result.unwrap();
+        assert_eq!(success, true);
+
+        // Verify armor properties were updated
+        assert_eq!(character.armor[0], 90); // Punct updated
+        assert_eq!(character.armor[1], 125); // Blast unchanged
+        assert_eq!(character.armor[4], 150); // Heat updated
+        assert_eq!(character.armor[7], 200); // Virus unchanged
     }
 }

@@ -28,7 +28,11 @@ pub struct Character {
     pub core: EntityCore,
     pub health: u8,
     pub energy: u8,
-    pub elemental_immunity: ElementalImmunity, // Resistance values for all 8 elements
+    pub armor: [u8; 8],         // Armor values for all 8 elements (baseline 100)
+    pub energy_regen: u8,       // Passive energy recovery amount per rate
+    pub energy_regen_rate: u8,  // Tick interval for passive energy recovery
+    pub energy_charge: u8,      // Active energy recovery amount per rate during Charge action
+    pub energy_charge_rate: u8, // Tick interval for active energy recovery during Charge action
     pub behaviors: Vec<(ConditionId, ActionId)>,
     pub locked_action: Option<ActionInstanceId>,
     pub status_effects: Vec<StatusEffectInstance>,
@@ -118,18 +122,20 @@ impl Element {
 }
 
 /// Character armor values (0-255, baseline 100) - simplified elemental immunity
-pub type ElementalImmunity = [u8; 8];
+/// Index corresponds to Element enum values: [Punct, Blast, Force, Sever, Heat, Cryo, Jolt, Virus]
+/// Lower values = more vulnerable, higher values = more resistant
+pub type Armor = [u8; 8];
 
 /// Helper functions for armor array
 impl Character {
     /// Get armor value for a specific element
     pub fn get_armor(&self, element: Element) -> u8 {
-        self.elemental_immunity[element as usize]
+        self.armor[element as usize]
     }
 
     /// Set armor value for a specific element
     pub fn set_armor(&mut self, element: Element, value: u8) {
-        self.elemental_immunity[element as usize] = value;
+        self.armor[element as usize] = value;
     }
 }
 
@@ -177,7 +183,11 @@ impl Character {
             core: EntityCore::new(id, group),
             health: 100,
             energy: 100,
-            elemental_immunity: [100; 8], // Default armor values (baseline 100)
+            armor: [100; 8], // Default armor values (baseline 100)
+            energy_regen: 0, // Values will be set during new_game/game initialization
+            energy_regen_rate: 0,
+            energy_charge: 0,
+            energy_charge_rate: 0,
             behaviors: Vec::new(),
             locked_action: None,
             status_effects: Vec::new(),
@@ -670,14 +680,14 @@ mod tests {
         let character = Character::new(1, 0);
 
         // All default armor values should be 100 (baseline)
-        assert_eq!(character.elemental_immunity[0], 100); // Punct
-        assert_eq!(character.elemental_immunity[1], 100); // Blast
-        assert_eq!(character.elemental_immunity[2], 100); // Force
-        assert_eq!(character.elemental_immunity[3], 100); // Sever
-        assert_eq!(character.elemental_immunity[4], 100); // Heat
-        assert_eq!(character.elemental_immunity[5], 100); // Cryo
-        assert_eq!(character.elemental_immunity[6], 100); // Jolt
-        assert_eq!(character.elemental_immunity[7], 100); // Virus
+        assert_eq!(character.armor[0], 100); // Punct
+        assert_eq!(character.armor[1], 100); // Blast
+        assert_eq!(character.armor[2], 100); // Force
+        assert_eq!(character.armor[3], 100); // Sever
+        assert_eq!(character.armor[4], 100); // Heat
+        assert_eq!(character.armor[5], 100); // Cryo
+        assert_eq!(character.armor[6], 100); // Jolt
+        assert_eq!(character.armor[7], 100); // Virus
     }
 
     #[test]
@@ -694,8 +704,8 @@ mod tests {
 
         assert_eq!(character.get_armor(Element::Punct), 50);
         assert_eq!(character.get_armor(Element::Heat), 200);
-        assert_eq!(character.elemental_immunity[0], 50);
-        assert_eq!(character.elemental_immunity[4], 200);
+        assert_eq!(character.armor[0], 50);
+        assert_eq!(character.armor[4], 200);
     }
 
     #[test]
@@ -732,5 +742,51 @@ mod tests {
         assert_eq!(Element::Cryo as u8, 5);
         assert_eq!(Element::Jolt as u8, 6);
         assert_eq!(Element::Virus as u8, 7);
+    }
+
+    #[test]
+    fn test_character_energy_regeneration_properties() {
+        let character = Character::new(1, 0);
+
+        // Test default energy regeneration values (should be 0)
+        assert_eq!(character.energy_regen, 0);
+        assert_eq!(character.energy_regen_rate, 0);
+        assert_eq!(character.energy_charge, 0);
+        assert_eq!(character.energy_charge_rate, 0);
+    }
+
+    #[test]
+    fn test_character_energy_regeneration_modification() {
+        let mut character = Character::new(1, 0);
+
+        // Test setting energy regeneration properties
+        character.energy_regen = 5; // Recover 5 energy per rate
+        character.energy_regen_rate = 60; // Every 60 ticks (1 second at 60 FPS)
+        character.energy_charge = 10; // Recover 10 energy per rate during charge
+        character.energy_charge_rate = 30; // Every 30 ticks (0.5 seconds at 60 FPS)
+
+        assert_eq!(character.energy_regen, 5);
+        assert_eq!(character.energy_regen_rate, 60);
+        assert_eq!(character.energy_charge, 10);
+        assert_eq!(character.energy_charge_rate, 30);
+    }
+
+    #[test]
+    fn test_character_armor_array_access() {
+        let mut character = Character::new(1, 0);
+
+        // Test direct armor array access
+        character.armor[Element::Punct as usize] = 75;
+        character.armor[Element::Heat as usize] = 125;
+        character.armor[Element::Virus as usize] = 50;
+
+        assert_eq!(character.armor[0], 75); // Punct
+        assert_eq!(character.armor[4], 125); // Heat
+        assert_eq!(character.armor[7], 50); // Virus
+
+        // Test that get_armor and set_armor still work
+        assert_eq!(character.get_armor(Element::Punct), 75);
+        assert_eq!(character.get_armor(Element::Heat), 125);
+        assert_eq!(character.get_armor(Element::Virus), 50);
     }
 }

@@ -49,7 +49,11 @@ impl GameState {
         characters: Vec<Character>,
         spawn_definitions: Vec<SpawnDefinition>,
     ) -> GameResult<Self> {
-        Ok(Self {
+        // Create status effect lookup with passive energy regeneration as the first effect
+        let mut status_effect_lookup = Vec::new();
+        status_effect_lookup.push(crate::status::create_passive_energy_regen_status_effect());
+
+        let mut game_state = Self {
             seed,
             frame: 0,
             tile_map: Tilemap::new(tilemap),
@@ -59,10 +63,16 @@ impl GameState {
             action_lookup: Vec::new(),
             condition_lookup: Vec::new(),
             spawn_lookup: spawn_definitions,
-            status_effect_lookup: Vec::new(),
+            status_effect_lookup,
             script_engine: ScriptEngine::new(),
             rng: SeededRng::new(seed),
-        })
+        };
+
+        // Apply passive energy regeneration to all characters
+        crate::status::apply_passive_energy_regen_to_all_characters(&mut game_state.characters)
+            .map_err(|_| "Failed to apply passive energy regeneration")?;
+
+        Ok(game_state)
     }
 
     /// Advance the game state by one frame
@@ -337,8 +347,8 @@ impl GameState {
         json.push_str(&format!(r#""energy":{},"#, character.energy));
 
         // Elemental immunity array
-        json.push_str(r#""elemental_immunity":["#);
-        for (i, &immunity) in character.elemental_immunity.iter().enumerate() {
+        json.push_str(r#""armor":["#);
+        for (i, &immunity) in character.armor.iter().enumerate() {
             if i > 0 {
                 json.push(',');
             }
@@ -438,10 +448,10 @@ impl GameState {
         data.push(if character.core.collision.2 { 1 } else { 0 });
         data.push(if character.core.collision.3 { 1 } else { 0 });
 
-        // Character-specific: health (1) + energy (1) + elemental_immunity (8) = 10 bytes
+        // Character-specific: health (1) + energy (1) + armor (8) = 10 bytes
         data.push(character.health);
         data.push(character.energy);
-        data.extend_from_slice(&character.elemental_immunity);
+        data.extend_from_slice(&character.armor);
 
         // Behaviors: count (1) + behaviors (count * 2)
         data.push(character.behaviors.len() as u8);
@@ -536,8 +546,8 @@ impl GameState {
         pos += 1;
         let energy = data[pos];
         pos += 1;
-        let mut elemental_immunity = [0u8; 8];
-        elemental_immunity.copy_from_slice(&data[pos..pos + 8]);
+        let mut armor = [0u8; 8];
+        armor.copy_from_slice(&data[pos..pos + 8]);
         pos += 8;
 
         // Behaviors
@@ -606,7 +616,11 @@ impl GameState {
             },
             health,
             energy,
-            elemental_immunity,
+            armor,
+            energy_regen: 0, // Will be set during game initialization
+            energy_regen_rate: 0,
+            energy_charge: 0,
+            energy_charge_rate: 0,
             behaviors,
             locked_action,
             status_effects,
@@ -1056,10 +1070,10 @@ mod tests {
         assert_eq!(restored_char.core.vel, (Fixed::ZERO, Fixed::ZERO)); // Default value
         assert_eq!(restored_char.core.size, (16, 16)); // Default value
         assert_eq!(restored_char.core.collision, (true, true, true, true)); // Default value
-        assert_eq!(restored_char.elemental_immunity, [100; 8]); // Default armor values
+        assert_eq!(restored_char.armor, [100; 8]); // Default armor values
         assert_eq!(restored_char.behaviors.len(), 0); // No behaviors added
         assert_eq!(restored_char.locked_action, None); // No locked action
-        assert_eq!(restored_char.status_effects.len(), 0); // No status effects
+        assert_eq!(restored_char.status_effects.len(), 1); // Passive energy regeneration status effect
 
         // Verify no spawns
         assert_eq!(restored_game.spawn_instances.len(), 0);
@@ -1224,7 +1238,7 @@ mod tests {
         let binary_data = game.to_binary().unwrap();
         let restored_game = GameState::from_binary(&binary_data).unwrap();
 
-        assert_eq!(restored_game.characters[0].status_effects.len(), 2);
+        assert_eq!(restored_game.characters[0].status_effects.len(), 3); // Including passive energy regen
         assert_eq!(restored_game.characters[0].status_effects[0].effect_id, 1);
         assert_eq!(
             restored_game.characters[0].status_effects[0].remaining_duration,
