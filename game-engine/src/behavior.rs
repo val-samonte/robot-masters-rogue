@@ -360,6 +360,18 @@ impl<'a> ScriptContext for ConditionContext<'a> {
                 }
             }
 
+            // Entity direction properties (0x4B-0x4C)
+            0x4B => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_facing();
+                }
+            }
+            0x4C => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_gravity_dir();
+                }
+            }
+
             _ => {}
         }
     }
@@ -706,6 +718,18 @@ impl<'a> ScriptContext for ActionContext<'a> {
                 }
             }
 
+            // Entity direction properties (0x4B-0x4C)
+            0x4B => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_facing();
+                }
+            }
+            0x4C => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_gravity_dir();
+                }
+            }
+
             _ => {}
         }
     }
@@ -854,6 +878,18 @@ impl<'a> ScriptContext for ActionContext<'a> {
                     self.character.action_last_used[self.action_id] =
                         current_high | (engine.vars[var_index] as u16);
                     // Action last used timestamp (low byte)
+                }
+            }
+
+            // Entity direction properties (0x4B-0x4C) - write support
+            0x4B => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.set_facing(engine.fixed[var_index]);
+                }
+            }
+            0x4C => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.set_gravity_dir(engine.fixed[var_index]);
                 }
             }
 

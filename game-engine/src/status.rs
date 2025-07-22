@@ -289,6 +289,18 @@ impl<'a> ScriptContext for StatusEffectContext<'a> {
                 }
             }
 
+            // Entity direction properties (0x4B-0x4C)
+            0x4B => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_facing();
+                }
+            }
+            0x4C => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_gravity_dir();
+                }
+            }
+
             _ => {}
         }
     }
@@ -361,6 +373,18 @@ impl<'a> ScriptContext for StatusEffectContext<'a> {
                 if var_index < engine.vars.len() {
                     let var_idx = (prop_address - 0x8F) as usize;
                     self.status_instance.vars[var_idx] = engine.vars[var_index];
+                }
+            }
+
+            // Entity direction properties (0x4B-0x4C) - write support
+            0x4B => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.set_facing(engine.fixed[var_index]);
+                }
+            }
+            0x4C => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.set_gravity_dir(engine.fixed[var_index]);
                 }
             }
 

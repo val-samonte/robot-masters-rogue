@@ -343,6 +343,8 @@ impl GameState {
             character.core.collision.2,
             character.core.collision.3
         ));
+        json.push_str(&format!(r#""facing":{},"#, character.core.facing));
+        json.push_str(&format!(r#""gravity_dir":{},"#, character.core.gravity_dir));
         json.push_str(&format!(r#""health":{},"#, character.health));
         json.push_str(&format!(r#""energy":{},"#, character.energy));
 
@@ -419,6 +421,8 @@ impl GameState {
             spawn.core.collision.2,
             spawn.core.collision.3
         ));
+        json.push_str(&format!(r#""facing":{},"#, spawn.core.facing));
+        json.push_str(&format!(r#""gravity_dir":{},"#, spawn.core.gravity_dir));
         json.push_str(&format!(r#""spawn_id":{},"#, spawn.spawn_id));
         json.push_str(&format!(r#""owner_id":{},"#, spawn.owner_id));
         json.push_str(&format!(r#""lifespan":{},"#, spawn.lifespan));
@@ -434,7 +438,7 @@ impl GameState {
 
     // Helper methods for binary serialization
     fn serialize_character(&self, character: &Character, data: &mut Vec<u8>) -> GameResult<()> {
-        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) + facing (1) = 17 bytes
+        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) + facing (1) + gravity_dir (1) = 18 bytes
         data.push(character.core.id);
         data.push(character.core.group);
         data.extend_from_slice(&character.core.pos.0.raw().to_le_bytes());
@@ -448,6 +452,7 @@ impl GameState {
         data.push(if character.core.collision.2 { 1 } else { 0 });
         data.push(if character.core.collision.3 { 1 } else { 0 });
         data.push(character.core.facing);
+        data.push(character.core.gravity_dir);
 
         // Character-specific: health (1) + energy (1) + armor (8) = 10 bytes
         data.push(character.health);
@@ -486,7 +491,7 @@ impl GameState {
     }
 
     fn serialize_spawn(&self, spawn: &SpawnInstance, data: &mut Vec<u8>) -> GameResult<()> {
-        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) + facing (1) = 17 bytes
+        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) + facing (1) + gravity_dir (1) = 18 bytes
         data.push(spawn.core.id);
         data.push(spawn.core.group);
         data.extend_from_slice(&spawn.core.pos.0.raw().to_le_bytes());
@@ -500,6 +505,7 @@ impl GameState {
         data.push(if spawn.core.collision.2 { 1 } else { 0 });
         data.push(if spawn.core.collision.3 { 1 } else { 0 });
         data.push(spawn.core.facing);
+        data.push(spawn.core.gravity_dir);
 
         // Spawn-specific: spawn_id (1) + owner_id (1) + lifespan (2) + element (1) + vars (4) = 9 bytes
         data.push(spawn.spawn_id);
@@ -512,7 +518,7 @@ impl GameState {
     }
 
     fn deserialize_character(data: &[u8]) -> GameResult<(Character, usize)> {
-        if data.len() < 35 {
+        if data.len() < 36 {
             return Err("Invalid character data: too short".into());
         }
 
@@ -543,6 +549,8 @@ impl GameState {
         );
         pos += 4;
         let facing = data[pos];
+        pos += 1;
+        let gravity_dir = data[pos];
         pos += 1;
 
         // Character-specific
@@ -618,6 +626,7 @@ impl GameState {
                 size: (size_w, size_h),
                 collision,
                 facing,
+                gravity_dir,
             },
             health,
             energy,
@@ -636,7 +645,7 @@ impl GameState {
     }
 
     fn deserialize_spawn(data: &[u8]) -> GameResult<(SpawnInstance, usize)> {
-        if data.len() < 26 {
+        if data.len() < 27 {
             return Err("Invalid spawn data: too short".into());
         }
 
@@ -668,6 +677,8 @@ impl GameState {
         pos += 4;
         let facing = data[pos];
         pos += 1;
+        let gravity_dir = data[pos];
+        pos += 1;
 
         // Spawn-specific
         let spawn_id = data[pos];
@@ -692,6 +703,7 @@ impl GameState {
                 size: (size_w, size_h),
                 collision,
                 facing,
+                gravity_dir,
             },
             spawn_id,
             owner_id,
@@ -1341,12 +1353,12 @@ mod tests {
         let game = GameState::new(222, [[0u8; 16]; 15], vec![], vec![]).unwrap();
         game.serialize_spawn(&spawn, &mut data).unwrap();
 
-        // Check that we have the expected 26 bytes (EntityCore: 17 + Spawn-specific: 9)
-        assert_eq!(data.len(), 26);
+        // Check that we have the expected 27 bytes (EntityCore: 18 + Spawn-specific: 9)
+        assert_eq!(data.len(), 27);
 
         // Try to deserialize
         let (deserialized_spawn, bytes_read) = GameState::deserialize_spawn(&data).unwrap();
-        assert_eq!(bytes_read, 26);
+        assert_eq!(bytes_read, 27);
         assert_eq!(deserialized_spawn.spawn_id, 1);
         assert_eq!(deserialized_spawn.element, Element::Punct);
     }

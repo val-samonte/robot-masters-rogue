@@ -259,7 +259,7 @@
   - Write unit tests for active energy charging mechanics
   - _Requirements: 12.7, 6.2, 6.9, 6.10_
 
-- [-] 18. Implement Action cooldown system for behavior timing control
+- [x] 18. Implement Action cooldown system for behavior timing control
 - [x] 18.1 Add cooldown fields to Action and Character structures
 
   - Add `cooldown: u16` field to Action struct for cooldown duration in frames (read-only, set only during new_game)
@@ -315,7 +315,7 @@
   - Write unit tests to verify that actions without explicit cooldown setting do not automatically update last_used timestamp
   - _Requirements: 6.1, 6.2, 5.2_
 
-- [ ] 19. Implement facing direction and gravity direction properties for entities
+- [x] 19. Implement facing direction and gravity direction properties for entities
 - [x] 19.1 Add facing direction property to EntityCore with automatic Fixed conversion
 
   - Add `facing: u8` field to EntityCore struct (0 for left, 1 for right)
@@ -325,7 +325,7 @@
   - Write unit tests for facing direction property access and conversion logic
   - _Requirements: 5.1_
 
-- [ ] 19.2 Add gravity direction property to EntityCore with automatic Fixed conversion
+- [x] 19.2 Add gravity direction property to EntityCore with automatic Fixed conversion
 
   - Add `gravity_dir: u8` field to EntityCore struct (0 for upward, 1 for downward)
   - Implement property access methods that automatically convert to Fixed values when reading (0 → -1.0, 1 → 1.0)
@@ -334,7 +334,7 @@
   - Write unit tests for gravity direction property access and conversion logic
   - _Requirements: 5.1_
 
-- [ ] 19.3 Update script property access for facing and gravity direction
+- [x] 19.3 Update script property access for facing and gravity direction
 
   - Add property address 0x4B for reading/writing facing direction (automatically converts u8 ↔ Fixed)
   - Add property address 0x4C for reading/writing gravity direction (automatically converts u8 ↔ Fixed)
@@ -343,7 +343,7 @@
   - Write unit tests for script-based direction property access and conversion
   - _Requirements: 6.1, 6.2_
 
-- [ ] 19.4 Update entity serialization and initialization for direction properties
+- [x] 19.4 Update entity serialization and initialization for direction properties
 
   - Update GameState serialization to include facing and gravity direction fields
   - Ensure new_game function can initialize entities with custom facing and gravity directions

@@ -195,6 +195,19 @@ impl<'a> ScriptContext for SpawnBehaviorContext<'a> {
                     engine.vars[var_index] = self.spawn_def.damage_base;
                 }
             }
+
+            // Entity direction properties (0x4B-0x4C)
+            0x4B => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.spawn_instance.core.get_facing();
+                }
+            }
+            0x4C => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.spawn_instance.core.get_gravity_dir();
+                }
+            }
+
             // Note: Energy regeneration properties (0x25-0x28) and armor properties (0x40-0x47)
             // are not available in spawn context as spawns don't have direct access to character data
             _ => {}
@@ -223,6 +236,21 @@ impl<'a> ScriptContext for SpawnBehaviorContext<'a> {
                     self.spawn_instance.core.vel.1 = engine.fixed[var_index];
                 }
             }
+
+            // Entity direction properties (0x4B-0x4C) - write support
+            0x4B => {
+                if var_index < engine.fixed.len() {
+                    self.spawn_instance.core.set_facing(engine.fixed[var_index]);
+                }
+            }
+            0x4C => {
+                if var_index < engine.fixed.len() {
+                    self.spawn_instance
+                        .core
+                        .set_gravity_dir(engine.fixed[var_index]);
+                }
+            }
+
             _ => {}
         }
     }

@@ -22,6 +22,7 @@ pub struct EntityCore {
     pub size: (u8, u8),
     pub collision: (bool, bool, bool, bool), // top, right, bottom, left
     pub facing: u8,                          // 0 for left, 1 for right
+    pub gravity_dir: u8,                     // 0 for upward, 1 for downward
 }
 
 /// Programmable fighting characters
@@ -175,7 +176,8 @@ impl EntityCore {
             vel: (Fixed::ZERO, Fixed::ZERO),
             size: (16, 16), // Default 16x16 pixel size
             collision: (true, true, true, true),
-            facing: 1, // Default to right (1)
+            facing: 1,      // Default to right (1)
+            gravity_dir: 1, // Default to downward (1)
         }
     }
 
@@ -194,6 +196,24 @@ impl EntityCore {
             self.facing = 0; // Left
         } else {
             self.facing = 1; // Right
+        }
+    }
+
+    /// Get gravity direction as Fixed value (-1.0 for upward, 1.0 for downward)
+    pub fn get_gravity_dir(&self) -> Fixed {
+        if self.gravity_dir == 0 {
+            Fixed::from_int(-1) // Upward
+        } else {
+            Fixed::from_int(1) // Downward
+        }
+    }
+
+    /// Set gravity direction from Fixed value (-1.0 → upward, 1.0 → downward)
+    pub fn set_gravity_dir(&mut self, value: Fixed) {
+        if value < Fixed::ZERO {
+            self.gravity_dir = 0; // Upward
+        } else {
+            self.gravity_dir = 1; // Downward
         }
     }
 }
@@ -273,6 +293,7 @@ mod tests {
         assert_eq!(core.size, (16, 16)); // Default 16x16 pixel size
         assert_eq!(core.collision, (true, true, true, true));
         assert_eq!(core.facing, 1); // Default to right
+        assert_eq!(core.gravity_dir, 1); // Default to downward
     }
 
     #[test]
@@ -298,6 +319,10 @@ mod tests {
         // Test facing modification
         core.facing = 0; // Left
         assert_eq!(core.facing, 0);
+
+        // Test gravity direction modification
+        core.gravity_dir = 0; // Upward
+        assert_eq!(core.gravity_dir, 0);
     }
 
     #[test]
@@ -332,6 +357,40 @@ mod tests {
         core.set_facing(Fixed::ZERO);
         assert_eq!(core.facing, 1);
         assert_eq!(core.get_facing(), Fixed::from_int(1));
+    }
+
+    #[test]
+    fn test_entity_core_gravity_direction() {
+        let mut core = EntityCore::new(1, 0);
+
+        // Test default gravity direction (downward)
+        assert_eq!(core.gravity_dir, 1);
+        assert_eq!(core.get_gravity_dir(), Fixed::from_int(1));
+
+        // Test setting gravity direction to upward using Fixed value
+        core.set_gravity_dir(Fixed::from_int(-1));
+        assert_eq!(core.gravity_dir, 0);
+        assert_eq!(core.get_gravity_dir(), Fixed::from_int(-1));
+
+        // Test setting gravity direction to downward using Fixed value
+        core.set_gravity_dir(Fixed::from_int(1));
+        assert_eq!(core.gravity_dir, 1);
+        assert_eq!(core.get_gravity_dir(), Fixed::from_int(1));
+
+        // Test setting gravity direction with negative fractional value (should be upward)
+        core.set_gravity_dir(Fixed::from_raw(-5)); // Negative value
+        assert_eq!(core.gravity_dir, 0);
+        assert_eq!(core.get_gravity_dir(), Fixed::from_int(-1));
+
+        // Test setting gravity direction with positive fractional value (should be downward)
+        core.set_gravity_dir(Fixed::from_raw(5)); // Positive value
+        assert_eq!(core.gravity_dir, 1);
+        assert_eq!(core.get_gravity_dir(), Fixed::from_int(1));
+
+        // Test setting gravity direction with zero (should be downward)
+        core.set_gravity_dir(Fixed::ZERO);
+        assert_eq!(core.gravity_dir, 1);
+        assert_eq!(core.get_gravity_dir(), Fixed::from_int(1));
     }
 
     #[test]
