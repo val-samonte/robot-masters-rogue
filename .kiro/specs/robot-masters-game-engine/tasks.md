@@ -306,7 +306,7 @@
   - Write unit tests for complete cooldown system integration with game loop
   - _Requirements: 6.2, 6.4, 1.1_
 
-- [ ] 18.6 Remove automatic cooldown setting from behavior execution
+- [x] 18.6 Remove automatic cooldown setting from behavior execution
 
   - Remove automatic `action_last_used[action_id] = game_state.frame` assignment from `execute_character_behaviors` function in behavior.rs
   - Ensure cooldown setting becomes manual and script-controlled only through `WriteActionLastUsed` operator

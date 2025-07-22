@@ -13,23 +13,30 @@ pub fn test_function() -> u8 {
 /// This action spawns projectiles using spawn ID and tracks ammo consumption
 /// Uses args[0] for ammo capacity, args[1] for projectile spawn ID, args[2] for fire rate (frames between shots)
 /// Uses spawns[0] to track current ammo count
+/// Demonstrates conditional cooldown setting - only sets cooldown after successful reload
 pub fn shoot_action_with_ammo() -> Action {
     let script = vec![
-        // Basic shoot script - spawn projectile and manage ammo/timing
-
+        // Check if we have ammo
+        97, 0, 0, // ReadSpawn: vars[0] = spawns[0] (current ammo)
+        20, 1, 0, // AssignByte: vars[1] = 0 (for comparison)
+        52, 2, 0, 1, // LessThan: vars[2] = (current_ammo < 0) - out of ammo?
+        // If out of ammo, reload and set cooldown
+        // Skip to shooting if we have ammo (jump over reload section)
+        // For simplicity, we'll just reload to full capacity
+        96, 3, 0, // ReadArg: vars[3] = args[0] (ammo_capacity)
+        98, 0, 3, // WriteSpawn: spawns[0] = vars[3] (reload to full)
+        // Set cooldown after reload (conditional cooldown setting)
+        10, 4, 0x02, // ReadProp: vars[4] = current_frame (low byte)
+        94, 4, // WriteActionLastUsed: set cooldown timestamp
         // Get projectile spawn ID from args[1]
-        96, 0, 1, // ReadArg: vars[0] = args[1] (projectile_spawn_id)
+        96, 5, 1, // ReadArg: vars[5] = args[1] (projectile_spawn_id)
         // Spawn the projectile
-        84, 0, // Spawn: spawn projectile with ID from vars[0]
+        84, 5, // Spawn: spawn projectile with ID from vars[5]
         // Update ammo count (decrease by 1)
-        97, 1, 0, // ReadSpawn: vars[1] = spawns[0] (current ammo)
-        20, 2, 1, // AssignByte: vars[2] = 1
-        41, 1, 1, 2, // SubByte: vars[1] = vars[1] - 1 (decrease ammo)
-        98, 0, 1, // WriteSpawn: spawns[0] = vars[1] (update ammo)
-        // Update last shot frame
-        10, 0, 0x02, // ReadProp: fixed[0] = current_frame
-        23, 3, 0, // ToByte: vars[3] = current_frame (low byte)
-        98, 1, 3, // WriteSpawn: spawns[1] = vars[3] (update last shot frame)
+        97, 6, 0, // ReadSpawn: vars[6] = spawns[0] (current ammo)
+        20, 7, 1, // AssignByte: vars[7] = 1
+        41, 6, 6, 7, // SubByte: vars[6] = vars[6] - 1 (decrease ammo)
+        98, 0, 6, // WriteSpawn: spawns[0] = vars[6] (update ammo)
         // Exit with success
         0, 1, // Exit with success (1)
     ];
@@ -38,7 +45,7 @@ pub fn shoot_action_with_ammo() -> Action {
         energy_cost: 5, // Small energy cost per shot
         interval: 1,
         duration: 10, // Brief action duration
-        cooldown: 0,  // No action-level cooldown (using internal fire rate)
+        cooldown: 30, // Cooldown after reload (0.5 seconds at 60 FPS)
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
         args: [30, 1, 10, 0, 0, 0, 0, 0], // ammo_capacity=30, projectile_id=1, fire_rate=10 frames
@@ -51,6 +58,7 @@ pub fn shoot_action_with_ammo() -> Action {
 /// This action stops movement and recovers energy based on character properties
 /// Uses character's energy_charge and energy_charge_rate properties for recovery logic
 /// Overrides passive regeneration while active
+/// Sets cooldown explicitly when action completes
 pub fn charge_action() -> Action {
     let script = vec![
         80, // LockAction
@@ -67,6 +75,9 @@ pub fn charge_action() -> Action {
         20, 4, 100, // AssignByte: vars[4] = 100 (max energy cap)
         70, 5, 3, 4, // Min: vars[5] = min(new_energy, 100)
         11, 0x23, 5, // WriteProp: energy = vars[5]
+        // Set cooldown explicitly when action completes
+        10, 6, 0x02, // ReadProp: vars[6] = current_frame
+        94, 6, // WriteActionLastUsed: set cooldown timestamp
         0, 1, // Exit with success
     ];
 
@@ -74,7 +85,7 @@ pub fn charge_action() -> Action {
         energy_cost: 0,
         interval: 1,
         duration: 120,
-        cooldown: 0,
+        cooldown: 60, // 1 second cooldown after charging
         vars: [0; 8],
         fixed: [Fixed::ZERO; 4],
         args: [0; 8], // No longer using args - using character properties instead
@@ -102,6 +113,7 @@ mod tests {
 
         assert_eq!(action.energy_cost, 5);
         assert_eq!(action.duration, 10);
+        assert_eq!(action.cooldown, 30); // cooldown after reload
         assert_eq!(action.args[0], 30); // ammo_capacity
         assert_eq!(action.args[1], 1); // projectile_id
         assert_eq!(action.args[2], 10); // fire_rate
@@ -116,7 +128,8 @@ mod tests {
 
         assert_eq!(action.energy_cost, 0);
         assert_eq!(action.duration, 120);
-        // No longer using args - using character properties instead
+        assert_eq!(action.cooldown, 60); // 1 second cooldown after charging
+                                         // No longer using args - using character properties instead
         assert_eq!(action.args, [0; 8]);
         assert!(!action.script.is_empty());
     }

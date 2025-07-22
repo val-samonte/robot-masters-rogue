@@ -433,8 +433,8 @@ impl<'a> ScriptContext for ActionContext<'a> {
                 }
             }
             0x02 => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = Fixed::from_int(self.game_state.frame as i16);
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = (self.game_state.frame & 0xFF) as u8;
                 }
             }
 

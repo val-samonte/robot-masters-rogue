@@ -122,7 +122,7 @@ fn test_read_action_last_used() {
     // Set a specific last used timestamp
     character.action_last_used[0] = 42;
 
-    // Action that reads the last used timestamp
+    // Action that reads the last used timestamp and then sets it to current frame
     let action = Action {
         energy_cost: 10,
         interval: 0,
@@ -134,6 +134,8 @@ fn test_read_action_last_used() {
         spawns: [0; 4],
         script: vec![
             93, 0, // ReadActionLastUsed var[0]
+            10, 1, 0x02, // ReadProp: vars[1] = current_frame
+            94, 1, // WriteActionLastUsed: set cooldown timestamp
             0, 1, // Exit with success
         ],
     };
@@ -161,7 +163,7 @@ fn test_read_action_last_used() {
         execute_character_behaviors(&mut game_state, &mut character, &conditions, &actions);
     assert!(result.is_ok());
 
-    // Verify that last_used was updated to current frame (automatic update in execute_character_behaviors)
+    // Verify that last_used was updated to current frame (set by WriteActionLastUsed in script)
     assert_eq!(character.action_last_used[0], game_state.frame);
 }
 
@@ -213,9 +215,8 @@ fn test_manual_cooldown_setting() {
         execute_character_behaviors(&mut game_state, &mut character, &conditions, &actions);
     assert!(result.is_ok());
 
-    // Verify that last_used was set to our custom value (50) and not the current frame (100)
-    // Note: The automatic update in execute_character_behaviors happens after our script runs
-    assert_eq!(character.action_last_used[0], game_state.frame);
+    // Verify that last_used was set to our custom value (50) by the script
+    assert_eq!(character.action_last_used[0], 50);
 
     // Create a new action that reads the last used timestamp
     let read_action = Action {
@@ -246,11 +247,71 @@ fn test_manual_cooldown_setting() {
 }
 
 #[test]
+fn test_no_automatic_cooldown_setting() {
+    let mut game_state = create_test_game_state();
+    let mut character = create_test_character();
+
+    // Set initial last_used timestamp
+    character.action_last_used[0] = 50;
+
+    // Action that does NOT set cooldown explicitly
+    let action = Action {
+        energy_cost: 10,
+        interval: 0,
+        duration: 0,
+        cooldown: 30,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script: vec![
+            20, 0, 1, // AssignByte var[0] = 1 (spawn ID)
+            84, 0, // Spawn var[0]
+            0, 1, // Exit with success (NO WriteActionLastUsed call)
+        ],
+    };
+
+    // Simple condition that always succeeds
+    let condition = Condition {
+        id: 0,
+        energy_mul: Fixed::ONE,
+        vars: [0; 8],
+        fixed: [Fixed::ZERO; 4],
+        args: [0; 8],
+        spawns: [0; 4],
+        script: vec![0, 1], // Exit with success
+    };
+
+    // Set up character with the behavior
+    character.behaviors = vec![(0, 0)];
+
+    // Create action and condition arrays
+    let actions = vec![action];
+    let conditions = vec![condition];
+
+    // Execute behavior - should succeed but NOT update last_used
+    let result =
+        execute_character_behaviors(&mut game_state, &mut character, &conditions, &actions);
+    assert!(result.is_ok());
+
+    // Verify that last_used was NOT automatically updated (should still be 50)
+    assert_eq!(character.action_last_used[0], 50);
+
+    // Execute behavior again - should succeed again since no cooldown was set
+    let result =
+        execute_character_behaviors(&mut game_state, &mut character, &conditions, &actions);
+    assert!(result.is_ok());
+
+    // Verify that last_used is still unchanged
+    assert_eq!(character.action_last_used[0], 50);
+}
+
+#[test]
 fn test_behavior_skipping_on_cooldown() {
     let mut game_state = create_test_game_state();
     let mut character = create_test_character();
 
-    // Set up an action with cooldown
+    // Set up an action with cooldown that explicitly sets its cooldown
     let action = Action {
         energy_cost: 10,
         interval: 0,
@@ -263,6 +324,8 @@ fn test_behavior_skipping_on_cooldown() {
         script: vec![
             20, 0, 1, // AssignByte var[0] = 1 (spawn ID)
             84, 0, // Spawn var[0]
+            10, 1, 0x02, // ReadProp: vars[1] = current_frame
+            94, 1, // WriteActionLastUsed: set cooldown timestamp
             0, 1, // Exit with success
         ],
     };

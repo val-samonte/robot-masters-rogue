@@ -103,8 +103,6 @@ fn test_cooldown_property_access() {
         execute_character_behaviors(&mut game_state, &mut character, &conditions, &actions);
     assert!(result.is_ok());
 
-    // The automatic update in execute_character_behaviors happens after our script runs,
-    // so the value we set (42) will be overwritten with the current frame.
-    // Instead, let's verify that the last_used timestamp was updated to the current frame.
-    assert_eq!(character.action_last_used[0], game_state.frame);
+    // Verify that the last_used timestamp was set to our custom value (42) by the script
+    assert_eq!(character.action_last_used[0], 42);
 }
