@@ -259,8 +259,8 @@
   - Write unit tests for active energy charging mechanics
   - _Requirements: 12.7, 6.2, 6.9, 6.10_
 
-- [ ] 18. Implement Action cooldown system for behavior timing control
-- [ ] 18.1 Add cooldown fields to Action and Character structures
+- [-] 18. Implement Action cooldown system for behavior timing control
+- [x] 18.1 Add cooldown fields to Action and Character structures
 
   - Add `cooldown: u16` field to Action struct for cooldown duration in frames (read-only, set only during new_game)
   - Add `action_last_used: Vec<u16>` field to Character struct to track when each action was last executed (stores game frame timestamp)
@@ -269,7 +269,7 @@
   - Write unit tests for new cooldown field initialization and management
   - _Requirements: 5.1, 6.1_
 
-- [ ] 18.2 Implement cooldown script operators for reading and writing cooldown state
+- [x] 18.2 Implement cooldown script operators for reading and writing cooldown state
 
   - Add `ReadActionCooldown` operator (0x92) to read Action cooldown value into vars array
   - Add `ReadActionLastUsed` operator (0x93) to read when action was last used from character state
@@ -279,7 +279,7 @@
   - Write unit tests for cooldown operator functionality
   - _Requirements: 6.1, 6.3_
 
-- [ ] 18.3 Update behavior evaluation to skip actions on cooldown
+- [x] 18.3 Update behavior evaluation to skip actions on cooldown
 
   - Modify execute_character_behaviors function to check action cooldown before evaluating conditions
   - Skip behavior evaluation if action is currently on cooldown (current_frame < last_used + cooldown)
@@ -288,7 +288,7 @@
   - Write unit tests for cooldown-based behavior skipping and timing accuracy
   - _Requirements: 5.2, 5.4, 6.1_
 
-- [ ] 18.4 Update script property access for cooldown management
+- [x] 18.4 Update script property access for cooldown management
 
   - Add property address 0x48 for reading Action cooldown value in script contexts
   - Add property address 0x49 for reading current action's last used timestamp
@@ -297,7 +297,7 @@
   - Write unit tests for script-based cooldown property access and manipulation
   - _Requirements: 6.1, 6.2_
 
-- [ ] 18.5 Create cooldown-aware Action scripts and integration tests
+- [x] 18.5 Create cooldown-aware Action scripts and integration tests
 
   - Update existing Action scripts to use cooldown operators where appropriate
   - Create test Action scripts that demonstrate cooldown functionality (e.g., rapid-fire vs slow attacks)
@@ -316,7 +316,7 @@
   - _Requirements: 6.1, 6.2, 5.2_
 
 - [ ] 19. Implement facing direction and gravity direction properties for entities
-- [ ] 19.1 Add facing direction property to EntityCore with automatic Fixed conversion
+- [x] 19.1 Add facing direction property to EntityCore with automatic Fixed conversion
 
   - Add `facing: u8` field to EntityCore struct (0 for left, 1 for right)
   - Implement property access methods that automatically convert to Fixed values when reading (0 → -1.0, 1 → 1.0)

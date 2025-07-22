@@ -17,8 +17,20 @@ pub mod conditions_simple;
 pub mod constants;
 #[cfg(test)]
 mod constants_test;
+#[cfg(test)]
+mod cooldown_integration_test;
+#[cfg(test)]
+mod cooldown_property_test;
+#[cfg(test)]
+mod cooldown_simple_test;
+#[cfg(test)]
+mod cooldown_skip_test;
+#[cfg(test)]
+mod cooldown_test;
 pub mod core;
 pub mod entity;
+#[cfg(test)]
+mod manual_cooldown_test;
 pub mod math;
 pub mod physics;
 pub mod random;

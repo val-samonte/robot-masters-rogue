@@ -434,7 +434,7 @@ impl GameState {
 
     // Helper methods for binary serialization
     fn serialize_character(&self, character: &Character, data: &mut Vec<u8>) -> GameResult<()> {
-        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) = 16 bytes
+        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) + facing (1) = 17 bytes
         data.push(character.core.id);
         data.push(character.core.group);
         data.extend_from_slice(&character.core.pos.0.raw().to_le_bytes());
@@ -447,6 +447,7 @@ impl GameState {
         data.push(if character.core.collision.1 { 1 } else { 0 });
         data.push(if character.core.collision.2 { 1 } else { 0 });
         data.push(if character.core.collision.3 { 1 } else { 0 });
+        data.push(character.core.facing);
 
         // Character-specific: health (1) + energy (1) + armor (8) = 10 bytes
         data.push(character.health);
@@ -485,7 +486,7 @@ impl GameState {
     }
 
     fn serialize_spawn(&self, spawn: &SpawnInstance, data: &mut Vec<u8>) -> GameResult<()> {
-        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) = 16 bytes
+        // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) + facing (1) = 17 bytes
         data.push(spawn.core.id);
         data.push(spawn.core.group);
         data.extend_from_slice(&spawn.core.pos.0.raw().to_le_bytes());
@@ -498,6 +499,7 @@ impl GameState {
         data.push(if spawn.core.collision.1 { 1 } else { 0 });
         data.push(if spawn.core.collision.2 { 1 } else { 0 });
         data.push(if spawn.core.collision.3 { 1 } else { 0 });
+        data.push(spawn.core.facing);
 
         // Spawn-specific: spawn_id (1) + owner_id (1) + lifespan (2) + element (1) + vars (4) = 9 bytes
         data.push(spawn.spawn_id);
@@ -510,7 +512,7 @@ impl GameState {
     }
 
     fn deserialize_character(data: &[u8]) -> GameResult<(Character, usize)> {
-        if data.len() < 34 {
+        if data.len() < 35 {
             return Err("Invalid character data: too short".into());
         }
 
@@ -540,6 +542,8 @@ impl GameState {
             data[pos + 3] != 0,
         );
         pos += 4;
+        let facing = data[pos];
+        pos += 1;
 
         // Character-specific
         let health = data[pos];
@@ -613,6 +617,7 @@ impl GameState {
                 vel: (vel_x, vel_y),
                 size: (size_w, size_h),
                 collision,
+                facing,
             },
             health,
             energy,
@@ -631,7 +636,7 @@ impl GameState {
     }
 
     fn deserialize_spawn(data: &[u8]) -> GameResult<(SpawnInstance, usize)> {
-        if data.len() < 25 {
+        if data.len() < 26 {
             return Err("Invalid spawn data: too short".into());
         }
 
@@ -661,6 +666,8 @@ impl GameState {
             data[pos + 3] != 0,
         );
         pos += 4;
+        let facing = data[pos];
+        pos += 1;
 
         // Spawn-specific
         let spawn_id = data[pos];
@@ -684,6 +691,7 @@ impl GameState {
                 vel: (vel_x, vel_y),
                 size: (size_w, size_h),
                 collision,
+                facing,
             },
             spawn_id,
             owner_id,
@@ -1333,12 +1341,12 @@ mod tests {
         let game = GameState::new(222, [[0u8; 16]; 15], vec![], vec![]).unwrap();
         game.serialize_spawn(&spawn, &mut data).unwrap();
 
-        // Check that we have the expected 25 bytes
-        assert_eq!(data.len(), 25);
+        // Check that we have the expected 26 bytes (EntityCore: 17 + Spawn-specific: 9)
+        assert_eq!(data.len(), 26);
 
         // Try to deserialize
         let (deserialized_spawn, bytes_read) = GameState::deserialize_spawn(&data).unwrap();
-        assert_eq!(bytes_read, 25);
+        assert_eq!(bytes_read, 26);
         assert_eq!(deserialized_spawn.spawn_id, 1);
         assert_eq!(deserialized_spawn.element, Element::Punct);
     }

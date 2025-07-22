@@ -1063,14 +1063,8 @@ pub fn execute_character_behaviors(
                     action.execute(game_state, character, condition, action_id)?;
 
                 if success {
-                    // Update last used timestamp
-                    if action_id < character.action_last_used.len() {
-                        character.action_last_used[action_id] = game_state.frame;
-                    } else {
-                        // Extend the vector if needed
-                        character.action_last_used.resize(action_id + 1, 0);
-                        character.action_last_used[action_id] = game_state.frame;
-                    }
+                    // Note: Cooldown setting is now manual and script-controlled only
+                    // through WriteActionLastUsed operator. No automatic timestamp update.
 
                     // Apply energy cost
                     character.energy = character.energy.saturating_sub(energy_requirement);

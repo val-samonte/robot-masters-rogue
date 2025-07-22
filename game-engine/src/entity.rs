@@ -1,6 +1,7 @@
 //! Entity system for characters, spawns, and status effects
 
 use crate::math::Fixed;
+use alloc::vec;
 use alloc::vec::Vec;
 
 /// Unique identifier for entities
@@ -20,6 +21,7 @@ pub struct EntityCore {
     pub vel: (Fixed, Fixed),
     pub size: (u8, u8),
     pub collision: (bool, bool, bool, bool), // top, right, bottom, left
+    pub facing: u8,                          // 0 for left, 1 for right
 }
 
 /// Programmable fighting characters
@@ -173,6 +175,25 @@ impl EntityCore {
             vel: (Fixed::ZERO, Fixed::ZERO),
             size: (16, 16), // Default 16x16 pixel size
             collision: (true, true, true, true),
+            facing: 1, // Default to right (1)
+        }
+    }
+
+    /// Get facing direction as Fixed value (-1.0 for left, 1.0 for right)
+    pub fn get_facing(&self) -> Fixed {
+        if self.facing == 0 {
+            Fixed::from_int(-1) // Left
+        } else {
+            Fixed::from_int(1) // Right
+        }
+    }
+
+    /// Set facing direction from Fixed value (-1.0 → left, 1.0 → right)
+    pub fn set_facing(&mut self, value: Fixed) {
+        if value < Fixed::ZERO {
+            self.facing = 0; // Left
+        } else {
+            self.facing = 1; // Right
         }
     }
 }
@@ -193,6 +214,11 @@ impl Character {
             status_effects: Vec::new(),
             action_last_used: Vec::new(), // Will be sized during game initialization
         }
+    }
+
+    /// Initialize action_last_used vector with appropriate size
+    pub fn init_action_cooldowns(&mut self, action_count: usize) {
+        self.action_last_used = vec![0; action_count];
     }
 }
 
@@ -246,6 +272,7 @@ mod tests {
         assert_eq!(core.vel, (Fixed::ZERO, Fixed::ZERO));
         assert_eq!(core.size, (16, 16)); // Default 16x16 pixel size
         assert_eq!(core.collision, (true, true, true, true));
+        assert_eq!(core.facing, 1); // Default to right
     }
 
     #[test]
@@ -267,6 +294,44 @@ mod tests {
         // Test collision modification
         core.collision = (false, true, false, true);
         assert_eq!(core.collision, (false, true, false, true));
+
+        // Test facing modification
+        core.facing = 0; // Left
+        assert_eq!(core.facing, 0);
+    }
+
+    #[test]
+    fn test_entity_core_facing_direction() {
+        let mut core = EntityCore::new(1, 0);
+
+        // Test default facing (right)
+        assert_eq!(core.facing, 1);
+        assert_eq!(core.get_facing(), Fixed::from_int(1));
+
+        // Test setting facing to left using Fixed value
+        core.set_facing(Fixed::from_int(-1));
+        assert_eq!(core.facing, 0);
+        assert_eq!(core.get_facing(), Fixed::from_int(-1));
+
+        // Test setting facing to right using Fixed value
+        core.set_facing(Fixed::from_int(1));
+        assert_eq!(core.facing, 1);
+        assert_eq!(core.get_facing(), Fixed::from_int(1));
+
+        // Test setting facing with negative fractional value (should be left)
+        core.set_facing(Fixed::from_raw(-5)); // Negative value
+        assert_eq!(core.facing, 0);
+        assert_eq!(core.get_facing(), Fixed::from_int(-1));
+
+        // Test setting facing with positive fractional value (should be right)
+        core.set_facing(Fixed::from_raw(5)); // Positive value
+        assert_eq!(core.facing, 1);
+        assert_eq!(core.get_facing(), Fixed::from_int(1));
+
+        // Test setting facing with zero (should be right)
+        core.set_facing(Fixed::ZERO);
+        assert_eq!(core.facing, 1);
+        assert_eq!(core.get_facing(), Fixed::from_int(1));
     }
 
     #[test]
@@ -788,5 +853,63 @@ mod tests {
         assert_eq!(character.get_armor(Element::Punct), 75);
         assert_eq!(character.get_armor(Element::Heat), 125);
         assert_eq!(character.get_armor(Element::Virus), 50);
+    }
+
+    #[test]
+    fn test_action_cooldown_initialization() {
+        let mut character = Character::new(1, 0);
+
+        // Initially, action_last_used should be empty
+        assert!(character.action_last_used.is_empty());
+
+        // Initialize cooldowns for 5 actions
+        character.init_action_cooldowns(5);
+
+        // Should now have 5 entries, all initialized to 0
+        assert_eq!(character.action_last_used.len(), 5);
+        assert_eq!(character.action_last_used, vec![0, 0, 0, 0, 0]);
+
+        // Test updating a cooldown timestamp
+        character.action_last_used[2] = 120; // Set action 2's last used timestamp to frame 120
+        assert_eq!(character.action_last_used[2], 120);
+    }
+
+    #[test]
+    fn test_facing_direction_serialization_compatibility() {
+        use crate::state::GameState;
+
+        // Create a character with custom facing direction
+        let mut character = Character::new(1, 0);
+        character.core.facing = 0; // Set to left
+
+        // Create game state with the character
+        let mut game = GameState::new(12345, [[0u8; 16]; 15], vec![character], vec![]).unwrap();
+
+        // Manually add a spawn instance with custom facing direction
+        let mut spawn = SpawnInstance::new(1, 1, (Fixed::from_int(50), Fixed::from_int(50)));
+        spawn.core.facing = 0; // Set to left
+        spawn.core.id = 10; // Set a unique ID
+        game.spawn_instances.push(spawn);
+
+        // Test binary serialization round-trip
+        let binary_data = game.to_binary().unwrap();
+        let restored_game = GameState::from_binary(&binary_data).unwrap();
+
+        // Verify facing directions were preserved
+        assert_eq!(restored_game.characters[0].core.facing, 0);
+        assert_eq!(restored_game.spawn_instances[0].core.facing, 0);
+
+        // Test that get_facing() returns correct Fixed values
+        assert_eq!(
+            restored_game.characters[0].core.get_facing(),
+            Fixed::from_int(-1)
+        );
+        assert_eq!(
+            restored_game.spawn_instances[0].core.get_facing(),
+            Fixed::from_int(-1)
+        );
+
+        // Test JSON serialization (should not fail)
+        let _json_data = game.to_json().unwrap();
     }
 }
