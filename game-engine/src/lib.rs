@@ -30,6 +30,8 @@ mod cooldown_test;
 pub mod core;
 pub mod entity;
 #[cfg(test)]
+mod integration_tests;
+#[cfg(test)]
 mod manual_cooldown_test;
 pub mod math;
 pub mod physics;

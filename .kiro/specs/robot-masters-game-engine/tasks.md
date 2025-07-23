@@ -379,8 +379,8 @@
   - Write unit tests for script engine functionality with constant-based addressing
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 21. Create integration tests and performance benchmarks
-- [ ] 21.1 Build end-to-end game scenarios and performance tests
+- [-] 21. Create integration tests and performance benchmarks
+- [x] 21.1 Build end-to-end game scenarios and performance tests
   - Create multi-frame game scenarios with complex character behaviors
   - Implement cross-platform determinism verification tests
   - Build performance benchmarks for frame processing and serialization
