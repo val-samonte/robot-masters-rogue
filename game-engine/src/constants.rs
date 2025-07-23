@@ -1,12 +1,12 @@
 //! Centralized address byte constants for operators and property accessors
 
-/// Address byte constants for operators and property accessors
+/// Operator address constants for script operators
 ///
-/// This enum provides named constants for all byte values used in the scripting system,
+/// This enum provides named constants for all operator byte values used in the scripting system,
 /// improving code maintainability and reducing the risk of errors from hardcoded values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum AddressBytes {
+pub enum OperatorAddress {
     // ===== CONTROL FLOW OPERATORS =====
     /// Exit script with specified flag
     Exit = 0,
@@ -286,8 +286,8 @@ pub enum PropertyAddress {
     SpawnVelY = 0x7B,
 }
 
-impl AddressBytes {
-    /// Convert from u8 value to AddressBytes enum
+impl OperatorAddress {
+    /// Convert from u8 value to OperatorAddress enum
     pub fn from_u8(value: u8) -> Option<Self> {
         match value {
             0 => Some(Self::Exit),
@@ -344,6 +344,12 @@ impl AddressBytes {
     /// Convert to u8 value
     pub fn to_u8(self) -> u8 {
         self as u8
+    }
+}
+
+impl From<OperatorAddress> for u8 {
+    fn from(op: OperatorAddress) -> u8 {
+        op as u8
     }
 }
 
@@ -425,28 +431,40 @@ impl PropertyAddress {
     }
 }
 
+impl From<PropertyAddress> for u8 {
+    fn from(prop: PropertyAddress) -> u8 {
+        prop as u8
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_address_bytes_conversion() {
+    fn test_operator_address_conversion() {
         // Test a few key operators
-        assert_eq!(AddressBytes::from_u8(0), Some(AddressBytes::Exit));
-        assert_eq!(AddressBytes::from_u8(10), Some(AddressBytes::ReadProp));
-        assert_eq!(AddressBytes::from_u8(20), Some(AddressBytes::AssignByte));
-        assert_eq!(AddressBytes::from_u8(30), Some(AddressBytes::Add));
-        assert_eq!(AddressBytes::from_u8(50), Some(AddressBytes::Equal));
-        assert_eq!(AddressBytes::from_u8(84), Some(AddressBytes::Spawn));
-        assert_eq!(AddressBytes::from_u8(96), Some(AddressBytes::ReadArg));
+        assert_eq!(OperatorAddress::from_u8(0), Some(OperatorAddress::Exit));
+        assert_eq!(
+            OperatorAddress::from_u8(10),
+            Some(OperatorAddress::ReadProp)
+        );
+        assert_eq!(
+            OperatorAddress::from_u8(20),
+            Some(OperatorAddress::AssignByte)
+        );
+        assert_eq!(OperatorAddress::from_u8(30), Some(OperatorAddress::Add));
+        assert_eq!(OperatorAddress::from_u8(50), Some(OperatorAddress::Equal));
+        assert_eq!(OperatorAddress::from_u8(84), Some(OperatorAddress::Spawn));
+        assert_eq!(OperatorAddress::from_u8(96), Some(OperatorAddress::ReadArg));
 
         // Test invalid value
-        assert_eq!(AddressBytes::from_u8(255), None);
+        assert_eq!(OperatorAddress::from_u8(255), None);
 
         // Test round-trip conversion
-        assert_eq!(AddressBytes::Exit.to_u8(), 0);
-        assert_eq!(AddressBytes::ReadProp.to_u8(), 10);
-        assert_eq!(AddressBytes::Spawn.to_u8(), 84);
+        assert_eq!(OperatorAddress::Exit.to_u8(), 0);
+        assert_eq!(OperatorAddress::ReadProp.to_u8(), 10);
+        assert_eq!(OperatorAddress::Spawn.to_u8(), 84);
     }
 
     #[test]
@@ -492,31 +510,31 @@ mod tests {
         // This ensures compatibility with existing bytecode
 
         // Control flow
-        assert_eq!(AddressBytes::Exit as u8, 0);
-        assert_eq!(AddressBytes::ExitIfNoEnergy as u8, 1);
-        assert_eq!(AddressBytes::Skip as u8, 3);
+        assert_eq!(OperatorAddress::Exit as u8, 0);
+        assert_eq!(OperatorAddress::ExitIfNoEnergy as u8, 1);
+        assert_eq!(OperatorAddress::Skip as u8, 3);
 
         // Property operations
-        assert_eq!(AddressBytes::ReadProp as u8, 10);
-        assert_eq!(AddressBytes::WriteProp as u8, 11);
+        assert_eq!(OperatorAddress::ReadProp as u8, 10);
+        assert_eq!(OperatorAddress::WriteProp as u8, 11);
 
         // Variable operations
-        assert_eq!(AddressBytes::AssignByte as u8, 20);
-        assert_eq!(AddressBytes::AssignFixed as u8, 21);
+        assert_eq!(OperatorAddress::AssignByte as u8, 20);
+        assert_eq!(OperatorAddress::AssignFixed as u8, 21);
 
         // Arithmetic
-        assert_eq!(AddressBytes::Add as u8, 30);
-        assert_eq!(AddressBytes::AddByte as u8, 40);
+        assert_eq!(OperatorAddress::Add as u8, 30);
+        assert_eq!(OperatorAddress::AddByte as u8, 40);
 
         // Conditionals
-        assert_eq!(AddressBytes::Equal as u8, 50);
-        assert_eq!(AddressBytes::LessThan as u8, 52);
+        assert_eq!(OperatorAddress::Equal as u8, 50);
+        assert_eq!(OperatorAddress::LessThan as u8, 52);
 
         // Game actions
-        assert_eq!(AddressBytes::Spawn as u8, 84);
+        assert_eq!(OperatorAddress::Spawn as u8, 84);
 
         // Args access
-        assert_eq!(AddressBytes::ReadArg as u8, 96);
+        assert_eq!(OperatorAddress::ReadArg as u8, 96);
 
         // Property addresses
         assert_eq!(PropertyAddress::GameSeed as u8, 0x01);

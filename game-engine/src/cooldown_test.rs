@@ -2,7 +2,7 @@
 
 use crate::{
     behavior::{execute_character_behaviors, Action, Condition},
-    constants::{AddressBytes, PropertyAddress},
+    constants::{OperatorAddress, PropertyAddress},
     entity::Character,
     math::Fixed,
     state::GameState,
@@ -40,14 +40,14 @@ fn test_cooldown_operators() {
         // Script that reads cooldown value and stores it in vars[0]
         // Then writes current frame to last_used
         script: vec![
-            AddressBytes::ReadActionCooldown as u8,
+            OperatorAddress::ReadActionCooldown.into(),
             0, // ReadActionCooldown var[0]
-            AddressBytes::ReadProp as u8,
+            OperatorAddress::ReadProp.into(),
             1,
-            PropertyAddress::GameFrame as u8, // ReadProp var[1] = game_state.frame
-            AddressBytes::WriteActionLastUsed as u8,
+            PropertyAddress::GameFrame.into(), // ReadProp var[1] = game_state.frame
+            OperatorAddress::WriteActionLastUsed.into(),
             1, // WriteActionLastUsed var[1]
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -60,7 +60,7 @@ fn test_cooldown_operators() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
+        script: vec![OperatorAddress::Exit.into(), 1], // Exit with success
     };
 
     // Set up character with the test behavior
@@ -93,9 +93,9 @@ fn test_cooldown_operators() {
         spawns: [0; 4],
         // Script that checks if action is on cooldown and stores result in vars[0]
         script: vec![
-            AddressBytes::IsActionOnCooldown as u8,
+            OperatorAddress::IsActionOnCooldown.into(),
             0, // IsActionOnCooldown var[0]
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -141,14 +141,14 @@ fn test_read_action_last_used() {
         args: [0; 8],
         spawns: [0; 4],
         script: vec![
-            AddressBytes::ReadActionLastUsed as u8,
+            OperatorAddress::ReadActionLastUsed.into(),
             0, // ReadActionLastUsed var[0]
-            AddressBytes::ReadProp as u8,
+            OperatorAddress::ReadProp.into(),
             1,
-            PropertyAddress::GameFrame as u8, // ReadProp: vars[1] = current_frame
-            AddressBytes::WriteActionLastUsed as u8,
+            PropertyAddress::GameFrame.into(), // ReadProp: vars[1] = current_frame
+            OperatorAddress::WriteActionLastUsed.into(),
             1, // WriteActionLastUsed: set cooldown timestamp
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -161,7 +161,7 @@ fn test_read_action_last_used() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
+        script: vec![OperatorAddress::Exit.into(), 1], // Exit with success
     };
 
     // Set up character with the test behavior
@@ -199,12 +199,12 @@ fn test_manual_cooldown_setting() {
         args: [0; 8],
         spawns: [0; 4],
         script: vec![
-            AddressBytes::AssignByte as u8,
+            OperatorAddress::AssignByte.into(),
             0,
             50, // AssignByte var[0] = 50 (custom timestamp)
-            AddressBytes::WriteActionLastUsed as u8,
+            OperatorAddress::WriteActionLastUsed.into(),
             0, // WriteActionLastUsed var[0]
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -217,7 +217,7 @@ fn test_manual_cooldown_setting() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
+        script: vec![OperatorAddress::Exit.into(), 1], // Exit with success
     };
 
     // Set up character with the test behavior
@@ -246,9 +246,9 @@ fn test_manual_cooldown_setting() {
         args: [0; 8],
         spawns: [0; 4],
         script: vec![
-            AddressBytes::ReadActionLastUsed as u8,
+            OperatorAddress::ReadActionLastUsed.into(),
             0, // ReadActionLastUsed var[0]
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -284,12 +284,12 @@ fn test_no_automatic_cooldown_setting() {
         args: [0; 8],
         spawns: [0; 4],
         script: vec![
-            AddressBytes::AssignByte as u8,
+            OperatorAddress::AssignByte.into(),
             0,
             1, // AssignByte var[0] = 1 (spawn ID)
-            AddressBytes::Spawn as u8,
+            OperatorAddress::Spawn.into(),
             0, // Spawn var[0]
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success (NO WriteActionLastUsed call)
         ],
     };
@@ -302,7 +302,7 @@ fn test_no_automatic_cooldown_setting() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
+        script: vec![OperatorAddress::Exit.into(), 1], // Exit with success
     };
 
     // Set up character with the behavior
@@ -345,17 +345,17 @@ fn test_behavior_skipping_on_cooldown() {
         args: [0; 8],
         spawns: [0; 4],
         script: vec![
-            AddressBytes::AssignByte as u8,
+            OperatorAddress::AssignByte.into(),
             0,
             1, // AssignByte var[0] = 1 (spawn ID)
-            AddressBytes::Spawn as u8,
+            OperatorAddress::Spawn.into(),
             0, // Spawn var[0]
-            AddressBytes::ReadProp as u8,
+            OperatorAddress::ReadProp.into(),
             1,
-            PropertyAddress::GameFrame as u8, // ReadProp: vars[1] = current_frame
-            AddressBytes::WriteActionLastUsed as u8,
+            PropertyAddress::GameFrame.into(), // ReadProp: vars[1] = current_frame
+            OperatorAddress::WriteActionLastUsed.into(),
             1, // WriteActionLastUsed: set cooldown timestamp
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -368,7 +368,7 @@ fn test_behavior_skipping_on_cooldown() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
+        script: vec![OperatorAddress::Exit.into(), 1], // Exit with success
     };
 
     // Set up character with the behavior

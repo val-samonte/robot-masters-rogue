@@ -1,6 +1,6 @@
 //! Bytecode scripting system for game logic
 
-use crate::constants::{AddressBytes, PropertyAddress};
+use crate::constants::{OperatorAddress, PropertyAddress};
 use crate::math::Fixed;
 
 extern crate alloc;
@@ -28,78 +28,78 @@ pub struct ScriptEngine {
 
 /// Bytecode operators with explicit byte values
 ///
-/// This enum is kept for backward compatibility but uses the values from AddressBytes.
-/// New code should use AddressBytes directly.
+/// This enum is kept for backward compatibility but uses the values from OperatorAddress.
+/// New code should use OperatorAddress directly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Operator {
     // Control flow
-    Exit = AddressBytes::Exit as u8,
-    ExitIfNoEnergy = AddressBytes::ExitIfNoEnergy as u8,
-    ExitIfCooldown = AddressBytes::ExitIfCooldown as u8,
-    Skip = AddressBytes::Skip as u8,
-    Goto = AddressBytes::Goto as u8,
+    Exit = OperatorAddress::Exit as u8,
+    ExitIfNoEnergy = OperatorAddress::ExitIfNoEnergy as u8,
+    ExitIfCooldown = OperatorAddress::ExitIfCooldown as u8,
+    Skip = OperatorAddress::Skip as u8,
+    Goto = OperatorAddress::Goto as u8,
 
     // Property operations (scalable approach)
-    ReadProp = AddressBytes::ReadProp as u8, // [ReadProp, var_index, prop_address]
-    WriteProp = AddressBytes::WriteProp as u8, // [WriteProp, prop_address, var_index]
+    ReadProp = OperatorAddress::ReadProp as u8, // [ReadProp, var_index, prop_address]
+    WriteProp = OperatorAddress::WriteProp as u8, // [WriteProp, prop_address, var_index]
 
     // Variable operations
-    AssignByte = AddressBytes::AssignByte as u8, // [AssignByte, var_index, literal_value]
-    AssignFixed = AddressBytes::AssignFixed as u8, // [AssignFixed, var_index, numerator, denominator]
-    AssignRandom = AddressBytes::AssignRandom as u8, // [AssignRandom, var_index]
-    ToByte = AddressBytes::ToByte as u8,           // [ToByte, to_var_index, from_fixed_index]
-    ToFixed = AddressBytes::ToFixed as u8,         // [ToFixed, to_fixed_index, from_var_index]
+    AssignByte = OperatorAddress::AssignByte as u8, // [AssignByte, var_index, literal_value]
+    AssignFixed = OperatorAddress::AssignFixed as u8, // [AssignFixed, var_index, numerator, denominator]
+    AssignRandom = OperatorAddress::AssignRandom as u8, // [AssignRandom, var_index]
+    ToByte = OperatorAddress::ToByte as u8,           // [ToByte, to_var_index, from_fixed_index]
+    ToFixed = OperatorAddress::ToFixed as u8,         // [ToFixed, to_fixed_index, from_var_index]
 
     // Arithmetic (Fixed-point) - generic 3-operand pattern
-    Add = AddressBytes::Add as u8, // [Add, dest_fixed, left_fixed, right_fixed]
-    Sub = AddressBytes::Sub as u8, // [Sub, dest_fixed, left_fixed, right_fixed]
-    Mul = AddressBytes::Mul as u8, // [Mul, dest_fixed, left_fixed, right_fixed]
-    Div = AddressBytes::Div as u8, // [Div, dest_fixed, left_fixed, right_fixed]
-    Negate = AddressBytes::Negate as u8, // [Negate, fixed_index]
+    Add = OperatorAddress::Add as u8, // [Add, dest_fixed, left_fixed, right_fixed]
+    Sub = OperatorAddress::Sub as u8, // [Sub, dest_fixed, left_fixed, right_fixed]
+    Mul = OperatorAddress::Mul as u8, // [Mul, dest_fixed, left_fixed, right_fixed]
+    Div = OperatorAddress::Div as u8, // [Div, dest_fixed, left_fixed, right_fixed]
+    Negate = OperatorAddress::Negate as u8, // [Negate, fixed_index]
 
     // Arithmetic (Byte) - generic 3-operand pattern
-    AddByte = AddressBytes::AddByte as u8, // [AddByte, dest_var, left_var, right_var]
-    SubByte = AddressBytes::SubByte as u8, // [SubByte, dest_var, left_var, right_var]
-    MulByte = AddressBytes::MulByte as u8, // [MulByte, dest_var, left_var, right_var]
-    DivByte = AddressBytes::DivByte as u8, // [DivByte, dest_var, left_var, right_var]
-    ModByte = AddressBytes::ModByte as u8, // [ModByte, dest_var, left_var, right_var]
-    WrappingAdd = AddressBytes::WrappingAdd as u8, // [WrappingAdd, dest_var, left_var, right_var]
+    AddByte = OperatorAddress::AddByte as u8, // [AddByte, dest_var, left_var, right_var]
+    SubByte = OperatorAddress::SubByte as u8, // [SubByte, dest_var, left_var, right_var]
+    MulByte = OperatorAddress::MulByte as u8, // [MulByte, dest_var, left_var, right_var]
+    DivByte = OperatorAddress::DivByte as u8, // [DivByte, dest_var, left_var, right_var]
+    ModByte = OperatorAddress::ModByte as u8, // [ModByte, dest_var, left_var, right_var]
+    WrappingAdd = OperatorAddress::WrappingAdd as u8, // [WrappingAdd, dest_var, left_var, right_var]
 
     // Conditionals - generic 3-operand pattern
-    Equal = AddressBytes::Equal as u8, // [Equal, dest_var, left_var, right_var]
-    NotEqual = AddressBytes::NotEqual as u8, // [NotEqual, dest_var, left_var, right_var]
-    LessThan = AddressBytes::LessThan as u8, // [LessThan, dest_var, left_var, right_var]
-    LessThanOrEqual = AddressBytes::LessThanOrEqual as u8, // [LessThanOrEqual, dest_var, left_var, right_var]
+    Equal = OperatorAddress::Equal as u8, // [Equal, dest_var, left_var, right_var]
+    NotEqual = OperatorAddress::NotEqual as u8, // [NotEqual, dest_var, left_var, right_var]
+    LessThan = OperatorAddress::LessThan as u8, // [LessThan, dest_var, left_var, right_var]
+    LessThanOrEqual = OperatorAddress::LessThanOrEqual as u8, // [LessThanOrEqual, dest_var, left_var, right_var]
 
     // Logical operations - generic patterns
-    Not = AddressBytes::Not as u8, // [Not, dest_var, source_var]
-    Or = AddressBytes::Or as u8,   // [Or, dest_var, left_var, right_var]
-    And = AddressBytes::And as u8, // [And, dest_var, left_var, right_var]
+    Not = OperatorAddress::Not as u8, // [Not, dest_var, source_var]
+    Or = OperatorAddress::Or as u8,   // [Or, dest_var, left_var, right_var]
+    And = OperatorAddress::And as u8, // [And, dest_var, left_var, right_var]
 
     // Utility operations
-    Min = AddressBytes::Min as u8, // [Min, dest_var, left_var, right_var]
-    Max = AddressBytes::Max as u8, // [Max, dest_var, left_var, right_var]
+    Min = OperatorAddress::Min as u8, // [Min, dest_var, left_var, right_var]
+    Max = OperatorAddress::Max as u8, // [Max, dest_var, left_var, right_var]
 
     // Game actions
-    LockAction = AddressBytes::LockAction as u8,
-    UnlockAction = AddressBytes::UnlockAction as u8,
-    ApplyEnergyCost = AddressBytes::ApplyEnergyCost as u8,
-    ApplyDuration = AddressBytes::ApplyDuration as u8,
-    Spawn = AddressBytes::Spawn as u8, // [Spawn, spawn_id_var]
-    SpawnWithVars = AddressBytes::SpawnWithVars as u8, // [SpawnWithVars, spawn_id_var, var1, var2, var3, var4]
+    LockAction = OperatorAddress::LockAction as u8,
+    UnlockAction = OperatorAddress::UnlockAction as u8,
+    ApplyEnergyCost = OperatorAddress::ApplyEnergyCost as u8,
+    ApplyDuration = OperatorAddress::ApplyDuration as u8,
+    Spawn = OperatorAddress::Spawn as u8, // [Spawn, spawn_id_var]
+    SpawnWithVars = OperatorAddress::SpawnWithVars as u8, // [SpawnWithVars, spawn_id_var, var1, var2, var3, var4]
 
     // Debug
-    LogVariable = AddressBytes::LogVariable as u8, // [LogVariable, var_index]
+    LogVariable = OperatorAddress::LogVariable as u8, // [LogVariable, var_index]
 
     // Conditional exit
-    ExitWithVar = AddressBytes::ExitWithVar as u8, // [ExitWithVar, var_index] - Exit with value from variable
+    ExitWithVar = OperatorAddress::ExitWithVar as u8, // [ExitWithVar, var_index] - Exit with value from variable
 
     // Cooldown operators
-    ReadActionCooldown = AddressBytes::ReadActionCooldown as u8, // [ReadActionCooldown, var_index] - Read Action cooldown into vars
-    ReadActionLastUsed = AddressBytes::ReadActionLastUsed as u8, // [ReadActionLastUsed, var_index] - Read when action was last used
-    WriteActionLastUsed = AddressBytes::WriteActionLastUsed as u8, // [WriteActionLastUsed, var_index] - Update last used timestamp
-    IsActionOnCooldown = AddressBytes::IsActionOnCooldown as u8, // [IsActionOnCooldown, var_index] - Check if action is on cooldown
+    ReadActionCooldown = OperatorAddress::ReadActionCooldown as u8, // [ReadActionCooldown, var_index] - Read Action cooldown into vars
+    ReadActionLastUsed = OperatorAddress::ReadActionLastUsed as u8, // [ReadActionLastUsed, var_index] - Read when action was last used
+    WriteActionLastUsed = OperatorAddress::WriteActionLastUsed as u8, // [WriteActionLastUsed, var_index] - Update last used timestamp
+    IsActionOnCooldown = OperatorAddress::IsActionOnCooldown as u8, // [IsActionOnCooldown, var_index] - Check if action is on cooldown
 
     // Args and Spawns access (read-only)
     ReadArg = 96,    // [ReadArg, var_index, arg_index] - Copy arg to var
@@ -110,59 +110,59 @@ pub enum Operator {
 impl Operator {
     /// Simple byte-to-enum conversion
     ///
-    /// This method now uses AddressBytes for conversion to maintain consistency
+    /// This method now uses OperatorAddress for conversion to maintain consistency
     pub fn from_u8(byte: u8) -> Option<Operator> {
-        // Use AddressBytes for conversion to maintain consistency
-        if let Some(address_byte) = AddressBytes::from_u8(byte) {
-            // Map AddressBytes to Operator
+        // Use OperatorAddress for conversion to maintain consistency
+        if let Some(address_byte) = OperatorAddress::from_u8(byte) {
+            // Map OperatorAddress to Operator
             match address_byte {
-                AddressBytes::Exit => Some(Operator::Exit),
-                AddressBytes::ExitIfNoEnergy => Some(Operator::ExitIfNoEnergy),
-                AddressBytes::ExitIfCooldown => Some(Operator::ExitIfCooldown),
-                AddressBytes::Skip => Some(Operator::Skip),
-                AddressBytes::Goto => Some(Operator::Goto),
-                AddressBytes::ReadProp => Some(Operator::ReadProp),
-                AddressBytes::WriteProp => Some(Operator::WriteProp),
-                AddressBytes::AssignByte => Some(Operator::AssignByte),
-                AddressBytes::AssignFixed => Some(Operator::AssignFixed),
-                AddressBytes::AssignRandom => Some(Operator::AssignRandom),
-                AddressBytes::ToByte => Some(Operator::ToByte),
-                AddressBytes::ToFixed => Some(Operator::ToFixed),
-                AddressBytes::Add => Some(Operator::Add),
-                AddressBytes::Sub => Some(Operator::Sub),
-                AddressBytes::Mul => Some(Operator::Mul),
-                AddressBytes::Div => Some(Operator::Div),
-                AddressBytes::Negate => Some(Operator::Negate),
-                AddressBytes::AddByte => Some(Operator::AddByte),
-                AddressBytes::SubByte => Some(Operator::SubByte),
-                AddressBytes::MulByte => Some(Operator::MulByte),
-                AddressBytes::DivByte => Some(Operator::DivByte),
-                AddressBytes::ModByte => Some(Operator::ModByte),
-                AddressBytes::WrappingAdd => Some(Operator::WrappingAdd),
-                AddressBytes::Equal => Some(Operator::Equal),
-                AddressBytes::NotEqual => Some(Operator::NotEqual),
-                AddressBytes::LessThan => Some(Operator::LessThan),
-                AddressBytes::LessThanOrEqual => Some(Operator::LessThanOrEqual),
-                AddressBytes::Not => Some(Operator::Not),
-                AddressBytes::Or => Some(Operator::Or),
-                AddressBytes::And => Some(Operator::And),
-                AddressBytes::Min => Some(Operator::Min),
-                AddressBytes::Max => Some(Operator::Max),
-                AddressBytes::LockAction => Some(Operator::LockAction),
-                AddressBytes::UnlockAction => Some(Operator::UnlockAction),
-                AddressBytes::ApplyEnergyCost => Some(Operator::ApplyEnergyCost),
-                AddressBytes::ApplyDuration => Some(Operator::ApplyDuration),
-                AddressBytes::Spawn => Some(Operator::Spawn),
-                AddressBytes::SpawnWithVars => Some(Operator::SpawnWithVars),
-                AddressBytes::LogVariable => Some(Operator::LogVariable),
-                AddressBytes::ExitWithVar => Some(Operator::ExitWithVar),
-                AddressBytes::ReadActionCooldown => Some(Operator::ReadActionCooldown),
-                AddressBytes::ReadActionLastUsed => Some(Operator::ReadActionLastUsed),
-                AddressBytes::WriteActionLastUsed => Some(Operator::WriteActionLastUsed),
-                AddressBytes::IsActionOnCooldown => Some(Operator::IsActionOnCooldown),
-                AddressBytes::ReadArg => Some(Operator::ReadArg),
-                AddressBytes::ReadSpawn => Some(Operator::ReadSpawn),
-                AddressBytes::WriteSpawn => Some(Operator::WriteSpawn),
+                OperatorAddress::Exit => Some(Operator::Exit),
+                OperatorAddress::ExitIfNoEnergy => Some(Operator::ExitIfNoEnergy),
+                OperatorAddress::ExitIfCooldown => Some(Operator::ExitIfCooldown),
+                OperatorAddress::Skip => Some(Operator::Skip),
+                OperatorAddress::Goto => Some(Operator::Goto),
+                OperatorAddress::ReadProp => Some(Operator::ReadProp),
+                OperatorAddress::WriteProp => Some(Operator::WriteProp),
+                OperatorAddress::AssignByte => Some(Operator::AssignByte),
+                OperatorAddress::AssignFixed => Some(Operator::AssignFixed),
+                OperatorAddress::AssignRandom => Some(Operator::AssignRandom),
+                OperatorAddress::ToByte => Some(Operator::ToByte),
+                OperatorAddress::ToFixed => Some(Operator::ToFixed),
+                OperatorAddress::Add => Some(Operator::Add),
+                OperatorAddress::Sub => Some(Operator::Sub),
+                OperatorAddress::Mul => Some(Operator::Mul),
+                OperatorAddress::Div => Some(Operator::Div),
+                OperatorAddress::Negate => Some(Operator::Negate),
+                OperatorAddress::AddByte => Some(Operator::AddByte),
+                OperatorAddress::SubByte => Some(Operator::SubByte),
+                OperatorAddress::MulByte => Some(Operator::MulByte),
+                OperatorAddress::DivByte => Some(Operator::DivByte),
+                OperatorAddress::ModByte => Some(Operator::ModByte),
+                OperatorAddress::WrappingAdd => Some(Operator::WrappingAdd),
+                OperatorAddress::Equal => Some(Operator::Equal),
+                OperatorAddress::NotEqual => Some(Operator::NotEqual),
+                OperatorAddress::LessThan => Some(Operator::LessThan),
+                OperatorAddress::LessThanOrEqual => Some(Operator::LessThanOrEqual),
+                OperatorAddress::Not => Some(Operator::Not),
+                OperatorAddress::Or => Some(Operator::Or),
+                OperatorAddress::And => Some(Operator::And),
+                OperatorAddress::Min => Some(Operator::Min),
+                OperatorAddress::Max => Some(Operator::Max),
+                OperatorAddress::LockAction => Some(Operator::LockAction),
+                OperatorAddress::UnlockAction => Some(Operator::UnlockAction),
+                OperatorAddress::ApplyEnergyCost => Some(Operator::ApplyEnergyCost),
+                OperatorAddress::ApplyDuration => Some(Operator::ApplyDuration),
+                OperatorAddress::Spawn => Some(Operator::Spawn),
+                OperatorAddress::SpawnWithVars => Some(Operator::SpawnWithVars),
+                OperatorAddress::LogVariable => Some(Operator::LogVariable),
+                OperatorAddress::ExitWithVar => Some(Operator::ExitWithVar),
+                OperatorAddress::ReadActionCooldown => Some(Operator::ReadActionCooldown),
+                OperatorAddress::ReadActionLastUsed => Some(Operator::ReadActionLastUsed),
+                OperatorAddress::WriteActionLastUsed => Some(Operator::WriteActionLastUsed),
+                OperatorAddress::IsActionOnCooldown => Some(Operator::IsActionOnCooldown),
+                OperatorAddress::ReadArg => Some(Operator::ReadArg),
+                OperatorAddress::ReadSpawn => Some(Operator::ReadSpawn),
+                OperatorAddress::WriteSpawn => Some(Operator::WriteSpawn),
             }
         } else {
             None

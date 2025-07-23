@@ -12,7 +12,7 @@ use crate::behavior::{execute_character_behaviors, Action, Condition};
 use crate::conditions_simple::{
     always_true, character_leaning_on_wall, energy_below_10_percent, random_1_out_of_20,
 };
-use crate::constants::{AddressBytes, PropertyAddress};
+use crate::constants::{OperatorAddress, PropertyAddress};
 use crate::entity::Character;
 use crate::math::Fixed;
 use crate::state::GameState;
@@ -24,43 +24,43 @@ use alloc::vec::Vec;
 /// Overrides passive regeneration while active
 fn charge_action() -> Action {
     let script = vec![
-        AddressBytes::LockAction as u8, // LockAction
-        AddressBytes::AssignFixed as u8,
+        OperatorAddress::LockAction.into(), // LockAction
+        OperatorAddress::AssignFixed.into(),
         0,
         0,
         1, // AssignFixed: fixed[0] = 0
-        AddressBytes::WriteProp as u8,
-        PropertyAddress::CharacterVelX as u8,
+        OperatorAddress::WriteProp.into(),
+        PropertyAddress::CharacterVelX.into(),
         0, // WriteProp: velocity.x = fixed[0] (stop horizontal movement)
-        AddressBytes::WriteProp as u8,
-        PropertyAddress::CharacterVelY as u8,
+        OperatorAddress::WriteProp.into(),
+        PropertyAddress::CharacterVelY.into(),
         0, // WriteProp: velocity.y = fixed[0] (stop vertical movement)
         // Read current energy and energy charge properties
-        AddressBytes::ReadProp as u8,
+        OperatorAddress::ReadProp.into(),
         0,
-        PropertyAddress::CharacterEnergy as u8, // ReadProp: vars[0] = current_energy
-        AddressBytes::ReadProp as u8,
+        PropertyAddress::CharacterEnergy.into(), // ReadProp: vars[0] = current_energy
+        OperatorAddress::ReadProp.into(),
         1,
-        PropertyAddress::CharacterEnergyCharge as u8, // ReadProp: vars[1] = energy_charge (recovery amount per rate)
-        AddressBytes::ReadProp as u8,
+        PropertyAddress::CharacterEnergyCharge.into(), // ReadProp: vars[1] = energy_charge (recovery amount per rate)
+        OperatorAddress::ReadProp.into(),
         2,
-        PropertyAddress::CharacterEnergyChargeRate as u8, // ReadProp: vars[2] = energy_charge_rate (frames between recovery)
+        PropertyAddress::CharacterEnergyChargeRate.into(), // ReadProp: vars[2] = energy_charge_rate (frames between recovery)
         // Simple energy recovery logic: recover energy_charge amount every frame (overriding passive regen)
-        AddressBytes::AddByte as u8,
+        OperatorAddress::AddByte.into(),
         3,
         0,
         1, // AddByte: vars[3] = current_energy + energy_charge
-        AddressBytes::AssignByte as u8,
+        OperatorAddress::AssignByte.into(),
         4,
         100, // AssignByte: vars[4] = 100 (max energy cap)
-        AddressBytes::Min as u8,
+        OperatorAddress::Min.into(),
         5,
         3,
         4, // Min: vars[5] = min(new_energy, 100)
-        AddressBytes::WriteProp as u8,
-        PropertyAddress::CharacterEnergy as u8,
+        OperatorAddress::WriteProp.into(),
+        PropertyAddress::CharacterEnergy.into(),
         5, // WriteProp: energy = vars[5]
-        AddressBytes::Exit as u8,
+        OperatorAddress::Exit.into(),
         1, // Exit with success
     ];
 
@@ -79,16 +79,16 @@ fn charge_action() -> Action {
 
 fn run_action() -> Action {
     let script = vec![
-        AddressBytes::ReadArg as u8,
+        OperatorAddress::ReadArg.into(),
         0,
         0, // ReadArg: vars[0] = args[0]
-        AddressBytes::ToFixed as u8,
+        OperatorAddress::ToFixed.into(),
         0,
         0, // ToFixed: fixed[0] = Fixed::from_int(vars[0])
-        AddressBytes::WriteProp as u8,
-        PropertyAddress::CharacterVelX as u8,
+        OperatorAddress::WriteProp.into(),
+        PropertyAddress::CharacterVelX.into(),
         0, // WriteProp: velocity.x = fixed[0]
-        AddressBytes::Exit as u8,
+        OperatorAddress::Exit.into(),
         1, // Exit with success
     ];
 
@@ -107,18 +107,18 @@ fn run_action() -> Action {
 
 fn jump_action() -> Action {
     let script = vec![
-        AddressBytes::ReadArg as u8,
+        OperatorAddress::ReadArg.into(),
         3,
         0, // ReadArg: vars[3] = args[0]
-        AddressBytes::ToFixed as u8,
+        OperatorAddress::ToFixed.into(),
         0,
         3, // ToFixed: fixed[0] = Fixed::from_int(vars[3])
-        AddressBytes::Negate as u8,
+        OperatorAddress::Negate.into(),
         0, // Negate: fixed[0] = -fixed[0]
-        AddressBytes::WriteProp as u8,
-        PropertyAddress::CharacterVelY as u8,
+        OperatorAddress::WriteProp.into(),
+        PropertyAddress::CharacterVelY.into(),
         0, // WriteProp: velocity.y = fixed[0]
-        AddressBytes::Exit as u8,
+        OperatorAddress::Exit.into(),
         1, // Exit with success
     ];
 
@@ -137,15 +137,15 @@ fn jump_action() -> Action {
 
 fn turn_around_action() -> Action {
     let script = vec![
-        AddressBytes::ReadProp as u8,
+        OperatorAddress::ReadProp.into(),
         0,
-        PropertyAddress::CharacterVelX as u8, // ReadProp: fixed[0] = velocity.x
-        AddressBytes::Negate as u8,
+        PropertyAddress::CharacterVelX.into(), // ReadProp: fixed[0] = velocity.x
+        OperatorAddress::Negate.into(),
         0, // Negate: fixed[0] = -fixed[0]
-        AddressBytes::WriteProp as u8,
-        PropertyAddress::CharacterVelX as u8,
+        OperatorAddress::WriteProp.into(),
+        PropertyAddress::CharacterVelX.into(),
         0, // WriteProp: velocity.x = fixed[0]
-        AddressBytes::Exit as u8,
+        OperatorAddress::Exit.into(),
         1, // Exit with success
     ];
 
@@ -164,12 +164,12 @@ fn turn_around_action() -> Action {
 
 fn shoot_action() -> Action {
     let script = vec![
-        AddressBytes::AssignByte as u8,
+        OperatorAddress::AssignByte.into(),
         0,
         1, // AssignByte: vars[0] = 1 (spawn_id)
-        AddressBytes::Spawn as u8,
+        OperatorAddress::Spawn.into(),
         0, // Spawn: create spawn with ID from vars[0]
-        AddressBytes::Exit as u8,
+        OperatorAddress::Exit.into(),
         1, // Exit with success
     ];
 

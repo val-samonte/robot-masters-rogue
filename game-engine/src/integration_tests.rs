@@ -9,7 +9,7 @@
 use crate::{
     api::{game_loop, game_state as get_game_state, new_game},
     behavior_integration::create_character_with_complete_behaviors,
-    constants::AddressBytes,
+    constants::OperatorAddress,
     entity::{Character, Element, SpawnDefinition},
     math::Fixed,
     state::{GameState, GameStatus},
@@ -178,9 +178,9 @@ pub fn create_test_spawn_definitions(count: u8) -> Vec<SpawnDefinition> {
             fixed: [Fixed::from_int(i as i16); 4],
             args: [i * 2; 8],
             spawns: [0; 4],
-            behavior_script: vec![AddressBytes::Exit as u8, 1], // Simple exit script
-            collision_script: vec![AddressBytes::Exit as u8, 1],
-            despawn_script: vec![AddressBytes::Exit as u8, 1],
+            behavior_script: vec![OperatorAddress::Exit.into(), 1], // Simple exit script
+            collision_script: vec![OperatorAddress::Exit.into(), 1],
+            despawn_script: vec![OperatorAddress::Exit.into(), 1],
         };
         spawns.push(spawn);
     }

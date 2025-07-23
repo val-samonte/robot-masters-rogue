@@ -2,7 +2,7 @@
 
 use crate::{
     behavior::{execute_character_behaviors, Action, Condition},
-    constants::{AddressBytes, PropertyAddress},
+    constants::{OperatorAddress, PropertyAddress},
     entity::Character,
     math::Fixed,
     state::GameState,
@@ -39,7 +39,7 @@ fn test_no_automatic_cooldown_setting() {
         spawns: [0; 4],
         script: vec![
             // Just exit with success, no cooldown setting
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -52,7 +52,7 @@ fn test_no_automatic_cooldown_setting() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
+        script: vec![OperatorAddress::Exit.into(), 1], // Exit with success
     };
 
     // Set up character with the behavior
@@ -100,12 +100,12 @@ fn test_manual_cooldown_setting() {
         spawns: [0; 4],
         script: vec![
             // Read current frame and set it as last used (using same approach as working test)
-            AddressBytes::ReadProp as u8,
+            OperatorAddress::ReadProp.into(),
             0,
-            PropertyAddress::GameFrame as u8, // ReadProp var[0] = game_state.frame
-            AddressBytes::WriteActionLastUsed as u8,
+            PropertyAddress::GameFrame.into(), // ReadProp var[0] = game_state.frame
+            OperatorAddress::WriteActionLastUsed.into(),
             0, // WriteActionLastUsed var[0]
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -118,7 +118,7 @@ fn test_manual_cooldown_setting() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
+        script: vec![OperatorAddress::Exit.into(), 1], // Exit with success
     };
 
     // Set up character with the behavior
@@ -201,25 +201,25 @@ fn test_conditional_cooldown_setting() {
         spawns: [0; 4],
         script: vec![
             // Read ammo count from args
-            AddressBytes::ReadArg as u8,
+            OperatorAddress::ReadArg.into(),
             0,
             0, // ReadArg var[0] = args[0] (ammo count)
             // Check if we have ammo
-            AddressBytes::Equal as u8,
+            OperatorAddress::Equal.into(),
             1,
             0,
             0, // Equal var[1] = (var[0] == 0) - no ammo
             // If no ammo, reload and set cooldown
-            AddressBytes::AssignByte as u8,
+            OperatorAddress::AssignByte.into(),
             2,
             5, // AssignByte var[2] = 5 (reload ammo)
-            AddressBytes::ReadProp as u8,
+            OperatorAddress::ReadProp.into(),
             3,
-            PropertyAddress::GameFrame as u8, // ReadProp var[3] = current frame
-            AddressBytes::WriteActionLastUsed as u8,
+            PropertyAddress::GameFrame.into(), // ReadProp var[3] = current frame
+            OperatorAddress::WriteActionLastUsed.into(),
             3, // WriteActionLastUsed var[3] (set cooldown)
             // Exit with success
-            AddressBytes::Exit as u8,
+            OperatorAddress::Exit.into(),
             1, // Exit with success
         ],
     };
@@ -232,7 +232,7 @@ fn test_conditional_cooldown_setting() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
+        script: vec![OperatorAddress::Exit.into(), 1], // Exit with success
     };
 
     // Set up character with the behavior
