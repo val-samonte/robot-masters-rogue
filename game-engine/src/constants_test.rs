@@ -7,8 +7,14 @@ use crate::script::Operator;
 fn test_address_bytes_match_operator_values() {
     // Test that OperatorAddress values match Operator values
     assert_eq!(u8::from(OperatorAddress::Exit), Operator::Exit as u8);
-    assert_eq!(u8::from(OperatorAddress::ReadProp), Operator::ReadProp as u8);
-    assert_eq!(u8::from(OperatorAddress::WriteProp), Operator::WriteProp as u8);
+    assert_eq!(
+        u8::from(OperatorAddress::ReadProp),
+        Operator::ReadProp as u8
+    );
+    assert_eq!(
+        u8::from(OperatorAddress::WriteProp),
+        Operator::WriteProp as u8
+    );
     assert_eq!(
         u8::from(OperatorAddress::AssignByte),
         Operator::AssignByte as u8
@@ -18,7 +24,10 @@ fn test_address_bytes_match_operator_values() {
         Operator::AssignFixed as u8
     );
     assert_eq!(u8::from(OperatorAddress::Add), Operator::Add as u8);
-    assert_eq!(u8::from(OperatorAddress::LessThan), Operator::LessThan as u8);
+    assert_eq!(
+        u8::from(OperatorAddress::LessThan),
+        Operator::LessThan as u8
+    );
     assert_eq!(u8::from(OperatorAddress::Spawn), Operator::Spawn as u8);
     assert_eq!(
         u8::from(OperatorAddress::ExitWithVar),
