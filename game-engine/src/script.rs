@@ -297,7 +297,7 @@ impl ScriptEngine {
                 let var_index = self.read_u8(script)? as usize;
                 let literal = self.read_u8(script)?;
                 if var_index >= self.vars.len() {
-                    return Err(ScriptError::InvalidScript);
+                    return Err(ScriptError::IndexOutOfBounds);
                 }
                 self.vars[var_index] = literal;
             }
@@ -307,7 +307,7 @@ impl ScriptEngine {
                 let numerator = self.read_u8(script)? as i32;
                 let denominator = self.read_u8(script)? as i32;
                 if var_index >= self.fixed.len() {
-                    return Err(ScriptError::InvalidScript);
+                    return Err(ScriptError::IndexOutOfBounds);
                 }
                 if denominator == 0 {
                     self.fixed[var_index] = Fixed::from_int(numerator as i16);
@@ -320,7 +320,7 @@ impl ScriptEngine {
             Operator::AssignRandom => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() {
-                    return Err(ScriptError::InvalidScript);
+                    return Err(ScriptError::IndexOutOfBounds);
                 }
                 self.vars[var_index] = context.get_random_u8();
             }
@@ -717,6 +717,8 @@ pub enum ScriptError {
     InvalidScript,
     InvalidOperator,
     TypeMismatch,
+    IndexOutOfBounds,
+    ArithmeticError,
 }
 
 impl Default for ScriptEngine {
@@ -1268,7 +1270,7 @@ mod tests {
         // Test invalid variable index
         let script = [20, 8, 42, 0, 1]; // AssignByte to var[8] (out of bounds)
         let result = engine.execute(&script, &mut context);
-        assert!(matches!(result, Err(ScriptError::InvalidScript)));
+        assert!(matches!(result, Err(ScriptError::IndexOutOfBounds)));
 
         engine.reset();
 

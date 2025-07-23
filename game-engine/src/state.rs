@@ -70,7 +70,7 @@ impl GameState {
 
         // Apply passive energy regeneration to all characters
         crate::status::apply_passive_energy_regen_to_all_characters(&mut game_state.characters)
-            .map_err(|_| "Failed to apply passive energy regeneration")?;
+            .map_err(|_| crate::api::GameError::InvalidGameState)?;
 
         Ok(game_state)
     }
@@ -102,6 +102,12 @@ impl GameState {
 
         // 5. Clean up expired entities
         self.cleanup_entities()?;
+
+        // 6. Validate and recover game state if needed
+        crate::error::ErrorRecovery::validate_and_recover_game_state(
+            &mut self.characters,
+            &mut self.spawn_instances,
+        )?;
 
         self.frame += 1;
         Ok(())
@@ -209,7 +215,7 @@ impl GameState {
     /// Create GameState from binary data
     pub fn from_binary(data: &[u8]) -> GameResult<Self> {
         if data.len() < 5 {
-            return Err("Invalid binary data: too short".into());
+            return Err(crate::api::GameError::DataTooShort);
         }
 
         let mut pos = 0;
@@ -222,13 +228,13 @@ impl GameState {
         let status = match data[pos] {
             0 => GameStatus::Playing,
             1 => GameStatus::Ended,
-            _ => return Err("Invalid game status".into()),
+            _ => return Err(crate::api::GameError::InvalidBinaryData),
         };
         pos += 1;
 
         // Read tilemap
         if data.len() < pos + 240 {
-            return Err("Invalid binary data: tilemap too short".into());
+            return Err(crate::api::GameError::DataTooShort);
         }
         let mut tilemap = [[0u8; 16]; 15];
         for row in 0..15 {
@@ -240,7 +246,7 @@ impl GameState {
 
         // Read characters
         if pos >= data.len() {
-            return Err("Invalid binary data: missing character count".into());
+            return Err(crate::api::GameError::DataTooShort);
         }
         let character_count = data[pos] as usize;
         pos += 1;
@@ -254,7 +260,7 @@ impl GameState {
 
         // Read spawn instances
         if pos >= data.len() {
-            return Err("Invalid binary data: missing spawn count".into());
+            return Err(crate::api::GameError::DataTooShort);
         }
         let spawn_count = data[pos] as usize;
         pos += 1;
@@ -262,7 +268,7 @@ impl GameState {
         let mut spawn_instances = Vec::new();
         for _ in 0..spawn_count {
             if pos >= data.len() {
-                return Err("Invalid binary data: not enough data for spawn".into());
+                return Err(crate::api::GameError::DataTooShort);
             }
             let (spawn, bytes_read) = Self::deserialize_spawn(&data[pos..])?;
             spawn_instances.push(spawn);
@@ -519,7 +525,7 @@ impl GameState {
 
     fn deserialize_character(data: &[u8]) -> GameResult<(Character, usize)> {
         if data.len() < 36 {
-            return Err("Invalid character data: too short".into());
+            return Err(crate::api::GameError::InvalidCharacterData);
         }
 
         let mut pos = 0;
@@ -564,14 +570,14 @@ impl GameState {
 
         // Behaviors
         if pos >= data.len() {
-            return Err("Invalid character data: missing behavior count".into());
+            return Err(crate::api::GameError::InvalidCharacterData);
         }
         let behavior_count = data[pos] as usize;
         pos += 1;
         let mut behaviors = Vec::new();
         for _ in 0..behavior_count {
             if pos + 1 >= data.len() {
-                return Err("Invalid character data: incomplete behavior".into());
+                return Err(crate::api::GameError::InvalidCharacterData);
             }
             behaviors.push((data[pos], data[pos + 1]));
             pos += 2;
@@ -579,7 +585,7 @@ impl GameState {
 
         // Locked action
         if pos + 1 >= data.len() {
-            return Err("Invalid character data: missing locked action".into());
+            return Err(crate::api::GameError::InvalidCharacterData);
         }
         let locked_action = if data[pos] != 0 {
             Some(data[pos + 1])
@@ -590,14 +596,14 @@ impl GameState {
 
         // Status effects
         if pos >= data.len() {
-            return Err("Invalid character data: missing status effect count".into());
+            return Err(crate::api::GameError::InvalidCharacterData);
         }
         let status_count = data[pos] as usize;
         pos += 1;
         let mut status_effects = Vec::new();
         for _ in 0..status_count {
             if pos + 7 >= data.len() {
-                return Err("Invalid character data: incomplete status effect".into());
+                return Err(crate::api::GameError::InvalidCharacterData);
             }
             let effect_id = data[pos];
             pos += 1;
@@ -646,7 +652,7 @@ impl GameState {
 
     fn deserialize_spawn(data: &[u8]) -> GameResult<(SpawnInstance, usize)> {
         if data.len() < 27 {
-            return Err("Invalid spawn data: too short".into());
+            return Err(crate::api::GameError::InvalidSpawnData);
         }
 
         let mut pos = 0;
@@ -725,12 +731,20 @@ impl GameState {
             // Create a temporary copy of the character for processing
             let mut character = self.characters[i].clone();
 
-            if let Err(_) =
+            if let Err(error) =
                 process_character_status_effects(&mut character, self, &status_definitions)
             {
-                // Handle script execution errors gracefully
-                // For now, just continue to next character
-                continue;
+                // Handle script execution errors gracefully using error recovery
+                let game_error = crate::api::GameError::from(error);
+                if crate::error::ErrorRecovery::is_recoverable(&game_error) {
+                    // Log error and continue with next character
+                    // Note: In no_std environment, we can't use eprintln!
+                    // Error logging would be handled by the platform-specific wrapper
+                    continue;
+                } else {
+                    // Non-recoverable error, propagate it
+                    return Err(game_error);
+                }
             }
 
             // Update the character in the game state
@@ -760,10 +774,18 @@ impl GameState {
                     self.characters[i] = character;
                     all_spawns_to_create.append(&mut spawns);
                 }
-                Err(_) => {
-                    // Handle script execution errors gracefully
-                    // For now, just continue to next character
-                    continue;
+                Err(error) => {
+                    // Handle script execution errors gracefully using error recovery
+                    let game_error = crate::api::GameError::from(error);
+                    if crate::error::ErrorRecovery::is_recoverable(&game_error) {
+                        // Log error and continue with next character
+                        // Note: In no_std environment, we can't use eprintln!
+                        // Error logging would be handled by the platform-specific wrapper
+                        continue;
+                    } else {
+                        // Non-recoverable error, propagate it
+                        return Err(game_error);
+                    }
                 }
             }
         }

@@ -29,6 +29,9 @@ mod cooldown_skip_test;
 mod cooldown_test;
 pub mod core;
 pub mod entity;
+pub mod error;
+#[cfg(test)]
+mod error_test;
 #[cfg(test)]
 mod integration_tests;
 #[cfg(test)]

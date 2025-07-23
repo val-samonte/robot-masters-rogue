@@ -12,18 +12,63 @@ use alloc::vec::Vec;
 pub type GameResult<T> = Result<T, GameError>;
 
 /// Game engine errors
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameError {
+    // Script-related errors
     InvalidScript,
-    SerializationError,
-    InvalidGameState,
     ScriptExecutionError,
+    InvalidOperator,
+    ScriptIndexOutOfBounds,
+
+    // Serialization errors
+    SerializationError,
+    DeserializationError,
+    InvalidBinaryData,
+    DataTooShort,
+
+    // Game state errors
+    InvalidGameState,
+    InvalidCharacterData,
+    InvalidSpawnData,
+    InvalidTilemap,
+
+    // Entity errors
+    EntityNotFound,
+    InvalidEntityId,
+    InvalidPropertyAddress,
+
+    // Math errors
+    DivisionByZero,
+    ArithmeticOverflow,
+
+    // General errors
+    OutOfBounds,
+    InvalidInput,
 }
 
 impl From<&str> for GameError {
-    fn from(_msg: &str) -> Self {
-        // For debugging, we could store the message, but for now just return SerializationError
-        GameError::SerializationError
+    fn from(msg: &str) -> Self {
+        match msg {
+            s if s.contains("script") => GameError::InvalidScript,
+            s if s.contains("serializ") => GameError::SerializationError,
+            s if s.contains("binary") => GameError::InvalidBinaryData,
+            s if s.contains("character") => GameError::InvalidCharacterData,
+            s if s.contains("spawn") => GameError::InvalidSpawnData,
+            s if s.contains("short") => GameError::DataTooShort,
+            _ => GameError::InvalidInput,
+        }
+    }
+}
+
+impl From<crate::script::ScriptError> for GameError {
+    fn from(err: crate::script::ScriptError) -> Self {
+        match err {
+            crate::script::ScriptError::InvalidScript => GameError::InvalidScript,
+            crate::script::ScriptError::InvalidOperator => GameError::InvalidOperator,
+            crate::script::ScriptError::TypeMismatch => GameError::ScriptExecutionError,
+            crate::script::ScriptError::IndexOutOfBounds => GameError::ScriptIndexOutOfBounds,
+            crate::script::ScriptError::ArithmeticError => GameError::ArithmeticOverflow,
+        }
     }
 }
 
