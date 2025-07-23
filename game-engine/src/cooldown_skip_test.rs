@@ -2,6 +2,7 @@
 
 use crate::{
     behavior::{execute_character_behaviors, Action, Condition},
+    constants::AddressBytes,
     entity::Character,
     math::Fixed,
     state::GameState,
@@ -37,9 +38,13 @@ fn test_behavior_skipping_on_cooldown() {
         args: [0; 8],
         spawns: [0; 4],
         script: vec![
-            20, 0, 1, // AssignByte var[0] = 1 (spawn ID)
-            84, 0, // Spawn var[0]
-            0, 1, // Exit with success
+            AddressBytes::AssignByte as u8,
+            0,
+            1, // AssignByte var[0] = 1 (spawn ID)
+            AddressBytes::Spawn as u8,
+            0, // Spawn var[0]
+            AddressBytes::Exit as u8,
+            1, // Exit with success
         ],
     };
 
@@ -51,7 +56,7 @@ fn test_behavior_skipping_on_cooldown() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![0, 1], // Exit with success
+        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
     };
 
     // Set up character with the behavior

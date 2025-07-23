@@ -52,7 +52,7 @@ fn test_no_automatic_cooldown_setting() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![0, 1], // Exit with success
+        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
     };
 
     // Set up character with the behavior
@@ -100,9 +100,13 @@ fn test_manual_cooldown_setting() {
         spawns: [0; 4],
         script: vec![
             // Read current frame and set it as last used (using same approach as working test)
-            10, 0, 0x02, // ReadProp var[0] = game_state.frame
-            94, 0, // WriteActionLastUsed var[0]
-            0, 1, // Exit with success
+            AddressBytes::ReadProp as u8,
+            0,
+            PropertyAddress::GameFrame as u8, // ReadProp var[0] = game_state.frame
+            AddressBytes::WriteActionLastUsed as u8,
+            0, // WriteActionLastUsed var[0]
+            AddressBytes::Exit as u8,
+            1, // Exit with success
         ],
     };
 
@@ -114,7 +118,7 @@ fn test_manual_cooldown_setting() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![0, 1], // Exit with success
+        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
     };
 
     // Set up character with the behavior
@@ -228,7 +232,7 @@ fn test_conditional_cooldown_setting() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![0, 1], // Exit with success
+        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
     };
 
     // Set up character with the behavior

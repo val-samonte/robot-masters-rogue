@@ -2,7 +2,7 @@
 
 use crate::{
     behavior::{execute_character_behaviors, Action, Condition},
-    constants::PropertyAddress,
+    constants::{AddressBytes, PropertyAddress},
     entity::Character,
     math::Fixed,
     state::GameState,
@@ -39,10 +39,10 @@ fn test_cooldown_property_access() {
         spawns: [0; 4],
         // Script that reads cooldown value using property access
         script: vec![
-            10,
+            AddressBytes::ReadProp as u8,
             0,
             PropertyAddress::ActionCooldown as u8, // ReadProp var[0] = action.cooldown
-            0,
+            AddressBytes::Exit as u8,
             1, // Exit with success
         ],
     };
@@ -55,7 +55,7 @@ fn test_cooldown_property_access() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![0, 1], // Exit with success
+        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
     };
 
     // Set up character with the behavior
@@ -81,16 +81,16 @@ fn test_cooldown_property_access() {
         args: [0; 8],
         spawns: [0; 4],
         script: vec![
-            10,
+            AddressBytes::ReadProp as u8,
             0,
             PropertyAddress::ActionLastUsed as u8, // ReadProp var[0] = action_last_used
-            20,
+            AddressBytes::AssignByte as u8,
             1,
             42, // AssignByte var[1] = 42
-            11,
+            AddressBytes::WriteProp as u8,
             PropertyAddress::ActionLastUsedWrite as u8,
             1, // WriteProp action_last_used = var[1]
-            0,
+            AddressBytes::Exit as u8,
             1, // Exit with success
         ],
     };

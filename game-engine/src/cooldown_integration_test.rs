@@ -2,7 +2,7 @@
 
 use crate::{
     behavior::{execute_character_behaviors, Action, Condition},
-    constants::{AddressBytes, PropertyAddress},
+    constants::AddressBytes,
     entity::Character,
     math::Fixed,
     state::GameState,
@@ -52,7 +52,7 @@ fn test_basic_cooldown() {
         fixed: [Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
-        script: vec![0, 1], // Exit with success
+        script: vec![AddressBytes::Exit as u8, 1], // Exit with success
     };
 
     // Set up character with the behavior
