@@ -459,11 +459,12 @@ impl GameState {
         data.push(character.energy);
         data.extend_from_slice(&character.armor);
 
-        // Behaviors: count (1) + behaviors (count * 2)
+        // Behaviors: count (1) + behaviors (count * 8) - each ID is now usize (4 bytes on 32-bit, 8 bytes on 64-bit)
         data.push(character.behaviors.len() as u8);
         for &(condition_id, action_id) in &character.behaviors {
-            data.push(condition_id);
-            data.push(action_id);
+            // Serialize usize as 4 bytes for cross-platform compatibility
+            data.extend_from_slice(&(condition_id as u32).to_le_bytes());
+            data.extend_from_slice(&(action_id as u32).to_le_bytes());
         }
 
         // Locked action: flag (1) + optional value (1)
@@ -570,11 +571,18 @@ impl GameState {
         pos += 1;
         let mut behaviors = Vec::new();
         for _ in 0..behavior_count {
-            if pos + 1 >= data.len() {
+            if pos + 7 >= data.len() {
                 return Err(crate::api::GameError::InvalidCharacterData);
             }
-            behaviors.push((data[pos], data[pos + 1]));
-            pos += 2;
+            let condition_id =
+                u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]])
+                    as usize;
+            pos += 4;
+            let action_id =
+                u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]])
+                    as usize;
+            pos += 4;
+            behaviors.push((condition_id, action_id));
         }
 
         // Locked action

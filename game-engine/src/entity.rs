@@ -8,8 +8,13 @@ use alloc::vec::Vec;
 pub type EntityId = u8;
 pub type CharacterId = u8;
 pub type SpawnLookupId = u8;
-pub type ActionId = u8;
-pub type ConditionId = u8;
+
+/// Definition ID types for referencing shared definitions
+pub type ActionId = usize;
+pub type ConditionId = usize;
+pub type StatusEffectId = usize;
+
+/// Instance ID types for runtime state
 pub type ActionInstanceId = u8;
 
 /// Base entity properties shared by all game objects
@@ -91,6 +96,225 @@ pub struct StatusEffect {
     pub on_script: Vec<u8>,   // Runs when applied
     pub tick_script: Vec<u8>, // Runs every frame
     pub off_script: Vec<u8>,  // Runs when removed
+}
+
+/// Action definition - static configuration for actions
+#[derive(Debug, Clone)]
+pub struct ActionDefinition {
+    pub energy_cost: u8,
+    pub interval: u16,
+    pub duration: u16,
+    pub cooldown: u16,
+    pub vars: [u8; 8],
+    pub fixed: [Fixed; 4],
+    pub args: [u8; 8],
+    pub spawns: [u8; 4],
+    pub script: Vec<u8>,
+}
+
+/// Condition definition - static configuration for conditions
+#[derive(Debug, Clone)]
+pub struct ConditionDefinition {
+    pub energy_mul: Fixed,
+    pub vars: [u8; 8],
+    pub fixed: [Fixed; 4],
+    pub args: [u8; 8],
+    pub spawns: [u8; 4],
+    pub script: Vec<u8>,
+}
+
+/// Status effect definition - static configuration for status effects
+#[derive(Debug, Clone)]
+pub struct StatusEffectDefinition {
+    pub duration: u16,
+    pub stack_limit: u8,
+    pub reset_on_stack: bool,
+    pub vars: [u8; 8],
+    pub fixed: [Fixed; 4],
+    pub args: [u8; 8],
+    pub spawns: [u8; 4],
+    pub on_script: Vec<u8>,
+    pub tick_script: Vec<u8>,
+    pub off_script: Vec<u8>,
+}
+
+/// Action instance - runtime state for active actions
+#[derive(Debug, Clone)]
+pub struct ActionInstance {
+    pub definition_id: ActionId,
+    pub remaining_duration: u16,
+    pub last_used_frame: u16,
+    pub runtime_vars: [u8; 8],
+    pub runtime_fixed: [Fixed; 4],
+}
+
+/// Condition instance - runtime state for condition evaluations
+#[derive(Debug, Clone)]
+pub struct ConditionInstance {
+    pub definition_id: ConditionId,
+    pub runtime_vars: [u8; 8],
+    pub runtime_fixed: [Fixed; 4],
+}
+
+impl ActionDefinition {
+    /// Create a new action definition with basic validation
+    pub fn new(
+        energy_cost: u8,
+        interval: u16,
+        duration: u16,
+        cooldown: u16,
+        script: Vec<u8>,
+    ) -> Self {
+        Self {
+            energy_cost,
+            interval,
+            duration,
+            cooldown,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script,
+        }
+    }
+
+    /// Validate the action definition
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.script.is_empty() {
+            return Err("Action script cannot be empty");
+        }
+        if self.script.len() > crate::core::MAX_SCRIPT_LENGTH {
+            return Err("Action script exceeds maximum length");
+        }
+        Ok(())
+    }
+
+    /// Create an instance from this definition
+    pub fn create_instance(&self, definition_id: ActionId) -> ActionInstance {
+        ActionInstance {
+            definition_id,
+            remaining_duration: 0,
+            last_used_frame: u16::MAX, // Never used
+            runtime_vars: self.vars,
+            runtime_fixed: self.fixed,
+        }
+    }
+}
+
+impl ConditionDefinition {
+    /// Create a new condition definition with basic validation
+    pub fn new(energy_mul: Fixed, script: Vec<u8>) -> Self {
+        Self {
+            energy_mul,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            script,
+        }
+    }
+
+    /// Validate the condition definition
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.script.is_empty() {
+            return Err("Condition script cannot be empty");
+        }
+        if self.script.len() > crate::core::MAX_SCRIPT_LENGTH {
+            return Err("Condition script exceeds maximum length");
+        }
+        if self.energy_mul < Fixed::ZERO {
+            return Err("Energy multiplier cannot be negative");
+        }
+        Ok(())
+    }
+
+    /// Create an instance from this definition
+    pub fn create_instance(&self, definition_id: ConditionId) -> ConditionInstance {
+        ConditionInstance {
+            definition_id,
+            runtime_vars: self.vars,
+            runtime_fixed: self.fixed,
+        }
+    }
+}
+
+impl StatusEffectDefinition {
+    /// Create a new status effect definition with basic validation
+    pub fn new(
+        duration: u16,
+        stack_limit: u8,
+        reset_on_stack: bool,
+        on_script: Vec<u8>,
+        tick_script: Vec<u8>,
+        off_script: Vec<u8>,
+    ) -> Self {
+        Self {
+            duration,
+            stack_limit,
+            reset_on_stack,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args: [0; 8],
+            spawns: [0; 4],
+            on_script,
+            tick_script,
+            off_script,
+        }
+    }
+
+    /// Validate the status effect definition
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.on_script.len() > crate::core::MAX_SCRIPT_LENGTH {
+            return Err("On script exceeds maximum length");
+        }
+        if self.tick_script.len() > crate::core::MAX_SCRIPT_LENGTH {
+            return Err("Tick script exceeds maximum length");
+        }
+        if self.off_script.len() > crate::core::MAX_SCRIPT_LENGTH {
+            return Err("Off script exceeds maximum length");
+        }
+        if self.stack_limit == 0 {
+            return Err("Stack limit must be at least 1");
+        }
+        Ok(())
+    }
+}
+
+impl ActionInstance {
+    /// Create a new action instance
+    pub fn new(definition_id: ActionId) -> Self {
+        Self {
+            definition_id,
+            remaining_duration: 0,
+            last_used_frame: u16::MAX,
+            runtime_vars: [0; 8],
+            runtime_fixed: [Fixed::ZERO; 4],
+        }
+    }
+
+    /// Check if this action is currently active
+    pub fn is_active(&self) -> bool {
+        self.remaining_duration > 0
+    }
+
+    /// Check if this action is on cooldown
+    pub fn is_on_cooldown(&self, current_frame: u16, cooldown_duration: u16) -> bool {
+        if self.last_used_frame == u16::MAX {
+            return false; // Never used
+        }
+        current_frame.saturating_sub(self.last_used_frame) < cooldown_duration
+    }
+}
+
+impl ConditionInstance {
+    /// Create a new condition instance
+    pub fn new(definition_id: ConditionId) -> Self {
+        Self {
+            definition_id,
+            runtime_vars: [0; 8],
+            runtime_fixed: [Fixed::ZERO; 4],
+        }
+    }
 }
 
 /// Element types for damage and interactions
@@ -745,6 +969,244 @@ mod tests {
         assert_eq!(character.status_effects[1].effect_id, 2);
         assert_eq!(character.status_effects[1].stack_count, 3);
         assert_eq!(character.status_effects[1].vars[0], 5);
+    }
+
+    #[test]
+    fn test_action_definition_creation() {
+        let script = vec![1, 2, 3, 4, 5];
+        let action_def = ActionDefinition::new(25, 0, 30, 120, script.clone());
+
+        assert_eq!(action_def.energy_cost, 25);
+        assert_eq!(action_def.interval, 0);
+        assert_eq!(action_def.duration, 30);
+        assert_eq!(action_def.cooldown, 120);
+        assert_eq!(action_def.script, script);
+        assert_eq!(action_def.vars, [0; 8]);
+        assert_eq!(action_def.fixed, [Fixed::ZERO; 4]);
+        assert_eq!(action_def.args, [0; 8]);
+        assert_eq!(action_def.spawns, [0; 4]);
+    }
+
+    #[test]
+    fn test_action_definition_validation() {
+        let valid_script = vec![1, 2, 3];
+        let action_def = ActionDefinition::new(10, 0, 15, 60, valid_script);
+        assert!(action_def.validate().is_ok());
+
+        // Test empty script validation
+        let empty_script_def = ActionDefinition::new(10, 0, 15, 60, vec![]);
+        assert!(empty_script_def.validate().is_err());
+        assert_eq!(
+            empty_script_def.validate().unwrap_err(),
+            "Action script cannot be empty"
+        );
+
+        // Test script length validation
+        let long_script = vec![0; crate::core::MAX_SCRIPT_LENGTH + 1];
+        let long_script_def = ActionDefinition::new(10, 0, 15, 60, long_script);
+        assert!(long_script_def.validate().is_err());
+        assert_eq!(
+            long_script_def.validate().unwrap_err(),
+            "Action script exceeds maximum length"
+        );
+    }
+
+    #[test]
+    fn test_action_definition_create_instance() {
+        let script = vec![1, 2, 3];
+        let action_def = ActionDefinition::new(15, 0, 20, 90, script);
+        let instance = action_def.create_instance(5);
+
+        assert_eq!(instance.definition_id, 5);
+        assert_eq!(instance.remaining_duration, 0);
+        assert_eq!(instance.last_used_frame, u16::MAX);
+        assert_eq!(instance.runtime_vars, action_def.vars);
+        assert_eq!(instance.runtime_fixed, action_def.fixed);
+    }
+
+    #[test]
+    fn test_condition_definition_creation() {
+        let script = vec![10, 20, 30];
+        let energy_mul = Fixed::from_raw(16); // 0.5 multiplier
+        let condition_def = ConditionDefinition::new(energy_mul, script.clone());
+
+        assert_eq!(condition_def.energy_mul, energy_mul);
+        assert_eq!(condition_def.script, script);
+        assert_eq!(condition_def.vars, [0; 8]);
+        assert_eq!(condition_def.fixed, [Fixed::ZERO; 4]);
+        assert_eq!(condition_def.args, [0; 8]);
+        assert_eq!(condition_def.spawns, [0; 4]);
+    }
+
+    #[test]
+    fn test_condition_definition_validation() {
+        let valid_script = vec![1, 2, 3];
+        let condition_def = ConditionDefinition::new(Fixed::from_int(1), valid_script);
+        assert!(condition_def.validate().is_ok());
+
+        // Test empty script validation
+        let empty_script_def = ConditionDefinition::new(Fixed::from_int(1), vec![]);
+        assert!(empty_script_def.validate().is_err());
+        assert_eq!(
+            empty_script_def.validate().unwrap_err(),
+            "Condition script cannot be empty"
+        );
+
+        // Test script length validation
+        let long_script = vec![0; crate::core::MAX_SCRIPT_LENGTH + 1];
+        let long_script_def = ConditionDefinition::new(Fixed::from_int(1), long_script);
+        assert!(long_script_def.validate().is_err());
+        assert_eq!(
+            long_script_def.validate().unwrap_err(),
+            "Condition script exceeds maximum length"
+        );
+
+        // Test negative energy multiplier validation
+        let negative_energy_def = ConditionDefinition::new(Fixed::from_int(-1), vec![1, 2, 3]);
+        assert!(negative_energy_def.validate().is_err());
+        assert_eq!(
+            negative_energy_def.validate().unwrap_err(),
+            "Energy multiplier cannot be negative"
+        );
+    }
+
+    #[test]
+    fn test_condition_definition_create_instance() {
+        let script = vec![5, 10, 15];
+        let condition_def = ConditionDefinition::new(Fixed::from_int(2), script);
+        let instance = condition_def.create_instance(3);
+
+        assert_eq!(instance.definition_id, 3);
+        assert_eq!(instance.runtime_vars, condition_def.vars);
+        assert_eq!(instance.runtime_fixed, condition_def.fixed);
+    }
+
+    #[test]
+    fn test_status_effect_definition_creation() {
+        let on_script = vec![1, 2];
+        let tick_script = vec![3, 4, 5];
+        let off_script = vec![6];
+        let status_def = StatusEffectDefinition::new(
+            300,
+            5,
+            true,
+            on_script.clone(),
+            tick_script.clone(),
+            off_script.clone(),
+        );
+
+        assert_eq!(status_def.duration, 300);
+        assert_eq!(status_def.stack_limit, 5);
+        assert_eq!(status_def.reset_on_stack, true);
+        assert_eq!(status_def.on_script, on_script);
+        assert_eq!(status_def.tick_script, tick_script);
+        assert_eq!(status_def.off_script, off_script);
+        assert_eq!(status_def.vars, [0; 8]);
+        assert_eq!(status_def.fixed, [Fixed::ZERO; 4]);
+        assert_eq!(status_def.args, [0; 8]);
+        assert_eq!(status_def.spawns, [0; 4]);
+    }
+
+    #[test]
+    fn test_status_effect_definition_validation() {
+        let valid_def = StatusEffectDefinition::new(100, 3, false, vec![1], vec![2], vec![3]);
+        assert!(valid_def.validate().is_ok());
+
+        // Test script length validation
+        let long_script = vec![0; crate::core::MAX_SCRIPT_LENGTH + 1];
+
+        let long_on_script_def =
+            StatusEffectDefinition::new(100, 3, false, long_script.clone(), vec![1], vec![2]);
+        assert!(long_on_script_def.validate().is_err());
+        assert_eq!(
+            long_on_script_def.validate().unwrap_err(),
+            "On script exceeds maximum length"
+        );
+
+        let long_tick_script_def =
+            StatusEffectDefinition::new(100, 3, false, vec![1], long_script.clone(), vec![2]);
+        assert!(long_tick_script_def.validate().is_err());
+        assert_eq!(
+            long_tick_script_def.validate().unwrap_err(),
+            "Tick script exceeds maximum length"
+        );
+
+        let long_off_script_def =
+            StatusEffectDefinition::new(100, 3, false, vec![1], vec![2], long_script);
+        assert!(long_off_script_def.validate().is_err());
+        assert_eq!(
+            long_off_script_def.validate().unwrap_err(),
+            "Off script exceeds maximum length"
+        );
+
+        // Test stack limit validation
+        let zero_stack_def = StatusEffectDefinition::new(100, 0, false, vec![1], vec![2], vec![3]);
+        assert!(zero_stack_def.validate().is_err());
+        assert_eq!(
+            zero_stack_def.validate().unwrap_err(),
+            "Stack limit must be at least 1"
+        );
+    }
+
+    #[test]
+    fn test_action_instance_creation() {
+        let instance = ActionInstance::new(10);
+
+        assert_eq!(instance.definition_id, 10);
+        assert_eq!(instance.remaining_duration, 0);
+        assert_eq!(instance.last_used_frame, u16::MAX);
+        assert_eq!(instance.runtime_vars, [0; 8]);
+        assert_eq!(instance.runtime_fixed, [Fixed::ZERO; 4]);
+    }
+
+    #[test]
+    fn test_action_instance_state_methods() {
+        let mut instance = ActionInstance::new(5);
+
+        // Test initial state
+        assert!(!instance.is_active());
+        assert!(!instance.is_on_cooldown(100, 60));
+
+        // Test active state
+        instance.remaining_duration = 30;
+        assert!(instance.is_active());
+
+        // Test cooldown state
+        instance.last_used_frame = 50;
+        assert!(instance.is_on_cooldown(100, 60)); // 100 - 50 = 50 < 60
+        assert!(!instance.is_on_cooldown(120, 60)); // 120 - 50 = 70 >= 60
+
+        // Test never used state
+        instance.last_used_frame = u16::MAX;
+        assert!(!instance.is_on_cooldown(100, 60));
+    }
+
+    #[test]
+    fn test_condition_instance_creation() {
+        let instance = ConditionInstance::new(7);
+
+        assert_eq!(instance.definition_id, 7);
+        assert_eq!(instance.runtime_vars, [0; 8]);
+        assert_eq!(instance.runtime_fixed, [Fixed::ZERO; 4]);
+    }
+
+    #[test]
+    fn test_definition_id_types() {
+        // Test that definition IDs are usize and can hold larger values
+        let action_id: ActionId = 1000;
+        let condition_id: ConditionId = 2000;
+        let status_effect_id: StatusEffectId = 3000;
+
+        assert_eq!(action_id, 1000);
+        assert_eq!(condition_id, 2000);
+        assert_eq!(status_effect_id, 3000);
+
+        // Test that they can be used in instance creation
+        let action_instance = ActionInstance::new(action_id);
+        let condition_instance = ConditionInstance::new(condition_id);
+
+        assert_eq!(action_instance.definition_id, action_id);
+        assert_eq!(condition_instance.definition_id, condition_id);
     }
 
     #[test]
