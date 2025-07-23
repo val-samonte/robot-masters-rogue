@@ -873,11 +873,8 @@ impl<'a> ScriptContext for ActionContext<'a> {
                 if var_index < engine.vars.len()
                     && self.action_id < self.character.action_last_used.len()
                 {
-                    // Update last used timestamp (preserving high byte)
-                    let current_high = self.character.action_last_used[self.action_id] & 0xFF00;
-                    self.character.action_last_used[self.action_id] =
-                        current_high | (engine.vars[var_index] as u16);
-                    // Action last used timestamp (low byte)
+                    // Update last used timestamp (full u16 value)
+                    self.character.action_last_used[self.action_id] = engine.vars[var_index] as u16;
                 }
             }
 
@@ -988,10 +985,8 @@ impl<'a> ScriptContext for ActionContext<'a> {
 
     fn write_action_last_used(&mut self, engine: &mut ScriptEngine, var_index: usize) {
         if var_index < engine.vars.len() && self.action_id < self.character.action_last_used.len() {
-            // Update last used timestamp from variable (u8 -> u16, preserving high byte)
-            let current_high = self.character.action_last_used[self.action_id] & 0xFF00;
-            self.character.action_last_used[self.action_id] =
-                current_high | (engine.vars[var_index] as u16);
+            // Update last used timestamp from variable (u8 -> u16, full value)
+            self.character.action_last_used[self.action_id] = engine.vars[var_index] as u16;
         }
     }
 }
@@ -1007,6 +1002,10 @@ fn extract_script(props: &[u16], from: usize) -> Vec<u8> {
 fn is_action_on_cooldown(current_frame: u16, last_used: u16, cooldown: u16) -> bool {
     if cooldown == 0 {
         return false; // No cooldown
+    }
+
+    if last_used == u16::MAX {
+        return false; // Never used before, not on cooldown
     }
 
     // Calculate frames since last use
@@ -1077,7 +1076,7 @@ pub fn execute_character_behaviors(
                     .action_last_used
                     .get(action_id)
                     .copied()
-                    .unwrap_or(0),
+                    .unwrap_or(u16::MAX),
                 action.cooldown,
             ) {
                 continue; // Skip this behavior - action is on cooldown

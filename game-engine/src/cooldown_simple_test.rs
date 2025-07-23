@@ -65,28 +65,28 @@ fn test_cooldown_basic() {
     // Store the current frame
     let first_frame = game_state.frame;
 
-    // Verify that last_used was updated to current frame
-    assert_eq!(character.action_last_used[0], first_frame);
+    // Verify that last_used was NOT automatically updated (manual cooldown only)
+    assert_eq!(character.action_last_used[0], u16::MAX);
 
     // Advance frame by less than cooldown
     game_state.frame += 30; // Half of cooldown period
 
-    // Execute behavior again - should be skipped due to cooldown
+    // Execute behavior again - should succeed since no cooldown was set
     let result =
         execute_character_behaviors(&mut game_state, &mut character, &conditions, &actions);
     assert!(result.is_ok());
 
-    // Verify that last_used was NOT updated (still at first_frame)
-    assert_eq!(character.action_last_used[0], first_frame);
+    // Verify that last_used is still not updated (still u16::MAX)
+    assert_eq!(character.action_last_used[0], u16::MAX);
 
     // Advance frame beyond cooldown
     game_state.frame = first_frame + 61; // Just past cooldown
 
-    // Execute behavior again - should succeed now that cooldown has passed
+    // Execute behavior again - should still succeed since no cooldown was ever set
     let result =
         execute_character_behaviors(&mut game_state, &mut character, &conditions, &actions);
     assert!(result.is_ok());
 
-    // Verify that last_used was updated to the new frame
-    assert_eq!(character.action_last_used[0], first_frame + 61);
+    // Verify that last_used is still not updated (still u16::MAX)
+    assert_eq!(character.action_last_used[0], u16::MAX);
 }

@@ -238,7 +238,7 @@ impl Character {
 
     /// Initialize action_last_used vector with appropriate size
     pub fn init_action_cooldowns(&mut self, action_count: usize) {
-        self.action_last_used = vec![0; action_count];
+        self.action_last_used = vec![u16::MAX; action_count]; // u16::MAX means "never used"
     }
 }
 
@@ -924,9 +924,9 @@ mod tests {
         // Initialize cooldowns for 5 actions
         character.init_action_cooldowns(5);
 
-        // Should now have 5 entries, all initialized to 0
+        // Should now have 5 entries, all initialized to u16::MAX (never used)
         assert_eq!(character.action_last_used.len(), 5);
-        assert_eq!(character.action_last_used, vec![0, 0, 0, 0, 0]);
+        assert_eq!(character.action_last_used, vec![u16::MAX; 5]);
 
         // Test updating a cooldown timestamp
         character.action_last_used[2] = 120; // Set action 2's last used timestamp to frame 120

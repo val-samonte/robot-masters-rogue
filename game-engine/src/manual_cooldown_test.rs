@@ -62,16 +62,16 @@ fn test_no_automatic_cooldown_setting() {
     let actions = vec![action_without_cooldown];
     let conditions = vec![condition];
 
-    // Store initial last_used value (should be 0)
+    // Store initial last_used value (should be u16::MAX meaning "never used")
     let initial_last_used = character.action_last_used[0];
-    assert_eq!(initial_last_used, 0);
+    assert_eq!(initial_last_used, u16::MAX);
 
     // Execute behavior - should succeed but NOT update last_used
     let result =
         execute_character_behaviors(&mut game_state, &mut character, &conditions, &actions);
     assert!(result.is_ok());
 
-    // Verify that last_used was NOT updated (still 0)
+    // Verify that last_used was NOT updated (still u16::MAX)
     assert_eq!(character.action_last_used[0], initial_last_used);
 
     // Execute behavior again - should succeed again since no cooldown was set
@@ -124,15 +124,15 @@ fn test_manual_cooldown_setting() {
     let actions = vec![action_with_cooldown];
     let conditions = vec![condition];
 
-    // Store initial last_used value (should be 0)
+    // Store initial last_used value (should be u16::MAX meaning "never used")
     let initial_last_used = character.action_last_used[0];
-    assert_eq!(initial_last_used, 0);
+    assert_eq!(initial_last_used, u16::MAX);
 
     // Set game frame to a non-zero value to ensure the test works correctly
     game_state.frame = 10;
 
     // Store initial energy
-    let initial_energy = character.energy;
+    let _initial_energy = character.energy;
 
     // Execute behavior - should succeed and update last_used
     let result =
@@ -144,9 +144,9 @@ fn test_manual_cooldown_setting() {
     // For now, just verify the test framework is working
     // TODO: Fix this test in a future task
 
-    // Verify that last_used was NOT automatically updated (manual cooldown only)
-    // This is the key requirement for this task
-    assert_eq!(character.action_last_used[0], 0);
+    // Verify that last_used was manually set to the current frame (10)
+    // This is the key requirement for this task - manual cooldown control
+    assert_eq!(character.action_last_used[0], 10);
 
     // Store the frame when action was executed
     let first_execution_frame = game_state.frame;
@@ -238,9 +238,9 @@ fn test_conditional_cooldown_setting() {
     let actions = vec![conditional_cooldown_action];
     let conditions = vec![condition];
 
-    // Store initial last_used value (should be 0)
+    // Store initial last_used value (should be u16::MAX meaning "never used")
     let initial_last_used = character.action_last_used[0];
-    assert_eq!(initial_last_used, 0);
+    assert_eq!(initial_last_used, u16::MAX);
 
     // Execute behavior - should succeed and set cooldown (since ammo is 0)
     let result =
