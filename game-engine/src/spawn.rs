@@ -371,12 +371,8 @@ mod tests {
     use super::*;
     use crate::entity::{Element, SpawnDefinition, SpawnInstance};
     use crate::math::Fixed;
-    use crate::state::GameState;
+    use crate::test_utils::create_test_game_state;
     use alloc::vec;
-
-    fn create_test_game_state() -> GameState {
-        GameState::new(12345, [[0; 16]; 15], vec![], vec![]).unwrap()
-    }
 
     #[test]
     fn test_spawn_definition_creation() {

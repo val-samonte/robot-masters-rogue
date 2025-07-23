@@ -1,7 +1,6 @@
 //! Character behavior system with condition and action execution
 
 use crate::{
-    constants::PropertyAddress,
     entity::{Character, SpawnInstance},
     math::Fixed,
     script::{ScriptContext, ScriptEngine, ScriptError},
@@ -1113,15 +1112,6 @@ pub fn execute_character_behaviors(
     Ok(spawns_to_create)
 }
 
-/// Helper function to copy args from definition (legacy 4-byte version)
-fn copy_args(props: &[u16], from: usize) -> [u8; 4] {
-    let mut vars = [0; 4];
-    for (i, &val) in props[from..].iter().take(4).enumerate() {
-        vars[i] = val as u8;
-    }
-    vars
-}
-
 /// Helper function to copy args from definition (8-byte version)
 fn copy_args_8(props: &[u16], from: usize) -> [u8; 8] {
     let mut vars = [0; 8];
@@ -1134,17 +1124,8 @@ fn copy_args_8(props: &[u16], from: usize) -> [u8; 8] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::Character;
-    use crate::state::GameState;
+    use crate::test_utils::{create_test_character, create_test_game_state};
     use alloc::vec;
-
-    fn create_test_character() -> Character {
-        Character::new(1, 0)
-    }
-
-    fn create_test_game_state() -> GameState {
-        GameState::new(12345, [[0; 16]; 15], vec![], vec![]).unwrap()
-    }
 
     #[test]
     fn test_condition_creation() {

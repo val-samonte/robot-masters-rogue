@@ -12,6 +12,8 @@ pub mod actions_simple;
 pub mod api;
 pub mod behavior;
 pub mod behavior_integration;
+#[cfg(test)]
+mod cleanup_verification_test;
 pub mod conditions;
 pub mod conditions_simple;
 pub mod constants;
@@ -43,6 +45,8 @@ pub mod script;
 pub mod spawn;
 pub mod state;
 pub mod status;
+#[cfg(test)]
+pub mod test_utils;
 pub mod tilemap;
 
 // Re-export public API

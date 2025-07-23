@@ -1,13 +1,15 @@
 //! Bytecode scripting system for game logic
 
-use crate::constants::{OperatorAddress, PropertyAddress};
+use crate::constants::OperatorAddress;
+#[cfg(test)]
+use crate::constants::PropertyAddress;
 use crate::math::Fixed;
 
 extern crate alloc;
 use alloc::format;
 
 #[cfg(test)]
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 /// Script execution engine with execution context
 #[derive(Debug)]
@@ -742,7 +744,6 @@ mod tests {
         random_value: u8,
         locked: bool,
         spawns_created: Vec<(usize, Option<[u8; 4]>)>,
-        debug_messages: Vec<String>,
     }
 
     impl MockContext {
@@ -757,7 +758,6 @@ mod tests {
                 random_value: 42,
                 locked: false,
                 spawns_created: Vec::new(),
-                debug_messages: Vec::new(),
             }
         }
     }

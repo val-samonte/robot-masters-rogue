@@ -610,17 +610,8 @@ fn extract_script(props: &[u16], from: usize, to: usize) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::Character;
-    use crate::state::GameState;
+    use crate::test_utils::{create_test_character, create_test_game_state};
     use alloc::vec;
-
-    fn create_test_character() -> Character {
-        Character::new(1, 0)
-    }
-
-    fn create_test_game_state() -> GameState {
-        GameState::new(12345, [[0; 16]; 15], vec![], vec![]).unwrap()
-    }
 
     #[test]
     fn test_status_effect_creation() {
@@ -1136,9 +1127,9 @@ mod tests {
         characters[1].core.id = 2;
         characters[2].core.id = 3;
 
-        let mut game_state = create_test_game_state();
+        let _game_state = create_test_game_state();
         let passive_regen = create_passive_energy_regen_status_effect();
-        let status_definitions = vec![passive_regen];
+        let _status_definitions = vec![passive_regen];
 
         // Apply passive energy regen to all characters
         let result = apply_passive_energy_regen_to_all_characters(&mut characters);
@@ -1166,9 +1157,9 @@ mod tests {
             vars: [0; 4],
         });
 
-        let mut game_state = create_test_game_state();
+        let _game_state = create_test_game_state();
         let passive_regen = create_passive_energy_regen_status_effect();
-        let status_definitions = vec![passive_regen];
+        let _status_definitions = vec![passive_regen];
 
         // Try to apply passive energy regen again
         let result = apply_passive_energy_regen_to_all_characters(&mut characters);

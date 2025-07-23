@@ -5,7 +5,6 @@ use crate::behavior::{execute_character_behaviors, Action, Condition};
 use crate::entity::{Character, SpawnDefinition, SpawnInstance, StatusEffect};
 use crate::physics::Tilemap;
 use crate::random::SeededRng;
-use crate::script::ScriptEngine;
 use crate::status::process_character_status_effects;
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -34,9 +33,6 @@ pub struct GameState {
     pub spawn_lookup: Vec<SpawnDefinition>,
     pub status_effect_lookup: Vec<StatusEffect>,
 
-    // Script engine for bytecode execution
-    script_engine: ScriptEngine,
-
     // Random number generator
     rng: SeededRng,
 }
@@ -64,7 +60,6 @@ impl GameState {
             condition_lookup: Vec::new(),
             spawn_lookup: spawn_definitions,
             status_effect_lookup,
-            script_engine: ScriptEngine::new(),
             rng: SeededRng::new(seed),
         };
 
@@ -277,7 +272,7 @@ impl GameState {
 
         // Read lookup table sizes (but don't use them for now, just skip them)
         if pos + 3 < data.len() {
-            pos += 4; // Skip the 4 lookup table size bytes
+            let _pos = pos + 4; // Skip the 4 lookup table size bytes
         }
 
         Ok(Self {
@@ -291,7 +286,6 @@ impl GameState {
             condition_lookup: Vec::new(),
             spawn_lookup: Vec::new(),
             status_effect_lookup: Vec::new(),
-            script_engine: ScriptEngine::new(),
             rng: SeededRng::new(seed),
         })
     }
@@ -1255,7 +1249,6 @@ mod tests {
     #[test]
     fn test_character_with_multiple_status_effects() {
         use crate::entity::{Character, StatusEffectInstance};
-        use crate::math::Fixed;
 
         let seed = 111;
         let tilemap = [[0u8; 16]; 15];

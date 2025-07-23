@@ -274,11 +274,8 @@ pub fn process_complete_character_behaviors(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::create_test_game_state;
     use alloc::vec;
-
-    fn create_test_game_state() -> GameState {
-        GameState::new(12345, [[0; 16]; 15], vec![], vec![]).unwrap()
-    }
 
     #[test]
     fn test_behavior_priority_energy_below_10_percent() {
