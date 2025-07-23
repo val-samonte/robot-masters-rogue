@@ -14,7 +14,7 @@
   - Add runtime state management for active instances
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 3. Move vars and fixed arrays from definitions to instances
+- [x] 3. Move vars and fixed arrays from definitions to instances
 
   - Remove vars and fixed arrays from ActionDefinition, ConditionDefinition, and StatusEffectDefinition
   - Ensure ActionInstance and ConditionInstance have their own vars and fixed arrays for runtime state

@@ -105,8 +105,6 @@ pub struct ActionDefinition {
     pub interval: u16,
     pub duration: u16,
     pub cooldown: u16,
-    pub vars: [u8; 8],
-    pub fixed: [Fixed; 4],
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub script: Vec<u8>,
@@ -116,8 +114,6 @@ pub struct ActionDefinition {
 #[derive(Debug, Clone)]
 pub struct ConditionDefinition {
     pub energy_mul: Fixed,
-    pub vars: [u8; 8],
-    pub fixed: [Fixed; 4],
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub script: Vec<u8>,
@@ -129,8 +125,6 @@ pub struct StatusEffectDefinition {
     pub duration: u16,
     pub stack_limit: u8,
     pub reset_on_stack: bool,
-    pub vars: [u8; 8],
-    pub fixed: [Fixed; 4],
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub on_script: Vec<u8>,
@@ -170,8 +164,6 @@ impl ActionDefinition {
             interval,
             duration,
             cooldown,
-            vars: [0; 8],
-            fixed: [Fixed::ZERO; 4],
             args: [0; 8],
             spawns: [0; 4],
             script,
@@ -195,8 +187,8 @@ impl ActionDefinition {
             definition_id,
             remaining_duration: 0,
             last_used_frame: u16::MAX, // Never used
-            runtime_vars: self.vars,
-            runtime_fixed: self.fixed,
+            runtime_vars: [0; 8],
+            runtime_fixed: [Fixed::ZERO; 4],
         }
     }
 }
@@ -206,8 +198,6 @@ impl ConditionDefinition {
     pub fn new(energy_mul: Fixed, script: Vec<u8>) -> Self {
         Self {
             energy_mul,
-            vars: [0; 8],
-            fixed: [Fixed::ZERO; 4],
             args: [0; 8],
             spawns: [0; 4],
             script,
@@ -232,8 +222,8 @@ impl ConditionDefinition {
     pub fn create_instance(&self, definition_id: ConditionId) -> ConditionInstance {
         ConditionInstance {
             definition_id,
-            runtime_vars: self.vars,
-            runtime_fixed: self.fixed,
+            runtime_vars: [0; 8],
+            runtime_fixed: [Fixed::ZERO; 4],
         }
     }
 }
@@ -252,8 +242,6 @@ impl StatusEffectDefinition {
             duration,
             stack_limit,
             reset_on_stack,
-            vars: [0; 8],
-            fixed: [Fixed::ZERO; 4],
             args: [0; 8],
             spawns: [0; 4],
             on_script,
@@ -981,8 +969,6 @@ mod tests {
         assert_eq!(action_def.duration, 30);
         assert_eq!(action_def.cooldown, 120);
         assert_eq!(action_def.script, script);
-        assert_eq!(action_def.vars, [0; 8]);
-        assert_eq!(action_def.fixed, [Fixed::ZERO; 4]);
         assert_eq!(action_def.args, [0; 8]);
         assert_eq!(action_def.spawns, [0; 4]);
     }
@@ -1020,8 +1006,8 @@ mod tests {
         assert_eq!(instance.definition_id, 5);
         assert_eq!(instance.remaining_duration, 0);
         assert_eq!(instance.last_used_frame, u16::MAX);
-        assert_eq!(instance.runtime_vars, action_def.vars);
-        assert_eq!(instance.runtime_fixed, action_def.fixed);
+        assert_eq!(instance.runtime_vars, [0; 8]);
+        assert_eq!(instance.runtime_fixed, [Fixed::ZERO; 4]);
     }
 
     #[test]
@@ -1032,8 +1018,6 @@ mod tests {
 
         assert_eq!(condition_def.energy_mul, energy_mul);
         assert_eq!(condition_def.script, script);
-        assert_eq!(condition_def.vars, [0; 8]);
-        assert_eq!(condition_def.fixed, [Fixed::ZERO; 4]);
         assert_eq!(condition_def.args, [0; 8]);
         assert_eq!(condition_def.spawns, [0; 4]);
     }
@@ -1077,8 +1061,8 @@ mod tests {
         let instance = condition_def.create_instance(3);
 
         assert_eq!(instance.definition_id, 3);
-        assert_eq!(instance.runtime_vars, condition_def.vars);
-        assert_eq!(instance.runtime_fixed, condition_def.fixed);
+        assert_eq!(instance.runtime_vars, [0; 8]);
+        assert_eq!(instance.runtime_fixed, [Fixed::ZERO; 4]);
     }
 
     #[test]
@@ -1101,8 +1085,6 @@ mod tests {
         assert_eq!(status_def.on_script, on_script);
         assert_eq!(status_def.tick_script, tick_script);
         assert_eq!(status_def.off_script, off_script);
-        assert_eq!(status_def.vars, [0; 8]);
-        assert_eq!(status_def.fixed, [Fixed::ZERO; 4]);
         assert_eq!(status_def.args, [0; 8]);
         assert_eq!(status_def.spawns, [0; 4]);
     }
