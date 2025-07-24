@@ -46,6 +46,8 @@ pub mod spawn;
 pub mod state;
 pub mod status;
 #[cfg(test)]
+mod test_task6;
+#[cfg(test)]
 pub mod test_utils;
 pub mod tilemap;
 

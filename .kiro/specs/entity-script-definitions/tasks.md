@@ -37,7 +37,7 @@
   - Remove embedded Action and Condition objects from Character
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 6. Update GameState to include definition collections
+- [x] 6. Update GameState to include definition collections
 
   - Add action_definitions, condition_definitions, and status_effect_definitions fields
   - Add action_instances and condition_instances collections for runtime state

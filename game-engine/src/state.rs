@@ -2,7 +2,11 @@
 
 use crate::api::GameResult;
 use crate::behavior::{execute_character_behaviors, Action, Condition};
-use crate::entity::{Character, SpawnDefinition, SpawnInstance, StatusEffect};
+use crate::entity::{
+    ActionDefinition, ActionId, ActionInstance, Character, ConditionDefinition, ConditionId,
+    ConditionInstance, SpawnDefinition, SpawnInstance, StatusEffect, StatusEffectDefinition,
+    StatusEffectId,
+};
 use crate::physics::Tilemap;
 use crate::random::SeededRng;
 use crate::status::process_character_status_effects;
@@ -27,7 +31,17 @@ pub struct GameState {
     pub characters: Vec<Character>,
     pub spawn_instances: Vec<SpawnInstance>,
 
-    // Lookup tables for scripts and definitions
+    // Definition collections - shared templates
+    pub action_definitions: Vec<ActionDefinition>,
+    pub condition_definitions: Vec<ConditionDefinition>,
+    pub spawn_definitions: Vec<SpawnDefinition>,
+    pub status_effect_definitions: Vec<StatusEffectDefinition>,
+
+    // Instance collections - runtime state
+    pub action_instances: Vec<ActionInstance>,
+    pub condition_instances: Vec<ConditionInstance>,
+
+    // Legacy lookup tables (to be removed in task 18)
     pub action_lookup: Vec<Action>,
     pub condition_lookup: Vec<Condition>,
     pub spawn_lookup: Vec<SpawnDefinition>,
@@ -56,9 +70,21 @@ impl GameState {
             status: GameStatus::Playing,
             characters,
             spawn_instances: Vec::new(),
+
+            // Initialize new definition collections
+            action_definitions: Vec::new(),
+            condition_definitions: Vec::new(),
+            spawn_definitions,
+            status_effect_definitions: Vec::new(),
+
+            // Initialize new instance collections
+            action_instances: Vec::new(),
+            condition_instances: Vec::new(),
+
+            // Legacy lookup tables (to be removed in task 18)
             action_lookup: Vec::new(),
             condition_lookup: Vec::new(),
-            spawn_lookup: spawn_definitions,
+            spawn_lookup: Vec::new(),
             status_effect_lookup,
             rng: SeededRng::new(seed),
         };
@@ -282,6 +308,18 @@ impl GameState {
             status,
             characters,
             spawn_instances,
+
+            // Initialize new definition collections
+            action_definitions: Vec::new(),
+            condition_definitions: Vec::new(),
+            spawn_definitions: Vec::new(),
+            status_effect_definitions: Vec::new(),
+
+            // Initialize new instance collections
+            action_instances: Vec::new(),
+            condition_instances: Vec::new(),
+
+            // Legacy lookup tables (to be removed in task 18)
             action_lookup: Vec::new(),
             condition_lookup: Vec::new(),
             spawn_lookup: Vec::new(),
@@ -313,6 +351,55 @@ impl GameState {
     /// Reset the random number generator to initial seed
     pub fn reset_rng(&mut self) {
         self.rng.reset();
+    }
+
+    /// Get action definition by ID
+    pub fn get_action_definition(&self, id: ActionId) -> Option<&ActionDefinition> {
+        self.action_definitions.get(id)
+    }
+
+    /// Get mutable action definition by ID
+    pub fn get_action_definition_mut(&mut self, id: ActionId) -> Option<&mut ActionDefinition> {
+        self.action_definitions.get_mut(id)
+    }
+
+    /// Get condition definition by ID
+    pub fn get_condition_definition(&self, id: ConditionId) -> Option<&ConditionDefinition> {
+        self.condition_definitions.get(id)
+    }
+
+    /// Get mutable condition definition by ID
+    pub fn get_condition_definition_mut(
+        &mut self,
+        id: ConditionId,
+    ) -> Option<&mut ConditionDefinition> {
+        self.condition_definitions.get_mut(id)
+    }
+
+    /// Get status effect definition by ID
+    pub fn get_status_effect_definition(
+        &self,
+        id: StatusEffectId,
+    ) -> Option<&StatusEffectDefinition> {
+        self.status_effect_definitions.get(id)
+    }
+
+    /// Get mutable status effect definition by ID
+    pub fn get_status_effect_definition_mut(
+        &mut self,
+        id: StatusEffectId,
+    ) -> Option<&mut StatusEffectDefinition> {
+        self.status_effect_definitions.get_mut(id)
+    }
+
+    /// Get spawn definition by ID (already exists as spawn_definitions, but adding for consistency)
+    pub fn get_spawn_definition(&self, id: usize) -> Option<&SpawnDefinition> {
+        self.spawn_definitions.get(id)
+    }
+
+    /// Get mutable spawn definition by ID
+    pub fn get_spawn_definition_mut(&mut self, id: usize) -> Option<&mut SpawnDefinition> {
+        self.spawn_definitions.get_mut(id)
     }
 
     // Helper methods for JSON serialization
