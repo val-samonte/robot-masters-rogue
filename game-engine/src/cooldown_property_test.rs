@@ -41,7 +41,7 @@ fn test_cooldown_property_access() {
         script: vec![
             OperatorAddress::ReadProp.into(),
             0,
-            PropertyAddress::ActionCooldown.into(), // ReadProp var[0] = action.cooldown
+            PropertyAddress::ActionDefCooldown.into(), // ReadProp var[0] = action.cooldown
             OperatorAddress::Exit.into(),
             1, // Exit with success
         ],

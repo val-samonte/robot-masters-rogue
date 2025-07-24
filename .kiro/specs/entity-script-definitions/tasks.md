@@ -128,6 +128,7 @@
   - Remove all compiler warnings related to unused code and unreachable patterns
   - Remove outdated tests that are no longer relevant to the new architecture
   - Ensure codebase contains only the new definition-based implementation with no traces of old embedded approach
+  - After legacy removal, adjust numeric addresses accordingly to optimize the PropertyAddress enum and remove gaps
   - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1_
 
 - [ ] 19. Update README documentation
