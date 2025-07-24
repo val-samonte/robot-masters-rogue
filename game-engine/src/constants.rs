@@ -130,6 +130,7 @@ pub enum OperatorAddress {
 ///
 /// These constants define the property addresses used in ReadProp and WriteProp operations.
 /// They are organized by category and data type for easier maintenance.
+/// Properties are divided into definition properties (static, shared) and instance properties (runtime, per-instance).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PropertyAddress {
@@ -141,43 +142,109 @@ pub enum PropertyAddress {
     /// Game gravity value
     GameGravity = 0x03,
 
-    // ===== ACTION PROPERTIES (Mixed types) =====
-    /// Action energy cost (byte)
-    ActionEnergyCost = 0x04,
-    /// Action interval (fixed-point)
-    ActionInterval = 0x05,
-    /// Action duration (fixed-point)
-    ActionDuration = 0x06,
-    /// Action args[0] (byte)
-    ActionArg0 = 0x07,
-    /// Action args[1] (byte)
-    ActionArg1 = 0x08,
-    /// Action args[2] (byte)
-    ActionArg2 = 0x09,
-    /// Action args[3] (byte)
-    ActionArg3 = 0x0A,
-    /// Action args[4] (byte)
-    ActionArg4 = 0x0B,
-    /// Action args[5] (byte)
-    ActionArg5 = 0x0C,
-    /// Action args[6] (byte)
-    ActionArg6 = 0x0D,
-    /// Action args[7] (byte)
-    ActionArg7 = 0x0E,
+    // ===== ACTION DEFINITION PROPERTIES (Static, shared) =====
+    /// Action energy cost (byte) - from definition
+    ActionDefEnergyCost = 0x04,
+    /// Action interval (fixed-point) - from definition
+    ActionDefInterval = 0x05,
+    /// Action duration (fixed-point) - from definition
+    ActionDefDuration = 0x06,
+    /// Action cooldown (fixed-point) - from definition
+    ActionDefCooldown = 0x48,
+    /// Action args[0] (byte) - from definition
+    ActionDefArg0 = 0x07,
+    /// Action args[1] (byte) - from definition
+    ActionDefArg1 = 0x08,
+    /// Action args[2] (byte) - from definition
+    ActionDefArg2 = 0x09,
+    /// Action args[3] (byte) - from definition
+    ActionDefArg3 = 0x0A,
+    /// Action args[4] (byte) - from definition
+    ActionDefArg4 = 0x0B,
+    /// Action args[5] (byte) - from definition
+    ActionDefArg5 = 0x0C,
+    /// Action args[6] (byte) - from definition
+    ActionDefArg6 = 0x0D,
+    /// Action args[7] (byte) - from definition
+    ActionDefArg7 = 0x0E,
 
-    // ===== CONDITION PROPERTIES (Mixed types) =====
-    /// Condition ID (byte)
-    ConditionId = 0x11,
-    /// Condition energy multiplier (fixed-point)
-    ConditionEnergyMul = 0x12,
-    /// Condition args[0] (byte)
-    ConditionArg0 = 0x13,
-    /// Condition args[1] (byte)
-    ConditionArg1 = 0x14,
-    /// Condition args[2] (byte)
-    ConditionArg2 = 0x15,
-    /// Condition args[3] (byte)
-    ConditionArg3 = 0x16,
+    // ===== ACTION INSTANCE PROPERTIES (Runtime, per-instance) =====
+    /// Action instance vars[0] (byte) - from instance
+    ActionInstVar0 = 0x80,
+    /// Action instance vars[1] (byte) - from instance
+    ActionInstVar1 = 0x81,
+    /// Action instance vars[2] (byte) - from instance
+    ActionInstVar2 = 0x82,
+    /// Action instance vars[3] (byte) - from instance
+    ActionInstVar3 = 0x83,
+    /// Action instance vars[4] (byte) - from instance
+    ActionInstVar4 = 0x84,
+    /// Action instance vars[5] (byte) - from instance
+    ActionInstVar5 = 0x85,
+    /// Action instance vars[6] (byte) - from instance
+    ActionInstVar6 = 0x86,
+    /// Action instance vars[7] (byte) - from instance
+    ActionInstVar7 = 0x87,
+    /// Action instance fixed[0] (fixed-point) - from instance
+    ActionInstFixed0 = 0x88,
+    /// Action instance fixed[1] (fixed-point) - from instance
+    ActionInstFixed1 = 0x89,
+    /// Action instance fixed[2] (fixed-point) - from instance
+    ActionInstFixed2 = 0x8A,
+    /// Action instance fixed[3] (fixed-point) - from instance
+    ActionInstFixed3 = 0x8B,
+    /// Action instance remaining duration (fixed-point) - from instance
+    ActionInstRemainingDuration = 0x8C,
+    /// Action instance last used frame (fixed-point) - from instance
+    ActionInstLastUsedFrame = 0x8D,
+
+    // ===== CONDITION DEFINITION PROPERTIES (Static, shared) =====
+    /// Condition ID (byte) - from definition
+    ConditionDefId = 0x11,
+    /// Condition energy multiplier (fixed-point) - from definition
+    ConditionDefEnergyMul = 0x12,
+    /// Condition args[0] (byte) - from definition
+    ConditionDefArg0 = 0x13,
+    /// Condition args[1] (byte) - from definition
+    ConditionDefArg1 = 0x14,
+    /// Condition args[2] (byte) - from definition
+    ConditionDefArg2 = 0x15,
+    /// Condition args[3] (byte) - from definition
+    ConditionDefArg3 = 0x16,
+    /// Condition args[4] (byte) - from definition
+    ConditionDefArg4 = 0x1F,
+    /// Condition args[5] (byte) - from definition
+    ConditionDefArg5 = 0x20,
+    /// Condition args[6] (byte) - from definition
+    ConditionDefArg6 = 0x22,
+    /// Condition args[7] (byte) - from definition
+    ConditionDefArg7 = 0x29,
+
+    // ===== CONDITION INSTANCE PROPERTIES (Runtime, per-instance) =====
+    /// Condition instance vars[0] (byte) - from instance
+    ConditionInstVar0 = 0x90,
+    /// Condition instance vars[1] (byte) - from instance
+    ConditionInstVar1 = 0x91,
+    /// Condition instance vars[2] (byte) - from instance
+    ConditionInstVar2 = 0x92,
+    /// Condition instance vars[3] (byte) - from instance
+    ConditionInstVar3 = 0x93,
+    /// Condition instance vars[4] (byte) - from instance
+    ConditionInstVar4 = 0x94,
+    /// Condition instance vars[5] (byte) - from instance
+    ConditionInstVar5 = 0x95,
+    /// Condition instance vars[6] (byte) - from instance
+    ConditionInstVar6 = 0x96,
+    /// Condition instance vars[7] (byte) - from instance
+    ConditionInstVar7 = 0x97,
+    /// Condition instance fixed[0] (fixed-point) - from instance
+    ConditionInstFixed0 = 0x98,
+    /// Condition instance fixed[1] (fixed-point) - from instance
+    ConditionInstFixed1 = 0x99,
+    /// Condition instance fixed[2] (fixed-point) - from instance
+    ConditionInstFixed2 = 0x9A,
+    /// Condition instance fixed[3] (fixed-point) - from instance
+    ConditionInstFixed3 = 0x9B,
 
     // ===== CHARACTER CORE PROPERTIES (Mixed types) =====
     /// Character ID (byte)
@@ -196,16 +263,10 @@ pub enum PropertyAddress {
     CharacterSizeW = 0x1D,
     /// Character size height (fixed-point)
     CharacterSizeH = 0x1E,
-    /// Condition args[4] (byte) - legacy
-    ConditionArg4 = 0x1F,
-    /// Condition args[5] (byte) - legacy
-    ConditionArg5 = 0x20,
 
     // ===== CHARACTER STATS (Byte values) =====
     /// Character health (byte)
     CharacterHealth = 0x21,
-    /// Condition args[6] (byte) - legacy
-    ConditionArg6 = 0x22,
     /// Character energy (byte)
     CharacterEnergy = 0x23,
     /// Character energy cap (byte)
@@ -255,12 +316,10 @@ pub enum PropertyAddress {
     /// Armor value for Virus element (byte)
     CharacterArmorVirus = 0x47,
 
-    // ===== ACTION COOLDOWN PROPERTIES =====
-    /// Action cooldown duration (byte/fixed depending on context)
-    ActionCooldown = 0x48,
-    /// Action last used timestamp (byte/fixed depending on context)
+    // ===== LEGACY ACTION COOLDOWN PROPERTIES (for backward compatibility) =====
+    /// Action last used timestamp (byte/fixed depending on context) - legacy
     ActionLastUsed = 0x49,
-    /// Write action last used timestamp (byte/fixed depending on context)
+    /// Write action last used timestamp (byte/fixed depending on context) - legacy
     ActionLastUsedWrite = 0x4A,
 
     // ===== ENTITY DIRECTION PROPERTIES =====
@@ -360,23 +419,34 @@ impl PropertyAddress {
             0x01 => Some(Self::GameSeed),
             0x02 => Some(Self::GameFrame),
             0x03 => Some(Self::GameGravity),
-            0x04 => Some(Self::ActionEnergyCost),
-            0x05 => Some(Self::ActionInterval),
-            0x06 => Some(Self::ActionDuration),
-            0x07 => Some(Self::ActionArg0),
-            0x08 => Some(Self::ActionArg1),
-            0x09 => Some(Self::ActionArg2),
-            0x0A => Some(Self::ActionArg3),
-            0x0B => Some(Self::ActionArg4),
-            0x0C => Some(Self::ActionArg5),
-            0x0D => Some(Self::ActionArg6),
-            0x0E => Some(Self::ActionArg7),
-            0x11 => Some(Self::ConditionId),
-            0x12 => Some(Self::ConditionEnergyMul),
-            0x13 => Some(Self::ConditionArg0),
-            0x14 => Some(Self::ConditionArg1),
-            0x15 => Some(Self::ConditionArg2),
-            0x16 => Some(Self::ConditionArg3),
+
+            // Action definition properties
+            0x04 => Some(Self::ActionDefEnergyCost),
+            0x05 => Some(Self::ActionDefInterval),
+            0x06 => Some(Self::ActionDefDuration),
+            0x07 => Some(Self::ActionDefArg0),
+            0x08 => Some(Self::ActionDefArg1),
+            0x09 => Some(Self::ActionDefArg2),
+            0x0A => Some(Self::ActionDefArg3),
+            0x0B => Some(Self::ActionDefArg4),
+            0x0C => Some(Self::ActionDefArg5),
+            0x0D => Some(Self::ActionDefArg6),
+            0x0E => Some(Self::ActionDefArg7),
+            0x48 => Some(Self::ActionDefCooldown),
+
+            // Condition definition properties
+            0x11 => Some(Self::ConditionDefId),
+            0x12 => Some(Self::ConditionDefEnergyMul),
+            0x13 => Some(Self::ConditionDefArg0),
+            0x14 => Some(Self::ConditionDefArg1),
+            0x15 => Some(Self::ConditionDefArg2),
+            0x16 => Some(Self::ConditionDefArg3),
+            0x1F => Some(Self::ConditionDefArg4),
+            0x20 => Some(Self::ConditionDefArg5),
+            0x22 => Some(Self::ConditionDefArg6),
+            0x29 => Some(Self::ConditionDefArg7),
+
+            // Character properties
             0x17 => Some(Self::CharacterId),
             0x18 => Some(Self::CharacterGroup),
             0x19 => Some(Self::CharacterPosX),
@@ -385,10 +455,7 @@ impl PropertyAddress {
             0x1C => Some(Self::CharacterVelY),
             0x1D => Some(Self::CharacterSizeW),
             0x1E => Some(Self::CharacterSizeH),
-            0x1F => Some(Self::ConditionArg4),
-            0x20 => Some(Self::ConditionArg5),
             0x21 => Some(Self::CharacterHealth),
-            0x22 => Some(Self::ConditionArg6),
             0x23 => Some(Self::CharacterEnergy),
             0x24 => Some(Self::CharacterEnergyCap),
             0x25 => Some(Self::CharacterEnergyRegen),
@@ -409,11 +476,16 @@ impl PropertyAddress {
             0x45 => Some(Self::CharacterArmorCryo),
             0x46 => Some(Self::CharacterArmorJolt),
             0x47 => Some(Self::CharacterArmorVirus),
-            0x48 => Some(Self::ActionCooldown),
+
+            // Legacy action properties
             0x49 => Some(Self::ActionLastUsed),
             0x4A => Some(Self::ActionLastUsedWrite),
+
+            // Entity direction properties
             0x4B => Some(Self::EntityFacing),
             0x4C => Some(Self::EntityGravityDir),
+
+            // Spawn properties
             0x5D => Some(Self::SpawnDamageBase),
             0x6F => Some(Self::SpawnCoreId),
             0x70 => Some(Self::SpawnOwnerId),
@@ -421,6 +493,37 @@ impl PropertyAddress {
             0x79 => Some(Self::SpawnPosY),
             0x7A => Some(Self::SpawnVelX),
             0x7B => Some(Self::SpawnVelY),
+
+            // Action instance properties
+            0x80 => Some(Self::ActionInstVar0),
+            0x81 => Some(Self::ActionInstVar1),
+            0x82 => Some(Self::ActionInstVar2),
+            0x83 => Some(Self::ActionInstVar3),
+            0x84 => Some(Self::ActionInstVar4),
+            0x85 => Some(Self::ActionInstVar5),
+            0x86 => Some(Self::ActionInstVar6),
+            0x87 => Some(Self::ActionInstVar7),
+            0x88 => Some(Self::ActionInstFixed0),
+            0x89 => Some(Self::ActionInstFixed1),
+            0x8A => Some(Self::ActionInstFixed2),
+            0x8B => Some(Self::ActionInstFixed3),
+            0x8C => Some(Self::ActionInstRemainingDuration),
+            0x8D => Some(Self::ActionInstLastUsedFrame),
+
+            // Condition instance properties
+            0x90 => Some(Self::ConditionInstVar0),
+            0x91 => Some(Self::ConditionInstVar1),
+            0x92 => Some(Self::ConditionInstVar2),
+            0x93 => Some(Self::ConditionInstVar3),
+            0x94 => Some(Self::ConditionInstVar4),
+            0x95 => Some(Self::ConditionInstVar5),
+            0x96 => Some(Self::ConditionInstVar6),
+            0x97 => Some(Self::ConditionInstVar7),
+            0x98 => Some(Self::ConditionInstFixed0),
+            0x99 => Some(Self::ConditionInstFixed1),
+            0x9A => Some(Self::ConditionInstFixed2),
+            0x9B => Some(Self::ConditionInstFixed3),
+
             _ => None,
         }
     }
@@ -428,6 +531,77 @@ impl PropertyAddress {
     /// Convert to u8 value
     pub fn to_u8(self) -> u8 {
         self as u8
+    }
+
+    /// Check if this property address refers to a definition property (static, shared)
+    pub fn is_definition_property(self) -> bool {
+        match self {
+            // Action definition properties
+            Self::ActionDefEnergyCost | Self::ActionDefInterval | Self::ActionDefDuration |
+            Self::ActionDefCooldown | Self::ActionDefArg0 | Self::ActionDefArg1 |
+            Self::ActionDefArg2 | Self::ActionDefArg3 | Self::ActionDefArg4 |
+            Self::ActionDefArg5 | Self::ActionDefArg6 | Self::ActionDefArg7 |
+            // Condition definition properties
+            Self::ConditionDefId | Self::ConditionDefEnergyMul | Self::ConditionDefArg0 |
+            Self::ConditionDefArg1 | Self::ConditionDefArg2 | Self::ConditionDefArg3 |
+            Self::ConditionDefArg4 | Self::ConditionDefArg5 | Self::ConditionDefArg6 |
+            Self::ConditionDefArg7 => true,
+            _ => false,
+        }
+    }
+
+    /// Check if this property address refers to an instance property (runtime, per-instance)
+    pub fn is_instance_property(self) -> bool {
+        match self {
+            // Action instance properties
+            Self::ActionInstVar0 | Self::ActionInstVar1 | Self::ActionInstVar2 |
+            Self::ActionInstVar3 | Self::ActionInstVar4 | Self::ActionInstVar5 |
+            Self::ActionInstVar6 | Self::ActionInstVar7 | Self::ActionInstFixed0 |
+            Self::ActionInstFixed1 | Self::ActionInstFixed2 | Self::ActionInstFixed3 |
+            Self::ActionInstRemainingDuration | Self::ActionInstLastUsedFrame |
+            // Condition instance properties
+            Self::ConditionInstVar0 | Self::ConditionInstVar1 | Self::ConditionInstVar2 |
+            Self::ConditionInstVar3 | Self::ConditionInstVar4 | Self::ConditionInstVar5 |
+            Self::ConditionInstVar6 | Self::ConditionInstVar7 | Self::ConditionInstFixed0 |
+            Self::ConditionInstFixed1 | Self::ConditionInstFixed2 | Self::ConditionInstFixed3 => true,
+            _ => false,
+        }
+    }
+
+    /// Check if this property address refers to a character property (direct access)
+    pub fn is_character_property(self) -> bool {
+        match self {
+            Self::CharacterId
+            | Self::CharacterGroup
+            | Self::CharacterPosX
+            | Self::CharacterPosY
+            | Self::CharacterVelX
+            | Self::CharacterVelY
+            | Self::CharacterSizeW
+            | Self::CharacterSizeH
+            | Self::CharacterHealth
+            | Self::CharacterEnergy
+            | Self::CharacterEnergyCap
+            | Self::CharacterEnergyRegen
+            | Self::CharacterEnergyRegenRate
+            | Self::CharacterEnergyCharge
+            | Self::CharacterEnergyChargeRate
+            | Self::CharacterCollisionTop
+            | Self::CharacterCollisionRight
+            | Self::CharacterCollisionBottom
+            | Self::CharacterCollisionLeft
+            | Self::CharacterLockedActionId
+            | Self::CharacterStatusEffectCount
+            | Self::CharacterArmorPunct
+            | Self::CharacterArmorBlast
+            | Self::CharacterArmorForce
+            | Self::CharacterArmorSever
+            | Self::CharacterArmorHeat
+            | Self::CharacterArmorCryo
+            | Self::CharacterArmorJolt
+            | Self::CharacterArmorVirus => true,
+            _ => false,
+        }
     }
 }
 

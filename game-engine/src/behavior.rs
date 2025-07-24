@@ -1,6 +1,7 @@
 //! Character behavior system with condition and action execution
 
 use crate::{
+    constants::PropertyAddress,
     entity::{Character, SpawnInstance},
     math::Fixed,
     script::{ScriptContext, ScriptEngine, ScriptError},
@@ -129,6 +130,177 @@ impl Action {
 
 impl<'a> ScriptContext for ConditionContext<'a> {
     fn read_property(&mut self, engine: &mut ScriptEngine, var_index: usize, prop_address: u8) {
+        // Use the new PropertyAddress system if available, otherwise fall back to legacy handling
+        if let Some(property) = PropertyAddress::from_u8(prop_address) {
+            self.read_property_typed(engine, var_index, property);
+        } else {
+            self.read_property_legacy(engine, var_index, prop_address);
+        }
+    }
+
+    fn write_property(&mut self, _engine: &mut ScriptEngine, _prop_address: u8, _var_index: usize) {
+        // Conditions are read-only - no write operations allowed
+    }
+
+    fn get_energy_requirement(&self) -> u8 {
+        // Conditions don't have energy requirements
+        0
+    }
+
+    fn get_current_energy(&self) -> u8 {
+        self.character.energy
+    }
+
+    fn is_on_cooldown(&self) -> bool {
+        false // Conditions don't have cooldowns
+    }
+
+    fn get_random_u8(&mut self) -> u8 {
+        // Use the game state's RNG
+        self.game_state.next_random_u8()
+    }
+
+    fn lock_action(&mut self) {
+        // Not supported in condition context
+    }
+
+    fn unlock_action(&mut self) {
+        // Not supported in condition context
+    }
+
+    fn apply_energy_cost(&mut self) {
+        // Not supported in condition context
+    }
+
+    fn apply_duration(&mut self) {
+        // Not supported in condition context
+    }
+
+    fn create_spawn(&mut self, _spawn_id: usize, _vars: Option<[u8; 4]>) {
+        // Not supported in condition context
+    }
+
+    fn log_debug(&self, _message: &str) {
+        // TODO: Implement logging when available
+    }
+
+    fn read_action_cooldown(&self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Conditions don't have access to action cooldown data
+    }
+
+    fn read_action_last_used(&self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Conditions don't have access to action last used data
+    }
+
+    fn write_action_last_used(&mut self, _engine: &mut ScriptEngine, _var_index: usize) {
+        // Conditions can't modify action last used data
+    }
+}
+
+impl<'a> ConditionContext<'a> {
+    /// Read property using the new PropertyAddress system
+    fn read_property_typed(
+        &mut self,
+        engine: &mut ScriptEngine,
+        var_index: usize,
+        property: PropertyAddress,
+    ) {
+        match property {
+            // Condition definition properties (using current embedded condition data)
+            PropertyAddress::ConditionDefId => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.condition.id as u8;
+                }
+            }
+            PropertyAddress::ConditionDefEnergyMul => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.condition.energy_mul;
+                }
+            }
+            PropertyAddress::ConditionDefArg0
+            | PropertyAddress::ConditionDefArg1
+            | PropertyAddress::ConditionDefArg2
+            | PropertyAddress::ConditionDefArg3
+            | PropertyAddress::ConditionDefArg4
+            | PropertyAddress::ConditionDefArg5
+            | PropertyAddress::ConditionDefArg6
+            | PropertyAddress::ConditionDefArg7 => {
+                if var_index < engine.vars.len() {
+                    let arg_index = match property {
+                        PropertyAddress::ConditionDefArg0 => 0,
+                        PropertyAddress::ConditionDefArg1 => 1,
+                        PropertyAddress::ConditionDefArg2 => 2,
+                        PropertyAddress::ConditionDefArg3 => 3,
+                        PropertyAddress::ConditionDefArg4 => 4,
+                        PropertyAddress::ConditionDefArg5 => 5,
+                        PropertyAddress::ConditionDefArg6 => 6,
+                        PropertyAddress::ConditionDefArg7 => 7,
+                        _ => return,
+                    };
+                    if arg_index < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[arg_index];
+                    }
+                }
+            }
+
+            // Condition instance properties (using current embedded condition data)
+            PropertyAddress::ConditionInstVar0
+            | PropertyAddress::ConditionInstVar1
+            | PropertyAddress::ConditionInstVar2
+            | PropertyAddress::ConditionInstVar3
+            | PropertyAddress::ConditionInstVar4
+            | PropertyAddress::ConditionInstVar5
+            | PropertyAddress::ConditionInstVar6
+            | PropertyAddress::ConditionInstVar7 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = match property {
+                        PropertyAddress::ConditionInstVar0 => 0,
+                        PropertyAddress::ConditionInstVar1 => 1,
+                        PropertyAddress::ConditionInstVar2 => 2,
+                        PropertyAddress::ConditionInstVar3 => 3,
+                        PropertyAddress::ConditionInstVar4 => 4,
+                        PropertyAddress::ConditionInstVar5 => 5,
+                        PropertyAddress::ConditionInstVar6 => 6,
+                        PropertyAddress::ConditionInstVar7 => 7,
+                        _ => return,
+                    };
+                    if var_idx < self.condition.vars.len() {
+                        engine.vars[var_index] = self.condition.vars[var_idx];
+                    }
+                }
+            }
+            PropertyAddress::ConditionInstFixed0
+            | PropertyAddress::ConditionInstFixed1
+            | PropertyAddress::ConditionInstFixed2
+            | PropertyAddress::ConditionInstFixed3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx = match property {
+                        PropertyAddress::ConditionInstFixed0 => 0,
+                        PropertyAddress::ConditionInstFixed1 => 1,
+                        PropertyAddress::ConditionInstFixed2 => 2,
+                        PropertyAddress::ConditionInstFixed3 => 3,
+                        _ => return,
+                    };
+                    if fixed_idx < self.condition.fixed.len() {
+                        engine.fixed[var_index] = self.condition.fixed[fixed_idx];
+                    }
+                }
+            }
+
+            // Character and other properties - delegate to legacy handler
+            _ => {
+                self.read_property_legacy(engine, var_index, property as u8);
+            }
+        }
+    }
+
+    /// Legacy property reading for backward compatibility
+    fn read_property_legacy(
+        &mut self,
+        engine: &mut ScriptEngine,
+        var_index: usize,
+        prop_address: u8,
+    ) {
         match prop_address {
             // Game state properties (Fixed-point values)
             0x01 => {
@@ -153,7 +325,7 @@ impl<'a> ScriptContext for ConditionContext<'a> {
                     engine.fixed[var_index] = self.condition.energy_mul;
                 }
             }
-            0x13..=0x16 => {
+            0x13 | 0x14 | 0x15 | 0x16 => {
                 if var_index < engine.vars.len() {
                     let arg_index = (prop_address - 0x13) as usize;
                     if arg_index < self.condition.args.len() {
@@ -371,17 +543,225 @@ impl<'a> ScriptContext for ConditionContext<'a> {
                 }
             }
 
+            // Game state properties (Fixed-point values)
+            0x01 => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.game_state.seed as i16);
+                }
+            }
+            0x02 => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.game_state.frame as i16);
+                }
+            }
+
+            // Condition properties (legacy handling)
+            0x11 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.condition.id as u8;
+                }
+            }
+            0x12 => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.condition.energy_mul;
+                }
+            }
+            0x13 | 0x14 | 0x15 | 0x16 => {
+                if var_index < engine.vars.len() {
+                    let arg_index = (prop_address - 0x13) as usize;
+                    if arg_index < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[arg_index];
+                    }
+                }
+            }
+
+            // Character properties
+            0x17 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.core.id;
+                }
+            }
+            0x18 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.core.group;
+                }
+            }
+            0x19 => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.pos.0;
+                }
+            }
+            0x1A => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.pos.1;
+                }
+            }
+            0x1B => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.vel.0;
+                }
+            }
+            0x1C => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.vel.1;
+                }
+            }
+            0x1D => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.character.core.size.0 as i16);
+                }
+            }
+            0x1E => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.character.core.size.1 as i16);
+                }
+            }
+            0x1F => {
+                if var_index < engine.vars.len() {
+                    if 4 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[4];
+                    }
+                }
+            }
+            0x20 => {
+                if var_index < engine.vars.len() {
+                    if 5 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[5];
+                    }
+                }
+            }
+            0x21 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.health;
+                }
+            }
+            0x22 => {
+                if var_index < engine.vars.len() {
+                    if 6 < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[6];
+                    }
+                }
+            }
+            0x23 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy;
+                }
+            }
+            0x25 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_regen;
+                }
+            }
+            0x26 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_regen_rate;
+                }
+            }
+            0x27 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_charge;
+                }
+            }
+            0x28 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_charge_rate;
+                }
+            }
+            0x2B => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if self.character.core.collision.0 {
+                        1
+                    } else {
+                        0
+                    };
+                }
+            }
+            0x2C => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if self.character.core.collision.1 {
+                        1
+                    } else {
+                        0
+                    };
+                }
+            }
+            0x2D => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if self.character.core.collision.2 {
+                        1
+                    } else {
+                        0
+                    };
+                }
+            }
+            0x2E => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if self.character.core.collision.3 {
+                        1
+                    } else {
+                        0
+                    };
+                }
+            }
+            0x2F => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] =
+                        if let Some(action_instance_id) = self.character.locked_action {
+                            action_instance_id
+                        } else {
+                            0xFF
+                        };
+                }
+            }
+            0x39 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.status_effects.len() as u8;
+                }
+            }
+            0x40 | 0x41 | 0x42 | 0x43 | 0x44 | 0x45 | 0x46 | 0x47 => {
+                if var_index < engine.vars.len() {
+                    let armor_index = (prop_address - 0x40) as usize;
+                    if armor_index < self.character.armor.len() {
+                        engine.vars[var_index] = self.character.armor[armor_index];
+                    }
+                }
+            }
+            0x4B => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_facing();
+                }
+            }
+            0x4C => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_gravity_dir();
+                }
+            }
             _ => {}
         }
     }
+}
 
-    fn write_property(&mut self, _engine: &mut ScriptEngine, _prop_address: u8, _var_index: usize) {
-        // Conditions are read-only - no write operations allowed
+impl<'a> ScriptContext for ActionContext<'a> {
+    fn read_property(&mut self, engine: &mut ScriptEngine, var_index: usize, prop_address: u8) {
+        // Use the new PropertyAddress system if available, otherwise fall back to legacy handling
+        if let Some(property) = PropertyAddress::from_u8(prop_address) {
+            self.read_property_typed(engine, var_index, property);
+        } else {
+            self.read_property_legacy(engine, var_index, prop_address);
+        }
+    }
+
+    fn write_property(&mut self, engine: &mut ScriptEngine, prop_address: u8, var_index: usize) {
+        // Use the new PropertyAddress system if available, otherwise fall back to legacy handling
+        if let Some(property) = PropertyAddress::from_u8(prop_address) {
+            self.write_property_typed(engine, property, var_index);
+        } else {
+            self.write_property_legacy(engine, prop_address, var_index);
+        }
     }
 
     fn get_energy_requirement(&self) -> u8 {
-        // Conditions don't have energy requirements
-        0
+        self.action.energy_cost
     }
 
     fn get_current_energy(&self) -> u8 {
@@ -389,53 +769,405 @@ impl<'a> ScriptContext for ConditionContext<'a> {
     }
 
     fn is_on_cooldown(&self) -> bool {
-        false // Conditions don't have cooldowns
+        if self.action_id < self.character.action_last_used.len() {
+            let last_used = self.character.action_last_used[self.action_id];
+            if last_used == u16::MAX {
+                return false; // Never used
+            }
+            self.game_state.frame.saturating_sub(last_used) < self.action.cooldown
+        } else {
+            false
+        }
     }
 
     fn get_random_u8(&mut self) -> u8 {
-        // Use the game state's RNG
         self.game_state.next_random_u8()
     }
 
     fn lock_action(&mut self) {
-        // Not supported in condition context
+        self.character.locked_action = Some(self.action_id as u8);
     }
 
     fn unlock_action(&mut self) {
-        // Not supported in condition context
+        self.character.locked_action = None;
     }
 
     fn apply_energy_cost(&mut self) {
-        // Not supported in condition context
+        self.character.energy = self
+            .character
+            .energy
+            .saturating_sub(self.action.energy_cost);
     }
 
     fn apply_duration(&mut self) {
-        // Not supported in condition context
+        // Duration handling will be implemented when action instances are added
     }
 
-    fn create_spawn(&mut self, _spawn_id: usize, _vars: Option<[u8; 4]>) {
-        // Not supported in condition context
+    fn create_spawn(&mut self, spawn_id: usize, vars: Option<[u8; 4]>) {
+        if spawn_id < self.game_state.spawn_lookup.len() {
+            let spawn_def = &self.game_state.spawn_lookup[spawn_id];
+            let spawn_instance = SpawnInstance {
+                core: crate::entity::EntityCore {
+                    id: spawn_id as u8,
+                    group: self.character.core.group,
+                    pos: self.character.core.pos,
+                    vel: (Fixed::ZERO, Fixed::ZERO),
+                    size: (8, 8), // Default size
+                    collision: (false, false, false, false),
+                    facing: self.character.core.facing,
+                    gravity_dir: self.character.core.gravity_dir,
+                },
+                spawn_id: spawn_id as u8,
+                owner_id: self.character.core.id,
+                lifespan: spawn_def.duration,
+                element: spawn_def.element.unwrap_or(crate::entity::Element::Force),
+                vars: vars.unwrap_or([0; 4]),
+            };
+            self.to_spawn.push(spawn_instance);
+        }
     }
 
     fn log_debug(&self, _message: &str) {
         // TODO: Implement logging when available
     }
 
-    fn read_action_cooldown(&self, _engine: &mut ScriptEngine, _var_index: usize) {
-        // Conditions don't have access to action cooldown data
+    fn read_action_cooldown(&self, engine: &mut ScriptEngine, var_index: usize) {
+        if var_index < engine.vars.len() {
+            engine.vars[var_index] = (self.action.cooldown & 0xFF) as u8;
+        }
     }
 
-    fn read_action_last_used(&self, _engine: &mut ScriptEngine, _var_index: usize) {
-        // Conditions don't have access to action last used data
+    fn read_action_last_used(&self, engine: &mut ScriptEngine, var_index: usize) {
+        if var_index < engine.vars.len() && self.action_id < self.character.action_last_used.len() {
+            engine.vars[var_index] = (self.character.action_last_used[self.action_id] & 0xFF) as u8;
+        }
     }
 
-    fn write_action_last_used(&mut self, _engine: &mut ScriptEngine, _var_index: usize) {
-        // Conditions can't modify action last used data
+    fn write_action_last_used(&mut self, engine: &mut ScriptEngine, var_index: usize) {
+        if var_index < engine.vars.len() && self.action_id < self.character.action_last_used.len() {
+            self.character.action_last_used[self.action_id] = engine.vars[var_index] as u16;
+        }
     }
 }
 
-impl<'a> ScriptContext for ActionContext<'a> {
-    fn read_property(&mut self, engine: &mut ScriptEngine, var_index: usize, prop_address: u8) {
+impl<'a> ActionContext<'a> {
+    /// Read property using the new PropertyAddress system
+    fn read_property_typed(
+        &mut self,
+        engine: &mut ScriptEngine,
+        var_index: usize,
+        property: PropertyAddress,
+    ) {
+        match property {
+            // Action definition properties (using current embedded action data)
+            PropertyAddress::ActionDefEnergyCost => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.action.energy_cost;
+                }
+            }
+            PropertyAddress::ActionDefInterval => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.action.interval as i16);
+                }
+            }
+            PropertyAddress::ActionDefDuration => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.action.duration as i16);
+                }
+            }
+            PropertyAddress::ActionDefCooldown => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.action.cooldown as i16);
+                }
+            }
+            PropertyAddress::ActionDefArg0
+            | PropertyAddress::ActionDefArg1
+            | PropertyAddress::ActionDefArg2
+            | PropertyAddress::ActionDefArg3
+            | PropertyAddress::ActionDefArg4
+            | PropertyAddress::ActionDefArg5
+            | PropertyAddress::ActionDefArg6
+            | PropertyAddress::ActionDefArg7 => {
+                if var_index < engine.vars.len() {
+                    let arg_index = match property {
+                        PropertyAddress::ActionDefArg0 => 0,
+                        PropertyAddress::ActionDefArg1 => 1,
+                        PropertyAddress::ActionDefArg2 => 2,
+                        PropertyAddress::ActionDefArg3 => 3,
+                        PropertyAddress::ActionDefArg4 => 4,
+                        PropertyAddress::ActionDefArg5 => 5,
+                        PropertyAddress::ActionDefArg6 => 6,
+                        PropertyAddress::ActionDefArg7 => 7,
+                        _ => return,
+                    };
+                    if arg_index < self.action.args.len() {
+                        engine.vars[var_index] = self.action.args[arg_index];
+                    }
+                }
+            }
+
+            // Action instance properties (using current embedded action data)
+            PropertyAddress::ActionInstVar0
+            | PropertyAddress::ActionInstVar1
+            | PropertyAddress::ActionInstVar2
+            | PropertyAddress::ActionInstVar3
+            | PropertyAddress::ActionInstVar4
+            | PropertyAddress::ActionInstVar5
+            | PropertyAddress::ActionInstVar6
+            | PropertyAddress::ActionInstVar7 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = match property {
+                        PropertyAddress::ActionInstVar0 => 0,
+                        PropertyAddress::ActionInstVar1 => 1,
+                        PropertyAddress::ActionInstVar2 => 2,
+                        PropertyAddress::ActionInstVar3 => 3,
+                        PropertyAddress::ActionInstVar4 => 4,
+                        PropertyAddress::ActionInstVar5 => 5,
+                        PropertyAddress::ActionInstVar6 => 6,
+                        PropertyAddress::ActionInstVar7 => 7,
+                        _ => return,
+                    };
+                    if var_idx < self.action.vars.len() {
+                        engine.vars[var_index] = self.action.vars[var_idx];
+                    }
+                }
+            }
+            PropertyAddress::ActionInstFixed0
+            | PropertyAddress::ActionInstFixed1
+            | PropertyAddress::ActionInstFixed2
+            | PropertyAddress::ActionInstFixed3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx = match property {
+                        PropertyAddress::ActionInstFixed0 => 0,
+                        PropertyAddress::ActionInstFixed1 => 1,
+                        PropertyAddress::ActionInstFixed2 => 2,
+                        PropertyAddress::ActionInstFixed3 => 3,
+                        _ => return,
+                    };
+                    if fixed_idx < self.action.fixed.len() {
+                        engine.fixed[var_index] = self.action.fixed[fixed_idx];
+                    }
+                }
+            }
+            PropertyAddress::ActionInstLastUsedFrame => {
+                if var_index < engine.fixed.len()
+                    && self.action_id < self.character.action_last_used.len()
+                {
+                    engine.fixed[var_index] =
+                        Fixed::from_int(self.character.action_last_used[self.action_id] as i16);
+                }
+            }
+
+            // Condition definition properties (using current embedded condition data)
+            PropertyAddress::ConditionDefId => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.condition.id as u8;
+                }
+            }
+            PropertyAddress::ConditionDefEnergyMul => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.condition.energy_mul;
+                }
+            }
+            PropertyAddress::ConditionDefArg0
+            | PropertyAddress::ConditionDefArg1
+            | PropertyAddress::ConditionDefArg2
+            | PropertyAddress::ConditionDefArg3
+            | PropertyAddress::ConditionDefArg4
+            | PropertyAddress::ConditionDefArg5
+            | PropertyAddress::ConditionDefArg6
+            | PropertyAddress::ConditionDefArg7 => {
+                if var_index < engine.vars.len() {
+                    let arg_index = match property {
+                        PropertyAddress::ConditionDefArg0 => 0,
+                        PropertyAddress::ConditionDefArg1 => 1,
+                        PropertyAddress::ConditionDefArg2 => 2,
+                        PropertyAddress::ConditionDefArg3 => 3,
+                        PropertyAddress::ConditionDefArg4 => 4,
+                        PropertyAddress::ConditionDefArg5 => 5,
+                        PropertyAddress::ConditionDefArg6 => 6,
+                        PropertyAddress::ConditionDefArg7 => 7,
+                        _ => return,
+                    };
+                    if arg_index < self.condition.args.len() {
+                        engine.vars[var_index] = self.condition.args[arg_index];
+                    }
+                }
+            }
+
+            // Condition instance properties (using current embedded condition data)
+            PropertyAddress::ConditionInstVar0
+            | PropertyAddress::ConditionInstVar1
+            | PropertyAddress::ConditionInstVar2
+            | PropertyAddress::ConditionInstVar3
+            | PropertyAddress::ConditionInstVar4
+            | PropertyAddress::ConditionInstVar5
+            | PropertyAddress::ConditionInstVar6
+            | PropertyAddress::ConditionInstVar7 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = match property {
+                        PropertyAddress::ConditionInstVar0 => 0,
+                        PropertyAddress::ConditionInstVar1 => 1,
+                        PropertyAddress::ConditionInstVar2 => 2,
+                        PropertyAddress::ConditionInstVar3 => 3,
+                        PropertyAddress::ConditionInstVar4 => 4,
+                        PropertyAddress::ConditionInstVar5 => 5,
+                        PropertyAddress::ConditionInstVar6 => 6,
+                        PropertyAddress::ConditionInstVar7 => 7,
+                        _ => return,
+                    };
+                    if var_idx < self.condition.vars.len() {
+                        engine.vars[var_index] = self.condition.vars[var_idx];
+                    }
+                }
+            }
+            PropertyAddress::ConditionInstFixed0
+            | PropertyAddress::ConditionInstFixed1
+            | PropertyAddress::ConditionInstFixed2
+            | PropertyAddress::ConditionInstFixed3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx = match property {
+                        PropertyAddress::ConditionInstFixed0 => 0,
+                        PropertyAddress::ConditionInstFixed1 => 1,
+                        PropertyAddress::ConditionInstFixed2 => 2,
+                        PropertyAddress::ConditionInstFixed3 => 3,
+                        _ => return,
+                    };
+                    if fixed_idx < self.condition.fixed.len() {
+                        engine.fixed[var_index] = self.condition.fixed[fixed_idx];
+                    }
+                }
+            }
+
+            // Character and other properties - delegate to legacy handler
+            _ => {
+                self.read_property_legacy(engine, var_index, property as u8);
+            }
+        }
+    }
+
+    /// Write property using the new PropertyAddress system
+    fn write_property_typed(
+        &mut self,
+        engine: &mut ScriptEngine,
+        property: PropertyAddress,
+        var_index: usize,
+    ) {
+        match property {
+            // Action instance properties (using current embedded action data)
+            PropertyAddress::ActionInstVar0
+            | PropertyAddress::ActionInstVar1
+            | PropertyAddress::ActionInstVar2
+            | PropertyAddress::ActionInstVar3
+            | PropertyAddress::ActionInstVar4
+            | PropertyAddress::ActionInstVar5
+            | PropertyAddress::ActionInstVar6
+            | PropertyAddress::ActionInstVar7 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = match property {
+                        PropertyAddress::ActionInstVar0 => 0,
+                        PropertyAddress::ActionInstVar1 => 1,
+                        PropertyAddress::ActionInstVar2 => 2,
+                        PropertyAddress::ActionInstVar3 => 3,
+                        PropertyAddress::ActionInstVar4 => 4,
+                        PropertyAddress::ActionInstVar5 => 5,
+                        PropertyAddress::ActionInstVar6 => 6,
+                        PropertyAddress::ActionInstVar7 => 7,
+                        _ => return,
+                    };
+                    if var_idx < self.action.vars.len() {
+                        // TODO: This will modify the action instance when definition/instance separation is complete
+                        // For now, this is a no-op since we can't safely modify the embedded action data
+                    }
+                }
+            }
+            PropertyAddress::ActionInstFixed0
+            | PropertyAddress::ActionInstFixed1
+            | PropertyAddress::ActionInstFixed2
+            | PropertyAddress::ActionInstFixed3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx = match property {
+                        PropertyAddress::ActionInstFixed0 => 0,
+                        PropertyAddress::ActionInstFixed1 => 1,
+                        PropertyAddress::ActionInstFixed2 => 2,
+                        PropertyAddress::ActionInstFixed3 => 3,
+                        _ => return,
+                    };
+                    if fixed_idx < self.action.fixed.len() {
+                        // TODO: This will modify the action instance when definition/instance separation is complete
+                        // For now, this is a no-op since we can't safely modify the embedded action data
+                    }
+                }
+            }
+            PropertyAddress::ActionInstLastUsedFrame => {
+                if var_index < engine.fixed.len()
+                    && self.action_id < self.character.action_last_used.len()
+                {
+                    self.character.action_last_used[self.action_id] =
+                        engine.fixed[var_index].to_int() as u16;
+                }
+            }
+
+            // Condition instance properties (using current embedded condition data)
+            PropertyAddress::ConditionInstVar0
+            | PropertyAddress::ConditionInstVar1
+            | PropertyAddress::ConditionInstVar2
+            | PropertyAddress::ConditionInstVar3
+            | PropertyAddress::ConditionInstVar4
+            | PropertyAddress::ConditionInstVar5
+            | PropertyAddress::ConditionInstVar6
+            | PropertyAddress::ConditionInstVar7 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = match property {
+                        PropertyAddress::ConditionInstVar0 => 0,
+                        PropertyAddress::ConditionInstVar1 => 1,
+                        PropertyAddress::ConditionInstVar2 => 2,
+                        PropertyAddress::ConditionInstVar3 => 3,
+                        PropertyAddress::ConditionInstVar4 => 4,
+                        PropertyAddress::ConditionInstVar5 => 5,
+                        PropertyAddress::ConditionInstVar6 => 6,
+                        PropertyAddress::ConditionInstVar7 => 7,
+                        _ => return,
+                    };
+                    if var_idx < self.condition.vars.len() {
+                        // TODO: This will modify the condition instance when definition/instance separation is complete
+                        // For now, this is a no-op since we can't safely modify the embedded condition data
+                    }
+                }
+            }
+            PropertyAddress::ConditionInstFixed0
+            | PropertyAddress::ConditionInstFixed1
+            | PropertyAddress::ConditionInstFixed2
+            | PropertyAddress::ConditionInstFixed3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx = match property {
+                        PropertyAddress::ConditionInstFixed0 => 0,
+                        PropertyAddress::ConditionInstFixed1 => 1,
+                        PropertyAddress::ConditionInstFixed2 => 2,
+                        PropertyAddress::ConditionInstFixed3 => 3,
+                        _ => return,
+                    };
+                    if fixed_idx < self.condition.fixed.len() {
+                        // TODO: This will modify the condition instance when definition/instance separation is complete
+                        // For now, this is a no-op since we can't safely modify the embedded condition data
+                    }
+                }
+            }
+
+            // Character and other properties - delegate to legacy handler
+            _ => {
+                self.write_property_legacy(engine, property as u8, var_index);
+            }
+        }
+    }
+
+    /// Legacy property reading for backward compatibility
+    fn read_property_legacy(
+        &mut self,
+        engine: &mut ScriptEngine,
+        var_index: usize,
+        prop_address: u8,
+    ) {
         match prop_address {
             // Game state properties (Fixed-point values)
             0x01 => {
@@ -465,7 +1197,7 @@ impl<'a> ScriptContext for ActionContext<'a> {
                     engine.fixed[var_index] = Fixed::from_int(self.action.duration as i16);
                 }
             }
-            0x07..=0x0E => {
+            0x07 | 0x08 | 0x09 | 0x0A | 0x0B | 0x0C | 0x0D | 0x0E => {
                 if var_index < engine.vars.len() {
                     let arg_index = (prop_address - 0x07) as usize;
                     if arg_index < self.action.args.len() {
@@ -485,7 +1217,7 @@ impl<'a> ScriptContext for ActionContext<'a> {
                     engine.fixed[var_index] = self.condition.energy_mul;
                 }
             }
-            0x13..=0x16 => {
+            0x13 | 0x14 | 0x15 | 0x16 => {
                 if var_index < engine.vars.len() {
                     let arg_index = (prop_address - 0x13) as usize;
                     if arg_index < self.condition.args.len() {
@@ -889,6 +1621,27 @@ impl<'a> ScriptContext for ActionContext<'a> {
                 }
             }
 
+            _ => {}
+        }
+    }
+
+    /// Legacy property writing for backward compatibility
+    fn write_property_legacy(
+        &mut self,
+        engine: &mut ScriptEngine,
+        prop_address: u8,
+        var_index: usize,
+    ) {
+        // Delegate to the existing write_property method for now
+        // This will be expanded when full definition/instance separation is implemented
+        match prop_address {
+            // Character properties that can be written
+            0x19 | 0x1A | 0x1B | 0x1C | 0x21 | 0x23 | 0x25 | 0x26 | 0x27 | 0x28 | 0x2B | 0x2C
+            | 0x2D | 0x2E | 0x2F | 0x40 | 0x41 | 0x42 | 0x43 | 0x44 | 0x45 | 0x46 | 0x47 | 0x4A
+            | 0x4B | 0x4C => {
+                // Use the existing write_property implementation
+                self.write_property(engine, prop_address, var_index);
+            }
             _ => {}
         }
     }

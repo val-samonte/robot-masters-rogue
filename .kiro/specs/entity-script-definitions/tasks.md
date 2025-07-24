@@ -22,7 +22,7 @@
   - Update all tests to reflect that variables are instance-specific, not definition-specific
   - _Requirements: 5.2, 5.3_
 
-- [ ] 4. Update property accessors to handle definition vs instance properties
+- [x] 4. Update property accessors to handle definition vs instance properties
 
   - Modify PropertyAddress enum to distinguish between definition and instance properties
   - Update property accessor methods to resolve definition properties via definition ID lookup
@@ -121,7 +121,16 @@
   - Ensure all tests pass with the new architecture
   - _Requirements: 6.1, 6.4_
 
-- [ ] 18. Update README documentation
+- [ ] 18. Code cleanup - Remove all legacy implementation
+
+  - Remove all legacy property access code and outdated implementations
+  - Clean up unreachable patterns and duplicate property handling logic
+  - Remove all compiler warnings related to unused code and unreachable patterns
+  - Remove outdated tests that are no longer relevant to the new architecture
+  - Ensure codebase contains only the new definition-based implementation with no traces of old embedded approach
+  - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1_
+
+- [ ] 19. Update README documentation
   - Update game-engine/README.md to reflect the new definition-based architecture
   - Document the new API signature for new_game function
   - Explain the benefits of the definition-based approach for memory efficiency
