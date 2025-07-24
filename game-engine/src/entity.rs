@@ -354,31 +354,6 @@ impl Character {
     }
 }
 
-/// Condition for character behavior
-#[derive(Debug, Clone)]
-pub struct Condition {
-    pub energy_mul: Fixed, // Energy requirement multiplier
-    pub vars: [u8; 8],     // Variable storage (u8)
-    pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
-    pub args: [u8; 8],     // Passed when calling scripts (read-only)
-    pub spawns: [u8; 4],   // Spawn IDs
-    pub script: Vec<u8>,   // Bytecode
-}
-
-/// Action for character behavior
-#[derive(Debug, Clone)]
-pub struct Action {
-    pub energy_cost: u8,
-    pub interval: u16,
-    pub duration: u16,     // Frames this action locks the character
-    pub cooldown: u16,     // Cooldown duration in frames (read-only, set only during new_game)
-    pub vars: [u8; 8],     // Variable storage (u8)
-    pub fixed: [Fixed; 4], // Variable storage (FixedPoint)
-    pub args: [u8; 8],     // Passed when calling scripts (read-only)
-    pub spawns: [u8; 4],   // Spawn IDs
-    pub script: Vec<u8>,
-}
-
 impl EntityCore {
     pub fn new(id: EntityId, group: u8) -> Self {
         Self {
@@ -841,39 +816,6 @@ mod tests {
         assert_eq!(status_def.on_script, vec![10, 11, 12]);
         assert_eq!(status_def.tick_script, vec![13, 14, 15, 16]);
         assert_eq!(status_def.off_script, vec![17, 18]);
-    }
-
-    #[test]
-    fn test_condition_and_action_creation() {
-        let condition = Condition {
-            energy_mul: Fixed::from_raw(16), // 0.5 multiplier
-            vars: [0; 8],
-            fixed: [Fixed::ZERO; 4],
-            args: [10, 20, 30, 40, 50, 60, 70, 80],
-            spawns: [0; 4],
-            script: vec![1, 2, 3, 4, 5],
-        };
-
-        assert_eq!(condition.energy_mul, Fixed::from_raw(16));
-        assert_eq!(condition.args, [10, 20, 30, 40, 50, 60, 70, 80]);
-        assert_eq!(condition.script, vec![1, 2, 3, 4, 5]);
-
-        let action = Action {
-            energy_cost: 15,
-            interval: 0,
-            duration: 30, // 0.5 seconds at 60 FPS
-            cooldown: 0,
-            vars: [0; 8],
-            fixed: [Fixed::ZERO; 4],
-            args: [5, 10, 15, 20, 25, 30, 35, 40],
-            spawns: [0; 4],
-            script: vec![6, 7, 8, 9],
-        };
-
-        assert_eq!(action.energy_cost, 15);
-        assert_eq!(action.duration, 30);
-        assert_eq!(action.args, [5, 10, 15, 20, 25, 30, 35, 40]);
-        assert_eq!(action.script, vec![6, 7, 8, 9]);
     }
 
     #[test]
