@@ -109,7 +109,7 @@
   - Add validation methods to detect and report circular references
   - _Requirements: 2.4, 3.4, 4.6_
 
-- [ ] 14. Expose game state and RNG seed through public API
+- [x] 14. Expose game state and RNG seed through public API
 
   - Add public API method to get the current GameState for external serialization
   - Expose the current RNG seed through the public API so external wrappers can serialize it

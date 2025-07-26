@@ -7,7 +7,6 @@ use crate::entity::{
     ActionDefinition, Character, ConditionDefinition, SpawnDefinition, StatusEffectDefinition,
 };
 use crate::state::GameState;
-use alloc::string::String;
 use alloc::vec::Vec;
 
 /// Result type for game operations
@@ -151,17 +150,26 @@ pub fn game_loop(state: &mut GameState) -> GameResult<()> {
     state.advance_frame()
 }
 
-/// Get the current game state in both JSON and binary formats
+/// Get the current game state for external serialization
 ///
 /// # Arguments
 /// * `state` - Reference to the current game state
 ///
 /// # Returns
-/// * Tuple of (JSON string, binary serialized bytes)
-pub fn game_state(state: &GameState) -> GameResult<(String, Vec<u8>)> {
-    let json = state.to_json()?;
-    let binary = state.to_binary()?;
-    Ok((json, binary))
+/// * Reference to the GameState for external wrappers to serialize
+pub fn get_game_state(state: &GameState) -> &GameState {
+    state
+}
+
+/// Get the current RNG seed for external serialization
+///
+/// # Arguments
+/// * `state` - Reference to the current game state
+///
+/// # Returns
+/// * The current RNG seed value
+pub fn get_rng_seed(state: &GameState) -> u16 {
+    state.get_rng_seed()
 }
 
 /// Validate all definition collections for basic integrity

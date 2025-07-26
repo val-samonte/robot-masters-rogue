@@ -128,188 +128,6 @@ impl GameState {
         Ok(())
     }
 
-    /// Export game state as JSON string
-    pub fn to_json(&self) -> GameResult<String> {
-        let mut json = String::new();
-        json.push_str("{");
-
-        // Basic game state
-        json.push_str(&format!(r#""seed":{},"#, self.seed));
-        json.push_str(&format!(r#""frame":{},"#, self.frame));
-        json.push_str(&format!(
-            r#""status":"{}","#,
-            match self.status {
-                GameStatus::Playing => "Playing",
-                GameStatus::Ended => "Ended",
-            }
-        ));
-
-        // Tilemap - access through getter method
-        json.push_str(r#""tilemap":["#);
-        for row_idx in 0..15 {
-            if row_idx > 0 {
-                json.push(',');
-            }
-            json.push('[');
-            for col_idx in 0..16 {
-                if col_idx > 0 {
-                    json.push(',');
-                }
-                let tile = self.tile_map.get_tile(col_idx, row_idx) as u8;
-                json.push_str(&tile.to_string());
-            }
-            json.push(']');
-        }
-        json.push_str("],");
-
-        // Characters
-        json.push_str(r#""characters":["#);
-        for (idx, character) in self.characters.iter().enumerate() {
-            if idx > 0 {
-                json.push(',');
-            }
-            json.push_str(&self.character_to_json(character)?);
-        }
-        json.push_str("],");
-
-        // Spawn instances
-        json.push_str(r#""spawn_instances":["#);
-        for (idx, spawn) in self.spawn_instances.iter().enumerate() {
-            if idx > 0 {
-                json.push(',');
-            }
-            json.push_str(&self.spawn_to_json(spawn)?);
-        }
-        json.push_str("]");
-
-        json.push('}');
-        Ok(json)
-    }
-
-    /// Export game state as binary data for efficient storage
-    pub fn to_binary(&self) -> GameResult<Vec<u8>> {
-        let mut data = Vec::new();
-
-        // Header: seed (2 bytes) + frame (2 bytes) + status (1 byte)
-        data.extend_from_slice(&self.seed.to_le_bytes());
-        data.extend_from_slice(&self.frame.to_le_bytes());
-        data.push(match self.status {
-            GameStatus::Playing => 0,
-            GameStatus::Ended => 1,
-        });
-
-        // Tilemap: 16x15 = 240 bytes
-        for row_idx in 0..15 {
-            for col_idx in 0..16 {
-                let tile = self.tile_map.get_tile(col_idx, row_idx) as u8;
-                data.push(tile);
-            }
-        }
-
-        // Characters count + character data
-        data.push(self.characters.len() as u8);
-        for character in &self.characters {
-            self.serialize_character(character, &mut data)?;
-        }
-
-        // Spawn instances count + spawn data
-        data.push(self.spawn_instances.len() as u8);
-        for spawn in &self.spawn_instances {
-            self.serialize_spawn(spawn, &mut data)?;
-        }
-
-        Ok(data)
-    }
-
-    /// Create GameState from binary data
-    pub fn from_binary(data: &[u8]) -> GameResult<Self> {
-        if data.len() < 5 {
-            return Err(crate::api::GameError::DataTooShort);
-        }
-
-        let mut pos = 0;
-
-        // Read header
-        let seed = u16::from_le_bytes([data[pos], data[pos + 1]]);
-        pos += 2;
-        let frame = u16::from_le_bytes([data[pos], data[pos + 1]]);
-        pos += 2;
-        let status = match data[pos] {
-            0 => GameStatus::Playing,
-            1 => GameStatus::Ended,
-            _ => return Err(crate::api::GameError::InvalidBinaryData),
-        };
-        pos += 1;
-
-        // Read tilemap
-        if data.len() < pos + 240 {
-            return Err(crate::api::GameError::DataTooShort);
-        }
-        let mut tilemap = [[0u8; 16]; 15];
-        for row in 0..15 {
-            for col in 0..16 {
-                tilemap[row][col] = data[pos];
-                pos += 1;
-            }
-        }
-
-        // Read characters
-        if pos >= data.len() {
-            return Err(crate::api::GameError::DataTooShort);
-        }
-        let character_count = data[pos] as usize;
-        pos += 1;
-
-        let mut characters = Vec::new();
-        for _ in 0..character_count {
-            let (character, bytes_read) = Self::deserialize_character(&data[pos..])?;
-            characters.push(character);
-            pos += bytes_read;
-        }
-
-        // Read spawn instances
-        if pos >= data.len() {
-            return Err(crate::api::GameError::DataTooShort);
-        }
-        let spawn_count = data[pos] as usize;
-        pos += 1;
-
-        let mut spawn_instances = Vec::new();
-        for _ in 0..spawn_count {
-            if pos >= data.len() {
-                return Err(crate::api::GameError::DataTooShort);
-            }
-            let (spawn, bytes_read) = Self::deserialize_spawn(&data[pos..])?;
-            spawn_instances.push(spawn);
-            pos += bytes_read;
-        }
-
-        // Note: from_binary is not updated to handle definition collections
-        // This is a breaking change and requires new serialization format
-        // For now, create empty definition collections
-        Ok(Self {
-            seed,
-            frame,
-            tile_map: Tilemap::new(tilemap),
-            status,
-            characters,
-            spawn_instances,
-
-            // Initialize empty definition collections (breaking change)
-            action_definitions: Vec::new(),
-            condition_definitions: Vec::new(),
-            spawn_definitions: Vec::new(),
-            status_effect_definitions: Vec::new(),
-
-            // Initialize empty instance collections
-            action_instances: Vec::new(),
-            condition_instances: Vec::new(),
-            status_effect_instances: Vec::new(),
-
-            rng: SeededRng::new(seed),
-        })
-    }
-
     /// Generate next random number using seeded PRNG
     pub fn next_random(&mut self) -> u16 {
         self.rng.next_u16()
@@ -333,6 +151,11 @@ impl GameState {
     /// Reset the random number generator to initial seed
     pub fn reset_rng(&mut self) {
         self.rng.reset();
+    }
+
+    /// Get the current RNG seed for external serialization
+    pub fn get_rng_seed(&self) -> u16 {
+        self.seed
     }
 
     /// Get action definition by ID
@@ -576,7 +399,7 @@ impl GameState {
         self.status_effect_instances.get_mut(id as usize)
     }
 
-    // Helper methods for JSON serialization
+    #[allow(dead_code)]
     fn character_to_json(&self, character: &Character) -> GameResult<String> {
         let mut json = String::new();
         json.push('{');
@@ -651,6 +474,7 @@ impl GameState {
         Ok(json)
     }
 
+    #[allow(dead_code)]
     fn spawn_to_json(&self, spawn: &SpawnInstance) -> GameResult<String> {
         let mut json = String::new();
         json.push('{');
@@ -701,6 +525,7 @@ impl GameState {
     }
 
     // Helper methods for binary serialization
+    #[allow(dead_code)]
     fn serialize_character(&self, character: &Character, data: &mut Vec<u8>) -> GameResult<()> {
         // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) + facing (1) + gravity_dir (1) = 18 bytes
         data.push(character.core.id);
@@ -752,6 +577,7 @@ impl GameState {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn serialize_spawn(&self, spawn: &SpawnInstance, data: &mut Vec<u8>) -> GameResult<()> {
         // EntityCore: id (1) + group (1) + pos (4) + vel (4) + size (2) + collision (4) + facing (1) + gravity_dir (1) = 18 bytes
         data.push(spawn.core.id);
@@ -783,6 +609,7 @@ impl GameState {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn deserialize_character(data: &[u8]) -> GameResult<(Character, usize)> {
         if data.len() < 30 {
             return Err(crate::api::GameError::InvalidCharacterData);
@@ -904,6 +731,7 @@ impl GameState {
         Ok((character, pos))
     }
 
+    #[allow(dead_code)]
     fn deserialize_spawn(data: &[u8]) -> GameResult<(SpawnInstance, usize)> {
         if data.len() < 35 {
             // Updated size: 27 + 8 for fixed array
