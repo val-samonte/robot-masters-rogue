@@ -180,6 +180,18 @@ impl ScriptEngine {
         }
     }
 
+    /// Create a new script engine with arguments and spawns
+    pub fn new_with_args_and_spawns(args: [u8; 8], spawns: [u8; 4]) -> Self {
+        Self {
+            pos: 0,
+            exit_flag: 0,
+            vars: [0; 8],
+            fixed: [Fixed::ZERO; 4],
+            args,
+            spawns,
+        }
+    }
+
     /// Reset the script engine state for reuse
     pub fn reset(&mut self) {
         self.pos = 0;
@@ -197,6 +209,16 @@ impl ScriptEngine {
         self.fixed = [Fixed::ZERO; 4];
         self.args = args;
         self.spawns = [0; 4];
+    }
+
+    /// Reset the script engine state with new arguments and spawns
+    pub fn reset_with_args_and_spawns(&mut self, args: [u8; 8], spawns: [u8; 4]) {
+        self.pos = 0;
+        self.exit_flag = 0;
+        self.vars = [0; 8];
+        self.fixed = [Fixed::ZERO; 4];
+        self.args = args;
+        self.spawns = spawns;
     }
 
     /// Read a u8 value from the script at current position and advance

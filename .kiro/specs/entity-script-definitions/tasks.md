@@ -95,7 +95,7 @@
   - Implement instance creation and management during behavior execution
   - _Requirements: 2.2, 2.4, 3.1, 3.2_
 
-- [ ] 12. Update spawn system to use definition-based references
+- [x] 12. Update spawn system to use definition-based references
 
   - Modify spawn creation to resolve SpawnLookupId to SpawnDefinition
   - Update Action scripts to reference spawn definitions by ID rather than embedded data

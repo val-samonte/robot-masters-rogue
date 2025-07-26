@@ -92,7 +92,7 @@ impl SpawnDefinition {
             return Ok(0);
         }
 
-        let mut engine = ScriptEngine::new();
+        let mut engine = ScriptEngine::new_with_args_and_spawns(self.args, self.spawns);
         let mut context = SpawnBehaviorContext {
             game_state,
             spawn_instance,
@@ -116,7 +116,7 @@ impl SpawnDefinition {
             return Ok(0);
         }
 
-        let mut engine = ScriptEngine::new();
+        let mut engine = ScriptEngine::new_with_args_and_spawns(self.args, self.spawns);
         let mut context = SpawnBehaviorContext {
             game_state,
             spawn_instance,
@@ -138,7 +138,7 @@ impl SpawnDefinition {
             return Ok(0);
         }
 
-        let mut engine = ScriptEngine::new();
+        let mut engine = ScriptEngine::new_with_args_and_spawns(self.args, self.spawns);
         let mut context = SpawnBehaviorContext {
             game_state,
             spawn_instance,
@@ -391,18 +391,31 @@ impl<'a> ScriptContext for SpawnBehaviorContext<'a> {
     fn apply_duration(&mut self) {}
 
     fn create_spawn(&mut self, spawn_id: usize, vars: Option<[u8; 4]>) {
-        if spawn_id < 256 {
-            let mut new_spawn = SpawnInstance::new(
-                spawn_id as u8,
-                self.spawn_instance.owner_id,
-                self.spawn_instance.core.pos,
-            );
-
-            if let Some(vars) = vars {
-                new_spawn.vars = vars;
-            }
-            self.to_spawn.push(new_spawn);
+        // Validate spawn definition exists
+        if spawn_id >= self.game_state.spawn_definitions.len() {
+            // Invalid spawn ID - skip spawn creation silently to avoid breaking script execution
+            return;
         }
+
+        // Get spawn definition (we know it exists from validation above)
+        let spawn_def = &self.game_state.spawn_definitions[spawn_id];
+
+        let mut new_spawn = SpawnInstance::new(
+            spawn_id as u8,
+            self.spawn_instance.owner_id,
+            self.spawn_instance.core.pos,
+        );
+
+        // Set spawn variables if provided
+        if let Some(spawn_vars) = vars {
+            new_spawn.vars = spawn_vars;
+        }
+
+        // Set properties from spawn definition
+        new_spawn.lifespan = spawn_def.duration;
+        new_spawn.element = spawn_def.element.unwrap_or(crate::entity::Element::Punct);
+
+        self.to_spawn.push(new_spawn);
     }
 
     fn log_debug(&self, _message: &str) {}

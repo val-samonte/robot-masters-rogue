@@ -934,7 +934,10 @@ impl GameState {
         let mut context = ActionContext::new(self, character_idx, action_id, instance_id);
 
         // Execute action script
-        let mut engine = crate::script::ScriptEngine::new_with_args(context.get_args());
+        let mut engine = crate::script::ScriptEngine::new_with_args_and_spawns(
+            context.get_args(),
+            context.get_spawns(),
+        );
         engine.execute(&context.get_script(), &mut context)?;
 
         // Update instance state from engine
@@ -1275,6 +1278,14 @@ impl<'a> ActionContext<'a> {
             .unwrap_or_default()
     }
 
+    pub fn get_spawns(&self) -> [u8; 4] {
+        self.game_state
+            .action_definitions
+            .get(self.action_id)
+            .map(|def| def.spawns)
+            .unwrap_or([0; 4])
+    }
+
     pub fn update_instance_from_engine(&mut self, engine: &crate::script::ScriptEngine) {
         if let Some(instance) = self.game_state.action_instances.get_mut(self.instance_id) {
             instance.runtime_vars = engine.vars;
@@ -1406,8 +1417,17 @@ impl<'a> crate::script::ScriptContext for ActionContext<'a> {
     }
 
     fn create_spawn(&mut self, spawn_id: usize, vars: Option<[u8; 4]>) {
+        // Validate spawn definition exists
+        if spawn_id >= self.game_state.spawn_definitions.len() {
+            // Invalid spawn ID - skip spawn creation silently to avoid breaking script execution
+            return;
+        }
+
         // Get character position for spawn creation
         if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            // Get spawn definition (we know it exists from validation above)
+            let spawn_def = &self.game_state.spawn_definitions[spawn_id];
+
             let mut spawn = crate::entity::SpawnInstance::new(
                 spawn_id as u8,
                 character.core.id,
@@ -1422,11 +1442,9 @@ impl<'a> crate::script::ScriptContext for ActionContext<'a> {
             // Assign unique ID
             spawn.core.id = self.game_state.spawn_instances.len() as u8;
 
-            // Set properties from spawn definition if it exists
-            if let Some(spawn_def) = self.game_state.spawn_definitions.get(spawn_id) {
-                spawn.lifespan = spawn_def.duration;
-                spawn.element = spawn_def.element.unwrap_or(crate::entity::Element::Punct);
-            }
+            // Set properties from spawn definition
+            spawn.lifespan = spawn_def.duration;
+            spawn.element = spawn_def.element.unwrap_or(crate::entity::Element::Punct);
 
             self.game_state.spawn_instances.push(spawn);
         }
