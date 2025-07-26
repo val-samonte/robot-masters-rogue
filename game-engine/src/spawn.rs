@@ -27,8 +27,6 @@ impl SpawnDefinition {
                 health_cap: 1,
                 duration: 60,
                 element: None,
-                vars: [0; 8],
-                fixed: [Fixed::ZERO; 4],
                 args: [0; 8],
                 spawns: [0; 4],
                 behavior_script: Vec::new(),
@@ -51,8 +49,6 @@ impl SpawnDefinition {
             health_cap,
             duration,
             element,
-            vars: [0; 8],
-            fixed: [Fixed::ZERO; 4],
             args: [0; 8],
             spawns: [0; 4],
             behavior_script: Vec::new(),
@@ -79,6 +75,8 @@ impl SpawnDefinition {
         if let Some(vars) = vars {
             instance.vars = vars;
         }
+        // Initialize fixed array independently (not from definition)
+        instance.fixed = [Fixed::ZERO; 4];
 
         instance
     }
@@ -365,4 +363,3 @@ pub fn handle_spawn_collision(
 
     Ok((element_damage, to_spawn))
 }
-

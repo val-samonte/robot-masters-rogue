@@ -1,7 +1,7 @@
 //! Status effects system for temporary character modifications
 
 use crate::{
-    entity::{Character, StatusEffect, StatusEffectInstance},
+    entity::{Character, StatusEffectDefinition, StatusEffectInstance},
     math::Fixed,
     script::{ScriptContext, ScriptEngine, ScriptError},
     state::GameState,
@@ -16,18 +16,16 @@ pub struct StatusEffectContext<'a> {
     pub game_state: &'a mut GameState,
     pub character: &'a mut Character,
     pub status_instance: &'a mut StatusEffectInstance,
-    pub status_def: &'a StatusEffect,
+    pub status_def: &'a StatusEffectDefinition,
 }
 
-impl StatusEffect {
+impl StatusEffectDefinition {
     /// Create a new status effect from definition data
     pub fn from_def(props: Vec<u16>) -> Self {
         Self {
             duration: props[0],
             stack_limit: props[1] as u8,
             reset_on_stack: props[2] != 0,
-            vars: [0; 8],
-            fixed: [Fixed::ZERO; 4],
             args: [0; 8],
             spawns: [0; 4],
             on_script: extract_script(&props, 3, props.len()),
@@ -82,6 +80,7 @@ impl StatusEffect {
                     remaining_duration: self.duration,
                     stack_count: 1,
                     vars: [0; 4],
+                    fixed: [Fixed::ZERO; 4],
                 };
 
                 // Execute on_script for new effect
@@ -449,7 +448,7 @@ impl<'a> ScriptContext for StatusEffectContext<'a> {
 pub fn process_character_status_effects(
     character: &mut Character,
     game_state: &mut GameState,
-    status_definitions: &[StatusEffect],
+    status_definitions: &[StatusEffectDefinition],
 ) -> Result<(), ScriptError> {
     let mut effects_to_remove = Vec::new();
 
@@ -527,7 +526,7 @@ pub fn remove_status_effect(
     character: &mut Character,
     game_state: &mut GameState,
     effect_id: u8,
-    status_definitions: &[StatusEffect],
+    status_definitions: &[StatusEffectDefinition],
 ) -> Result<bool, ScriptError> {
     if let Some(index) = character
         .status_effects
@@ -547,14 +546,12 @@ pub fn remove_status_effect(
     }
 }
 
-/// Create the passive energy regeneration StatusEffect definition
-pub fn create_passive_energy_regen_status_effect() -> StatusEffect {
-    StatusEffect {
+/// Create the passive energy regeneration StatusEffectDefinition
+pub fn create_passive_energy_regen_status_effect() -> StatusEffectDefinition {
+    StatusEffectDefinition {
         duration: u16::MAX,    // Permanent effect (never expires)
         stack_limit: 1,        // Only one instance allowed
         reset_on_stack: false, // Don't reset duration when reapplied
-        vars: [0; 8],
-        fixed: [crate::math::Fixed::ZERO; 4],
         args: [0; 8],
         spawns: [0; 4],
         on_script: vec![0, 1], // Exit with success flag (no initialization needed)
@@ -593,6 +590,7 @@ pub fn apply_passive_energy_regen_to_all_characters(
                 remaining_duration: u16::MAX, // Permanent effect
                 stack_count: 1,
                 vars: [0; 4],
+                fixed: [Fixed::ZERO; 4],
             });
         }
     }
@@ -606,4 +604,3 @@ fn extract_script(props: &[u16], from: usize, to: usize) -> Vec<u8> {
         .get(from..to)
         .map_or_else(Vec::new, |slice| slice.iter().map(|&x| x as u8).collect())
 }
-

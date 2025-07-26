@@ -38,7 +38,7 @@
   - Simplify codebase by removing unused abstractions
   - _Requirements: Code simplification_
 
-- [ ] 5. Move vars and fixed arrays from definitions to instances
+- [x] 5. Move vars and fixed arrays from definitions to instances
 
   - Remove vars and fixed arrays from ActionDefinition, ConditionDefinition, StatusEffectDefinition, and SpawnDefinition
   - Ensure ActionInstance, ConditionInstance, StatusEffectInstance, and SpawnInstance have their own vars and fixed arrays for runtime state

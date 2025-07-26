@@ -435,9 +435,10 @@ impl GameState {
                 json.push(',');
             }
             json.push_str(&format!(
-                r#"{{"effect_id":{},"remaining_duration":{},"stack_count":{},"vars":[{},{},{},{}]}}"#,
+                r#"{{"effect_id":{},"remaining_duration":{},"stack_count":{},"vars":[{},{},{},{}],"fixed":[{},{},{},{}]}}"#,
                 effect.effect_id, effect.remaining_duration, effect.stack_count,
-                effect.vars[0], effect.vars[1], effect.vars[2], effect.vars[3]
+                effect.vars[0], effect.vars[1], effect.vars[2], effect.vars[3],
+                effect.fixed[0].to_int(), effect.fixed[1].to_int(), effect.fixed[2].to_int(), effect.fixed[3].to_int()
             ));
         }
         json.push_str("]");
@@ -480,8 +481,15 @@ impl GameState {
         json.push_str(&format!(r#""lifespan":{},"#, spawn.lifespan));
         json.push_str(&format!(r#""element":{},"#, spawn.element as u8));
         json.push_str(&format!(
-            r#""vars":[{},{},{},{}]"#,
+            r#""vars":[{},{},{},{}],"#,
             spawn.vars[0], spawn.vars[1], spawn.vars[2], spawn.vars[3]
+        ));
+        json.push_str(&format!(
+            r#""fixed":[{},{},{},{}]"#,
+            spawn.fixed[0].to_int(),
+            spawn.fixed[1].to_int(),
+            spawn.fixed[2].to_int(),
+            spawn.fixed[3].to_int()
         ));
 
         json.push('}');
@@ -531,13 +539,17 @@ impl GameState {
             }
         }
 
-        // Status effects: count (1) + effects (count * 8)
+        // Status effects: count (1) + effects (count * 16) - now includes fixed array
         data.push(character.status_effects.len() as u8);
         for effect in &character.status_effects {
             data.push(effect.effect_id);
             data.extend_from_slice(&effect.remaining_duration.to_le_bytes());
             data.push(effect.stack_count);
             data.extend_from_slice(&effect.vars);
+            // Serialize fixed array
+            for fixed_val in &effect.fixed {
+                data.extend_from_slice(&fixed_val.raw().to_le_bytes());
+            }
         }
 
         Ok(())
@@ -560,12 +572,16 @@ impl GameState {
         data.push(spawn.core.facing);
         data.push(spawn.core.gravity_dir);
 
-        // Spawn-specific: spawn_id (1) + owner_id (1) + lifespan (2) + element (1) + vars (4) = 9 bytes
+        // Spawn-specific: spawn_id (1) + owner_id (1) + lifespan (2) + element (1) + vars (4) + fixed (8) = 17 bytes
         data.push(spawn.spawn_id);
         data.push(spawn.owner_id);
         data.extend_from_slice(&spawn.lifespan.to_le_bytes());
         data.push(spawn.element as u8);
         data.extend_from_slice(&spawn.vars);
+        // Serialize fixed array
+        for fixed_val in &spawn.fixed {
+            data.extend_from_slice(&fixed_val.raw().to_le_bytes());
+        }
 
         Ok(())
     }
@@ -656,7 +672,8 @@ impl GameState {
         pos += 1;
         let mut status_effects = Vec::new();
         for _ in 0..status_count {
-            if pos + 7 >= data.len() {
+            if pos + 15 >= data.len() {
+                // Now needs 16 bytes total (1+2+1+4+8)
                 return Err(crate::api::GameError::InvalidCharacterData);
             }
             let effect_id = data[pos];
@@ -668,12 +685,20 @@ impl GameState {
             let mut vars = [0u8; 4];
             vars.copy_from_slice(&data[pos..pos + 4]);
             pos += 4;
+            // Deserialize fixed array
+            let mut fixed = [crate::math::Fixed::ZERO; 4];
+            for i in 0..4 {
+                fixed[i] =
+                    crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+                pos += 2;
+            }
 
             status_effects.push(crate::entity::StatusEffectInstance {
                 effect_id,
                 remaining_duration,
                 stack_count,
                 vars,
+                fixed,
             });
         }
 
@@ -705,7 +730,8 @@ impl GameState {
     }
 
     fn deserialize_spawn(data: &[u8]) -> GameResult<(SpawnInstance, usize)> {
-        if data.len() < 27 {
+        if data.len() < 35 {
+            // Updated size: 27 + 8 for fixed array
             return Err(crate::api::GameError::InvalidSpawnData);
         }
 
@@ -753,6 +779,12 @@ impl GameState {
         let mut vars = [0u8; 4];
         vars.copy_from_slice(&data[pos..pos + 4]);
         pos += 4;
+        // Deserialize fixed array
+        let mut fixed = [crate::math::Fixed::ZERO; 4];
+        for i in 0..4 {
+            fixed[i] = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+            pos += 2;
+        }
 
         let spawn = SpawnInstance {
             core: crate::entity::EntityCore {
@@ -770,6 +802,7 @@ impl GameState {
             lifespan,
             element,
             vars,
+            fixed,
         };
 
         Ok((spawn, pos))
