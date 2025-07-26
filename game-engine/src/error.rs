@@ -116,6 +116,12 @@ impl ErrorRecovery {
             GameError::EntityNotFound => "Entity not found",
             GameError::InvalidEntityId => "Entity ID is invalid",
             GameError::InvalidPropertyAddress => "Property address is invalid",
+            GameError::InvalidActionId => "Action definition ID is invalid",
+            GameError::InvalidConditionId => "Condition definition ID is invalid",
+            GameError::InvalidStatusEffectId => "Status effect definition ID is invalid",
+            GameError::InvalidSpawnId => "Spawn definition ID is invalid",
+            GameError::CircularReference => "Circular reference detected in definitions",
+            GameError::MissingDefinition => "Referenced definition not found",
             GameError::DivisionByZero => "Division by zero attempted",
             GameError::ArithmeticOverflow => "Arithmetic overflow occurred",
             GameError::OutOfBounds => "Array index out of bounds",
@@ -150,6 +156,14 @@ impl ErrorRecovery {
             GameError::EntityNotFound => true,
             GameError::InvalidEntityId => true,
             GameError::InvalidPropertyAddress => true,
+
+            // Definition validation errors are generally not recoverable during initialization
+            GameError::InvalidActionId => false,
+            GameError::InvalidConditionId => false,
+            GameError::InvalidStatusEffectId => false,
+            GameError::InvalidSpawnId => false,
+            GameError::CircularReference => false,
+            GameError::MissingDefinition => false,
 
             // Math errors are recoverable with safe defaults
             GameError::DivisionByZero => true,
@@ -200,4 +214,3 @@ macro_rules! safe_arithmetic {
         }
     };
 }
-

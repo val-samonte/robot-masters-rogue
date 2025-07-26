@@ -24,6 +24,14 @@
 - No existing users to support during transitions
 - Take advantage of this freedom to build the best possible system
 
+### 4. No Tests During Development
+
+- **NEVER create test files** unless explicitly asked to do so in a task
+- We are in active development stage where APIs and implementations change rapidly
+- Tests would become outdated quickly and slow down development
+- Focus on implementation first, testing comes later when systems stabilize
+- Avoid test-driven development during this rapid prototyping phase
+
 ## Remember
 
 This project is in active development. We can break things, change APIs, and redesign systems freely. Use this freedom to build something great, not to maintain something old.

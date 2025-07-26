@@ -65,11 +65,11 @@ The current game engine embeds scripts directly into Characters and Spawns, lead
 
 ### Requirement 6
 
-**User Story:** As a game developer, I want existing test files to work with the new definition-based system, so that I can ensure backward compatibility and system reliability.
+**User Story:** As a game developer, I want the status effects system to work with the new ID-based architecture, so that status effects can be managed efficiently without duplicating definition data.
 
 #### Acceptance Criteria
 
-1. WHEN tests are updated THEN the system SHALL maintain the same behavioral outcomes as before
-2. WHEN test data is migrated THEN the system SHALL convert embedded scripts to definition references
-3. WHEN tests run THEN the system SHALL validate that all definition lookups work correctly
-4. IF test performance changes THEN the system SHALL demonstrate improved memory efficiency
+1. WHEN status effects are applied to characters THEN the system SHALL store StatusEffectInstanceId references instead of full objects
+2. WHEN status effects are processed THEN the system SHALL resolve IDs to definitions and instances at runtime
+3. WHEN status effects stack or expire THEN the system SHALL manage instance state while preserving definition data
+4. IF status effect IDs are invalid THEN the system SHALL handle errors gracefully without crashing

@@ -70,42 +70,53 @@
   - Implement definition lookup methods (get_action_definition, get_condition_definition, etc.)
   - _Requirements: 1.1, 1.2, 5.1, 5.4_
 
-- [ ] 9. Modify public API to accept definition collections
+- [x] 9. Modify public API to accept definition collections
 
   - Update new_game function signature to accept definition collections as parameters
   - Add validation logic to ensure all referenced IDs exist in the provided definitions
   - Implement circular reference detection for definition dependencies
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-- [ ] 10. Update behavior execution system for ID-based lookups
+- [ ] 10. Fix status effects system for ID-based architecture
+
+  - Update status effects to work with StatusEffectInstanceId instead of full StatusEffectInstance objects
+  - Fix apply_status_effect method to work with the new ID-based character.status_effects Vec<StatusEffectInstanceId>
+  - Update process_character_status_effects to resolve status effect IDs to instances and definitions
+  - Fix remove_status_effect method to work with ID-based status effects
+  - Update all status effect script execution methods to work with instance references
+  - Fix status effect stacking and duration management with the new architecture
+  - Update passive energy regeneration system to work with the new status effect structure
+  - _Requirements: 2.3, 5.2, 5.3_
+
+- [ ] 11. Update behavior execution system for ID-based lookups
 
   - Modify execute_character_behaviors to resolve IDs to definitions at runtime
   - Update ConditionContext and ActionContext to work with definition references
   - Implement instance creation and management during behavior execution
   - _Requirements: 2.2, 2.4, 3.1, 3.2_
 
-- [ ] 11. Update spawn system to use definition-based references
+- [ ] 12. Update spawn system to use definition-based references
 
   - Modify spawn creation to resolve SpawnLookupId to SpawnDefinition
   - Update Action scripts to reference spawn definitions by ID rather than embedded data
   - Ensure spawn instances maintain reference to their definition ID
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 12. Implement error handling for invalid ID references
+- [ ] 13. Implement error handling for invalid ID references
 
   - Add new GameError variants for invalid definition IDs
   - Implement graceful handling of missing definition lookups during runtime
   - Add validation methods to detect and report circular references
   - _Requirements: 2.4, 3.4, 4.6_
 
-- [ ] 13. Update serialization to include definition collections
+- [ ] 14. Update serialization to include definition collections
 
   - Modify GameState serialization to include all definition collections
   - Update binary serialization format to handle definition and instance separation
   - Ensure JSON serialization includes both definitions and active instances
   - _Requirements: 1.3, 5.4_
 
-- [ ] 14. Update README documentation
+- [ ] 15. Update README documentation
   - Update game-engine/README.md to reflect the new definition-based architecture
   - Document the new API signature for new_game function
   - Explain the benefits of the definition-based approach for memory efficiency

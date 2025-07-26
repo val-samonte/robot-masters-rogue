@@ -50,7 +50,10 @@ impl GameState {
         seed: u16,
         tilemap: [[u8; 16]; 15],
         characters: Vec<Character>,
+        action_definitions: Vec<ActionDefinition>,
+        condition_definitions: Vec<ConditionDefinition>,
         spawn_definitions: Vec<SpawnDefinition>,
+        status_effect_definitions: Vec<StatusEffectDefinition>,
     ) -> GameResult<Self> {
         let mut game_state = Self {
             seed,
@@ -60,18 +63,24 @@ impl GameState {
             characters,
             spawn_instances: Vec::new(),
 
-            // Initialize new definition collections
-            action_definitions: Vec::new(),
-            condition_definitions: Vec::new(),
+            // Initialize definition collections with provided data
+            action_definitions,
+            condition_definitions,
             spawn_definitions,
-            status_effect_definitions: Vec::new(),
+            status_effect_definitions,
 
-            // Initialize new instance collections
+            // Initialize instance collections
             action_instances: Vec::new(),
             condition_instances: Vec::new(),
             status_effect_instances: Vec::new(),
             rng: SeededRng::new(seed),
         };
+
+        // Initialize action cooldown tracking for all characters
+        let action_count = game_state.action_definitions.len();
+        for character in &mut game_state.characters {
+            character.init_action_cooldowns(action_count);
+        }
 
         // Apply passive energy regeneration to all characters
         crate::status::apply_passive_energy_regen_to_all_characters(&mut game_state.characters)
@@ -274,6 +283,9 @@ impl GameState {
             pos += bytes_read;
         }
 
+        // Note: from_binary is not updated to handle definition collections
+        // This is a breaking change and requires new serialization format
+        // For now, create empty definition collections
         Ok(Self {
             seed,
             frame,
@@ -282,13 +294,13 @@ impl GameState {
             characters,
             spawn_instances,
 
-            // Initialize new definition collections
+            // Initialize empty definition collections (breaking change)
             action_definitions: Vec::new(),
             condition_definitions: Vec::new(),
             spawn_definitions: Vec::new(),
             status_effect_definitions: Vec::new(),
 
-            // Initialize new instance collections
+            // Initialize empty instance collections
             action_instances: Vec::new(),
             condition_instances: Vec::new(),
             status_effect_instances: Vec::new(),
