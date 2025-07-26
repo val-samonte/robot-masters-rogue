@@ -2,22 +2,11 @@
 
 use crate::api::GameResult;
 use crate::entity::{
-    ActionDefinition,
-    ActionId,
-    ActionInstance,
-    Character,
-    ConditionDefinition,
-    ConditionId,
-    ConditionInstance,
-    SpawnDefinition,
-    SpawnInstance,
-    // StatusEffect,
-    StatusEffectDefinition,
-    StatusEffectId,
+    ActionDefinition, ActionId, ActionInstance, Character, ConditionDefinition, ConditionId,
+    ConditionInstance, SpawnDefinition, SpawnInstance, StatusEffectDefinition, StatusEffectId,
 };
 use crate::physics::Tilemap;
 use crate::random::SeededRng;
-// use crate::status::process_character_status_effects;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -61,10 +50,6 @@ impl GameState {
         characters: Vec<Character>,
         spawn_definitions: Vec<SpawnDefinition>,
     ) -> GameResult<Self> {
-        // Create status effect lookup with passive energy regeneration as the first effect
-        let mut status_effect_lookup = Vec::new();
-        status_effect_lookup.push(crate::status::create_passive_energy_regen_status_effect());
-
         let mut game_state = Self {
             seed,
             frame: 0,
@@ -284,11 +269,6 @@ impl GameState {
             let (spawn, bytes_read) = Self::deserialize_spawn(&data[pos..])?;
             spawn_instances.push(spawn);
             pos += bytes_read;
-        }
-
-        // Read lookup table sizes (but don't use them for now, just skip them)
-        if pos + 3 < data.len() {
-            let _pos = pos + 4; // Skip the 4 lookup table size bytes
         }
 
         Ok(Self {
@@ -797,80 +777,10 @@ impl GameState {
 
     // Private methods for frame processing
     fn process_status_effects(&mut self) -> GameResult<()> {
-        // // Process status effects for each character individually to avoid borrowing conflicts
-        // let status_definitions = self.status_effect_lookup.clone();
-
-        // // Process characters one by one to avoid borrowing conflicts
-        // for i in 0..self.characters.len() {
-        //     // Create a temporary copy of the character for processing
-        //     let mut character = self.characters[i].clone();
-
-        //     if let Err(error) =
-        //         process_character_status_effects(&mut character, self, &status_definitions)
-        //     {
-        //         // Handle script execution errors gracefully using error recovery
-        //         let game_error = crate::api::GameError::from(error);
-        //         if crate::error::ErrorRecovery::is_recoverable(&game_error) {
-        //             // Log error and continue with next character
-        //             // Note: In no_std environment, we can't use eprintln!
-        //             // Error logging would be handled by the platform-specific wrapper
-        //             continue;
-        //         } else {
-        //             // Non-recoverable error, propagate it
-        //             return Err(game_error);
-        //         }
-        //     }
-
-        //     // Update the character in the game state
-        //     self.characters[i] = character;
-        // }
         Ok(())
     }
 
     fn process_character_behaviors(&mut self) -> GameResult<()> {
-        // let mut all_spawns_to_create = Vec::new();
-
-        // // Process each character's behaviors individually to avoid borrowing conflicts
-        // let conditions = self.condition_lookup.clone();
-        // let actions = self.action_lookup.clone();
-
-        // // Process characters one by one
-        // let character_indices: Vec<usize> = (0..self.characters.len()).collect();
-
-        // for &i in &character_indices {
-        //     // Create a temporary copy of the character for processing
-        //     let mut character = self.characters[i].clone();
-
-        //     // Execute character behaviors using the behavior system
-        //     match execute_character_behaviors(self, &mut character, &conditions, &actions) {
-        //         Ok(mut spawns) => {
-        //             // Update the character in the game state
-        //             self.characters[i] = character;
-        //             all_spawns_to_create.append(&mut spawns);
-        //         }
-        //         Err(error) => {
-        //             // Handle script execution errors gracefully using error recovery
-        //             let game_error = crate::api::GameError::from(error);
-        //             if crate::error::ErrorRecovery::is_recoverable(&game_error) {
-        //                 // Log error and continue with next character
-        //                 // Note: In no_std environment, we can't use eprintln!
-        //                 // Error logging would be handled by the platform-specific wrapper
-        //                 continue;
-        //             } else {
-        //                 // Non-recoverable error, propagate it
-        //                 return Err(game_error);
-        //             }
-        //         }
-        //     }
-        // }
-
-        // // Add all created spawns to the game state
-        // for mut spawn in all_spawns_to_create {
-        //     // Assign unique ID to spawn
-        //     spawn.core.id = self.spawn_instances.len() as u8;
-        //     self.spawn_instances.push(spawn);
-        // }
-
         Ok(())
     }
 
