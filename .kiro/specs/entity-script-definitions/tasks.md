@@ -88,7 +88,7 @@
   - Update passive energy regeneration system to work with the new status effect structure
   - _Requirements: 2.3, 5.2, 5.3_
 
-- [ ] 11. Update behavior execution system for ID-based lookups
+- [x] 11. Update behavior execution system for ID-based lookups
 
   - Modify execute_character_behaviors to resolve IDs to definitions at runtime
   - Update ConditionContext and ActionContext to work with definition references

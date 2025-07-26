@@ -2,9 +2,9 @@
 
 use crate::api::GameResult;
 use crate::entity::{
-    ActionDefinition, ActionId, ActionInstance, Character, ConditionDefinition, ConditionId,
-    ConditionInstance, SpawnDefinition, SpawnInstance, StatusEffectDefinition, StatusEffectId,
-    StatusEffectInstance, StatusEffectInstanceId,
+    ActionDefinition, ActionId, ActionInstance, ActionInstanceId, Character, ConditionDefinition,
+    ConditionId, ConditionInstance, SpawnDefinition, SpawnInstance, StatusEffectDefinition,
+    StatusEffectId, StatusEffectInstance, StatusEffectInstanceId,
 };
 use crate::physics::Tilemap;
 use crate::random::SeededRng;
@@ -837,6 +837,130 @@ impl GameState {
         Ok(())
     }
 
+    /// Process character behaviors for all characters
+    fn process_character_behaviors(&mut self) -> GameResult<()> {
+        // Process behaviors for each character
+        for character_idx in 0..self.characters.len() {
+            self.execute_character_behaviors_at_index(character_idx)
+                .map_err(|_| crate::api::GameError::ScriptExecutionError)?;
+        }
+        Ok(())
+    }
+
+    /// Execute behaviors for a character at a specific index
+    fn execute_character_behaviors_at_index(
+        &mut self,
+        character_idx: usize,
+    ) -> Result<(), crate::script::ScriptError> {
+        // Skip if character doesn't exist
+        if character_idx >= self.characters.len() {
+            return Ok(());
+        }
+
+        // Skip if character has a locked action
+        if self.characters[character_idx].locked_action.is_some() {
+            return Ok(());
+        }
+
+        // Get character behaviors (clone to avoid borrow conflicts)
+        let behaviors = self.characters[character_idx].behaviors.clone();
+
+        // Process each behavior (condition + action pair)
+        for &(condition_id, action_id) in &behaviors {
+            // Validate IDs exist
+            if condition_id >= self.condition_definitions.len()
+                || action_id >= self.action_definitions.len()
+            {
+                continue; // Skip invalid behavior
+            }
+
+            // Check if action is on cooldown before evaluating condition
+            let action_def = &self.action_definitions[action_id];
+            let last_used = self.characters[character_idx]
+                .action_last_used
+                .get(action_id)
+                .copied()
+                .unwrap_or(u16::MAX);
+            if last_used != u16::MAX && self.frame.saturating_sub(last_used) < action_def.cooldown {
+                continue; // Skip if on cooldown
+            }
+
+            // Evaluate condition
+            let condition_result = self.evaluate_condition(character_idx, condition_id)?;
+            if condition_result == 0 {
+                continue; // Condition failed, try next behavior
+            }
+
+            // Execute action
+            self.execute_action(character_idx, action_id)?;
+            break; // Only execute one action per frame per character
+        }
+
+        Ok(())
+    }
+
+    /// Evaluate a condition for a character
+    fn evaluate_condition(
+        &mut self,
+        character_idx: usize,
+        condition_id: ConditionId,
+    ) -> Result<u8, crate::script::ScriptError> {
+        // Get or create condition instance
+        let instance_id = self.get_or_create_condition_instance(condition_id);
+
+        // Create condition context
+        let mut context = ConditionContext::new(self, character_idx, condition_id, instance_id);
+
+        // Execute condition script
+        let mut engine = crate::script::ScriptEngine::new_with_args(context.get_args());
+        let result = engine.execute(&context.get_script(), &mut context)?;
+
+        // Update instance state from engine
+        context.update_instance_from_engine(&engine);
+
+        Ok(result)
+    }
+
+    /// Execute an action for a character
+    fn execute_action(
+        &mut self,
+        character_idx: usize,
+        action_id: ActionId,
+    ) -> Result<(), crate::script::ScriptError> {
+        // Get or create action instance
+        let instance_id = self.get_or_create_action_instance(action_id);
+
+        // Create action context
+        let mut context = ActionContext::new(self, character_idx, action_id, instance_id);
+
+        // Execute action script
+        let mut engine = crate::script::ScriptEngine::new_with_args(context.get_args());
+        engine.execute(&context.get_script(), &mut context)?;
+
+        // Update instance state from engine
+        context.update_instance_from_engine(&engine);
+
+        Ok(())
+    }
+
+    /// Get or create a condition instance for the given definition
+    fn get_or_create_condition_instance(&mut self, condition_id: ConditionId) -> usize {
+        // For now, create a new instance each time
+        // In a more sophisticated system, we might reuse instances
+        let instance = ConditionInstance::new(condition_id);
+        self.condition_instances.push(instance);
+        self.condition_instances.len() - 1
+    }
+
+    /// Get or create an action instance for the given definition
+    fn get_or_create_action_instance(&mut self, action_id: ActionId) -> usize {
+        // For now, create a new instance each time
+        // In a more sophisticated system, we might reuse instances
+        let instance = ActionInstance::new(action_id);
+        self.action_instances.push(instance);
+        self.action_instances.len() - 1
+    }
+
     /// Process status effects for a character at a specific index
     fn process_character_status_effects_at_index(
         &mut self,
@@ -924,10 +1048,6 @@ impl GameState {
         Ok(())
     }
 
-    fn process_character_behaviors(&mut self) -> GameResult<()> {
-        Ok(())
-    }
-
     fn update_physics(&mut self) -> GameResult<()> {
         // Will be implemented in physics task
         Ok(())
@@ -942,5 +1062,413 @@ impl GameState {
         // Remove expired spawn instances
         self.spawn_instances.retain(|spawn| spawn.lifespan > 0);
         Ok(())
+    }
+}
+/// Context for condition script execution
+pub struct ConditionContext<'a> {
+    game_state: &'a mut GameState,
+    character_idx: usize,
+    condition_id: ConditionId,
+    instance_id: usize,
+}
+
+impl<'a> ConditionContext<'a> {
+    pub fn new(
+        game_state: &'a mut GameState,
+        character_idx: usize,
+        condition_id: ConditionId,
+        instance_id: usize,
+    ) -> Self {
+        Self {
+            game_state,
+            character_idx,
+            condition_id,
+            instance_id,
+        }
+    }
+
+    pub fn get_args(&self) -> [u8; 8] {
+        self.game_state
+            .condition_definitions
+            .get(self.condition_id)
+            .map(|def| def.args)
+            .unwrap_or([0; 8])
+    }
+
+    pub fn get_script(&self) -> Vec<u8> {
+        self.game_state
+            .condition_definitions
+            .get(self.condition_id)
+            .map(|def| def.script.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn update_instance_from_engine(&mut self, engine: &crate::script::ScriptEngine) {
+        if let Some(instance) = self
+            .game_state
+            .condition_instances
+            .get_mut(self.instance_id)
+        {
+            instance.runtime_vars = engine.vars;
+            instance.runtime_fixed = engine.fixed;
+        }
+    }
+}
+
+impl<'a> crate::script::ScriptContext for ConditionContext<'a> {
+    fn read_property(
+        &mut self,
+        engine: &mut crate::script::ScriptEngine,
+        var_index: usize,
+        prop_address: u8,
+    ) {
+        // For now, implement basic property reading
+        // This would need to be expanded based on the PropertyAddress enum
+        if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            let value = match prop_address {
+                0 => character.health,
+                1 => character.energy,
+                2 => character.core.pos.0.to_int() as u8,
+                3 => character.core.pos.1.to_int() as u8,
+                4 => character.core.facing,
+                _ => 0,
+            };
+
+            if var_index < engine.vars.len() {
+                engine.vars[var_index] = value;
+            }
+        }
+    }
+
+    fn write_property(
+        &mut self,
+        engine: &mut crate::script::ScriptEngine,
+        prop_address: u8,
+        var_index: usize,
+    ) {
+        // For now, implement basic property writing
+        if var_index >= engine.vars.len() {
+            return;
+        }
+
+        if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
+            let value = engine.vars[var_index];
+            match prop_address {
+                0 => character.health = value,
+                1 => character.energy = value,
+                4 => character.core.facing = value,
+                _ => {}
+            }
+        }
+    }
+
+    fn get_energy_requirement(&self) -> u8 {
+        self.game_state
+            .condition_definitions
+            .get(self.condition_id)
+            .map(|def| {
+                (def.energy_mul.to_int() as u8).saturating_mul(
+                    self.game_state
+                        .characters
+                        .get(self.character_idx)
+                        .map(|c| c.energy)
+                        .unwrap_or(0),
+                )
+            })
+            .unwrap_or(0)
+    }
+
+    fn get_current_energy(&self) -> u8 {
+        self.game_state
+            .characters
+            .get(self.character_idx)
+            .map(|c| c.energy)
+            .unwrap_or(0)
+    }
+
+    fn is_on_cooldown(&self) -> bool {
+        // Conditions don't have cooldowns
+        false
+    }
+
+    fn get_random_u8(&mut self) -> u8 {
+        self.game_state.next_random_u8()
+    }
+
+    fn lock_action(&mut self) {
+        // Conditions don't lock actions
+    }
+
+    fn unlock_action(&mut self) {
+        // Conditions don't unlock actions
+    }
+
+    fn apply_energy_cost(&mut self) {
+        // Conditions don't apply energy costs
+    }
+
+    fn apply_duration(&mut self) {
+        // Conditions don't apply duration
+    }
+
+    fn create_spawn(&mut self, _spawn_id: usize, _vars: Option<[u8; 4]>) {
+        // Conditions don't create spawns
+    }
+
+    fn log_debug(&self, _message: &str) {
+        // Debug logging not implemented
+    }
+
+    fn read_action_cooldown(&self, _engine: &mut crate::script::ScriptEngine, _var_index: usize) {
+        // Conditions don't read action cooldowns
+    }
+
+    fn read_action_last_used(&self, _engine: &mut crate::script::ScriptEngine, _var_index: usize) {
+        // Conditions don't read action last used
+    }
+
+    fn write_action_last_used(
+        &mut self,
+        _engine: &mut crate::script::ScriptEngine,
+        _var_index: usize,
+    ) {
+        // Conditions don't write action last used
+    }
+}
+
+/// Context for action script execution
+pub struct ActionContext<'a> {
+    game_state: &'a mut GameState,
+    character_idx: usize,
+    action_id: ActionId,
+    instance_id: usize,
+}
+
+impl<'a> ActionContext<'a> {
+    pub fn new(
+        game_state: &'a mut GameState,
+        character_idx: usize,
+        action_id: ActionId,
+        instance_id: usize,
+    ) -> Self {
+        Self {
+            game_state,
+            character_idx,
+            action_id,
+            instance_id,
+        }
+    }
+
+    pub fn get_args(&self) -> [u8; 8] {
+        self.game_state
+            .action_definitions
+            .get(self.action_id)
+            .map(|def| def.args)
+            .unwrap_or([0; 8])
+    }
+
+    pub fn get_script(&self) -> Vec<u8> {
+        self.game_state
+            .action_definitions
+            .get(self.action_id)
+            .map(|def| def.script.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn update_instance_from_engine(&mut self, engine: &crate::script::ScriptEngine) {
+        if let Some(instance) = self.game_state.action_instances.get_mut(self.instance_id) {
+            instance.runtime_vars = engine.vars;
+            instance.runtime_fixed = engine.fixed;
+        }
+    }
+}
+
+impl<'a> crate::script::ScriptContext for ActionContext<'a> {
+    fn read_property(
+        &mut self,
+        engine: &mut crate::script::ScriptEngine,
+        var_index: usize,
+        prop_address: u8,
+    ) {
+        // For now, implement basic property reading
+        if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            let value = match prop_address {
+                0 => character.health,
+                1 => character.energy,
+                2 => character.core.pos.0.to_int() as u8,
+                3 => character.core.pos.1.to_int() as u8,
+                4 => character.core.facing,
+                _ => 0,
+            };
+
+            if var_index < engine.vars.len() {
+                engine.vars[var_index] = value;
+            }
+        }
+    }
+
+    fn write_property(
+        &mut self,
+        engine: &mut crate::script::ScriptEngine,
+        prop_address: u8,
+        var_index: usize,
+    ) {
+        // For now, implement basic property writing
+        if var_index >= engine.vars.len() {
+            return;
+        }
+
+        if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
+            let value = engine.vars[var_index];
+            match prop_address {
+                0 => character.health = value,
+                1 => character.energy = value,
+                4 => character.core.facing = value,
+                _ => {}
+            }
+        }
+    }
+
+    fn get_energy_requirement(&self) -> u8 {
+        self.game_state
+            .action_definitions
+            .get(self.action_id)
+            .map(|def| def.energy_cost)
+            .unwrap_or(0)
+    }
+
+    fn get_current_energy(&self) -> u8 {
+        self.game_state
+            .characters
+            .get(self.character_idx)
+            .map(|c| c.energy)
+            .unwrap_or(0)
+    }
+
+    fn is_on_cooldown(&self) -> bool {
+        if let Some(action_def) = self.game_state.action_definitions.get(self.action_id) {
+            if let Some(character) = self.game_state.characters.get(self.character_idx) {
+                let last_used = character
+                    .action_last_used
+                    .get(self.action_id)
+                    .copied()
+                    .unwrap_or(u16::MAX);
+                if last_used == u16::MAX {
+                    return false; // Never used
+                }
+                return self.game_state.frame.saturating_sub(last_used) < action_def.cooldown;
+            }
+        }
+        false
+    }
+
+    fn get_random_u8(&mut self) -> u8 {
+        self.game_state.next_random_u8()
+    }
+
+    fn lock_action(&mut self) {
+        if let Some(_instance) = self.game_state.action_instances.get(self.instance_id) {
+            if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
+                character.locked_action = Some(self.instance_id as ActionInstanceId);
+
+                // Set duration from definition
+                if let Some(action_def) = self.game_state.action_definitions.get(self.action_id) {
+                    if let Some(instance_mut) =
+                        self.game_state.action_instances.get_mut(self.instance_id)
+                    {
+                        instance_mut.remaining_duration = action_def.duration;
+                    }
+                }
+            }
+        }
+    }
+
+    fn unlock_action(&mut self) {
+        if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
+            character.locked_action = None;
+        }
+    }
+
+    fn apply_energy_cost(&mut self) {
+        if let Some(action_def) = self.game_state.action_definitions.get(self.action_id) {
+            if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
+                character.energy = character.energy.saturating_sub(action_def.energy_cost);
+            }
+        }
+    }
+
+    fn apply_duration(&mut self) {
+        if let Some(action_def) = self.game_state.action_definitions.get(self.action_id) {
+            if let Some(instance) = self.game_state.action_instances.get_mut(self.instance_id) {
+                instance.remaining_duration = action_def.duration;
+            }
+        }
+    }
+
+    fn create_spawn(&mut self, spawn_id: usize, vars: Option<[u8; 4]>) {
+        // Get character position for spawn creation
+        if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            let mut spawn = crate::entity::SpawnInstance::new(
+                spawn_id as u8,
+                character.core.id,
+                character.core.pos,
+            );
+
+            // Set spawn variables if provided
+            if let Some(spawn_vars) = vars {
+                spawn.vars = spawn_vars;
+            }
+
+            // Assign unique ID
+            spawn.core.id = self.game_state.spawn_instances.len() as u8;
+
+            // Set properties from spawn definition if it exists
+            if let Some(spawn_def) = self.game_state.spawn_definitions.get(spawn_id) {
+                spawn.lifespan = spawn_def.duration;
+                spawn.element = spawn_def.element.unwrap_or(crate::entity::Element::Punct);
+            }
+
+            self.game_state.spawn_instances.push(spawn);
+        }
+    }
+
+    fn log_debug(&self, _message: &str) {
+        // Debug logging not implemented
+    }
+
+    fn read_action_cooldown(&self, engine: &mut crate::script::ScriptEngine, var_index: usize) {
+        if let Some(action_def) = self.game_state.action_definitions.get(self.action_id) {
+            if var_index < engine.vars.len() {
+                engine.vars[var_index] = (action_def.cooldown & 0xFF) as u8;
+            }
+        }
+    }
+
+    fn read_action_last_used(&self, engine: &mut crate::script::ScriptEngine, var_index: usize) {
+        if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            let last_used = character
+                .action_last_used
+                .get(self.action_id)
+                .copied()
+                .unwrap_or(u16::MAX);
+            if var_index < engine.vars.len() {
+                engine.vars[var_index] = (last_used & 0xFF) as u8;
+            }
+        }
+    }
+
+    fn write_action_last_used(
+        &mut self,
+        engine: &mut crate::script::ScriptEngine,
+        var_index: usize,
+    ) {
+        if var_index < engine.vars.len() {
+            let timestamp = engine.vars[var_index] as u16;
+            if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
+                if self.action_id < character.action_last_used.len() {
+                    character.action_last_used[self.action_id] = timestamp;
+                }
+            }
+        }
     }
 }
