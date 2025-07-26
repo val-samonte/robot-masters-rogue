@@ -98,6 +98,108 @@ impl ErrorRecovery {
         }
     }
 
+    /// Handle definition lookup errors gracefully during runtime
+    pub fn handle_definition_lookup_error(error: GameError) -> GameResult<()> {
+        match error {
+            // Runtime definition lookup errors are recoverable - log and continue
+            GameError::ActionDefinitionNotFound => {
+                // In a real implementation, this would log the error
+                // For now, we just return Ok to continue execution
+                Ok(())
+            }
+            GameError::ConditionDefinitionNotFound => Ok(()),
+            GameError::StatusEffectDefinitionNotFound => Ok(()),
+            GameError::SpawnDefinitionNotFound => Ok(()),
+
+            // Instance lookup errors are also recoverable
+            GameError::ActionInstanceNotFound => Ok(()),
+            GameError::ConditionInstanceNotFound => Ok(()),
+            GameError::StatusEffectInstanceNotFound => Ok(()),
+            GameError::InvalidInstanceId => Ok(()),
+
+            // Other errors should be propagated
+            _ => Err(error),
+        }
+    }
+
+    /// Validate definition ID bounds and return safe fallback behavior
+    pub fn validate_definition_id<T>(
+        id: usize,
+        collection: &[T],
+        error_type: GameError,
+    ) -> GameResult<usize> {
+        if id < collection.len() {
+            Ok(id)
+        } else {
+            Err(error_type)
+        }
+    }
+
+    /// Safe definition access with error recovery
+    pub fn safe_definition_access<T>(
+        id: usize,
+        collection: &[T],
+        error_type: GameError,
+    ) -> Option<&T> {
+        if Self::validate_definition_id(id, collection, error_type).is_ok() {
+            collection.get(id)
+        } else {
+            None
+        }
+    }
+
+    /// Handle invalid ID references during runtime with comprehensive error reporting
+    pub fn handle_invalid_id_reference(
+        _id: usize,
+        collection_name: &'static str,
+        _collection_size: usize,
+        _frame: u16,
+    ) -> GameError {
+        // In a production environment, this would log detailed error information
+        // For now, we create appropriate error types based on collection name
+        match collection_name {
+            "action_definitions" => GameError::ActionDefinitionNotFound,
+            "condition_definitions" => GameError::ConditionDefinitionNotFound,
+            "status_effect_definitions" => GameError::StatusEffectDefinitionNotFound,
+            "spawn_definitions" => GameError::SpawnDefinitionNotFound,
+            "action_instances" => GameError::ActionInstanceNotFound,
+            "condition_instances" => GameError::ConditionInstanceNotFound,
+            "status_effect_instances" => GameError::StatusEffectInstanceNotFound,
+            _ => GameError::InvalidEntityId,
+        }
+    }
+
+    /// Comprehensive validation of game state integrity with error recovery
+    pub fn validate_game_state_integrity(
+        game_state: &crate::state::GameState,
+    ) -> GameResult<alloc::vec::Vec<GameError>> {
+        let mut errors = alloc::vec::Vec::new();
+
+        // Validate definition references
+        if let Err(error) = game_state.validate_definition_references() {
+            errors.push(error);
+        }
+
+        // Validate circular references
+        if let Err(error) = game_state.detect_runtime_circular_references() {
+            errors.push(error);
+        }
+
+        // If we found errors but they're all recoverable, return them for logging
+        // but don't fail the validation
+        let all_recoverable = errors.iter().all(|e| Self::is_recoverable(e));
+
+        if all_recoverable {
+            Ok(errors)
+        } else {
+            // Return the first non-recoverable error
+            Err(errors
+                .into_iter()
+                .find(|e| !Self::is_recoverable(e))
+                .unwrap_or(GameError::InvalidGameState))
+        }
+    }
+
     /// Create a safe error message for debugging (no_std compatible)
     pub fn create_error_message(error: &GameError) -> &'static str {
         match error {
@@ -122,6 +224,22 @@ impl ErrorRecovery {
             GameError::InvalidSpawnId => "Spawn definition ID is invalid",
             GameError::CircularReference => "Circular reference detected in definitions",
             GameError::MissingDefinition => "Referenced definition not found",
+
+            // Runtime definition lookup errors
+            GameError::ActionDefinitionNotFound => "Action definition not found during runtime",
+            GameError::ConditionDefinitionNotFound => {
+                "Condition definition not found during runtime"
+            }
+            GameError::StatusEffectDefinitionNotFound => {
+                "Status effect definition not found during runtime"
+            }
+            GameError::SpawnDefinitionNotFound => "Spawn definition not found during runtime",
+
+            // Instance management errors
+            GameError::ActionInstanceNotFound => "Action instance not found",
+            GameError::ConditionInstanceNotFound => "Condition instance not found",
+            GameError::StatusEffectInstanceNotFound => "Status effect instance not found",
+            GameError::InvalidInstanceId => "Instance ID is invalid",
             GameError::DivisionByZero => "Division by zero attempted",
             GameError::ArithmeticOverflow => "Arithmetic overflow occurred",
             GameError::OutOfBounds => "Array index out of bounds",
@@ -164,6 +282,18 @@ impl ErrorRecovery {
             GameError::InvalidSpawnId => false,
             GameError::CircularReference => false,
             GameError::MissingDefinition => false,
+
+            // Runtime definition lookup errors are recoverable - we can skip execution
+            GameError::ActionDefinitionNotFound => true,
+            GameError::ConditionDefinitionNotFound => true,
+            GameError::StatusEffectDefinitionNotFound => true,
+            GameError::SpawnDefinitionNotFound => true,
+
+            // Instance management errors are generally recoverable
+            GameError::ActionInstanceNotFound => true,
+            GameError::ConditionInstanceNotFound => true,
+            GameError::StatusEffectInstanceNotFound => true,
+            GameError::InvalidInstanceId => true,
 
             // Math errors are recoverable with safe defaults
             GameError::DivisionByZero => true,
@@ -212,5 +342,28 @@ macro_rules! safe_arithmetic {
             Ok(result) => result,
             Err(_) => $fallback,
         }
+    };
+}
+
+/// Macro for safe definition lookups with error recovery
+#[macro_export]
+macro_rules! safe_definition_lookup {
+    ($game_state:expr, $method:ident, $id:expr) => {
+        match $game_state.$method($id) {
+            Ok(definition) => Some(definition),
+            Err(error) => {
+                // Log error and continue execution
+                let _ = crate::error::ErrorRecovery::handle_definition_lookup_error(error);
+                None
+            }
+        }
+    };
+}
+
+/// Macro for safe definition access with bounds checking
+#[macro_export]
+macro_rules! safe_definition_access {
+    ($collection:expr, $id:expr, $error_type:expr) => {
+        crate::error::ErrorRecovery::safe_definition_access($id, $collection, $error_type)
     };
 }

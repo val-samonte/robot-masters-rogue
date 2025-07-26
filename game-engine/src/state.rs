@@ -384,6 +384,162 @@ impl GameState {
         self.spawn_definitions.get_mut(id)
     }
 
+    /// Safe action definition lookup with error handling
+    pub fn safe_get_action_definition(&self, id: ActionId) -> GameResult<&ActionDefinition> {
+        self.action_definitions
+            .get(id)
+            .ok_or(crate::api::GameError::ActionDefinitionNotFound)
+    }
+
+    /// Safe condition definition lookup with error handling
+    pub fn safe_get_condition_definition(
+        &self,
+        id: ConditionId,
+    ) -> GameResult<&ConditionDefinition> {
+        self.condition_definitions
+            .get(id)
+            .ok_or(crate::api::GameError::ConditionDefinitionNotFound)
+    }
+
+    /// Safe status effect definition lookup with error handling
+    pub fn safe_get_status_effect_definition(
+        &self,
+        id: StatusEffectId,
+    ) -> GameResult<&StatusEffectDefinition> {
+        self.status_effect_definitions
+            .get(id)
+            .ok_or(crate::api::GameError::StatusEffectDefinitionNotFound)
+    }
+
+    /// Safe spawn definition lookup with error handling
+    pub fn safe_get_spawn_definition(&self, id: usize) -> GameResult<&SpawnDefinition> {
+        self.spawn_definitions
+            .get(id)
+            .ok_or(crate::api::GameError::SpawnDefinitionNotFound)
+    }
+
+    /// Safe action instance lookup with error handling
+    pub fn safe_get_action_instance(&self, id: usize) -> GameResult<&ActionInstance> {
+        self.action_instances
+            .get(id)
+            .ok_or(crate::api::GameError::ActionInstanceNotFound)
+    }
+
+    /// Safe condition instance lookup with error handling
+    pub fn safe_get_condition_instance(&self, id: usize) -> GameResult<&ConditionInstance> {
+        self.condition_instances
+            .get(id)
+            .ok_or(crate::api::GameError::ConditionInstanceNotFound)
+    }
+
+    /// Safe status effect instance lookup with error handling
+    pub fn safe_get_status_effect_instance(
+        &self,
+        id: StatusEffectInstanceId,
+    ) -> GameResult<&StatusEffectInstance> {
+        self.status_effect_instances
+            .get(id as usize)
+            .ok_or(crate::api::GameError::StatusEffectInstanceNotFound)
+    }
+
+    /// Validate all definition references in the current game state
+    pub fn validate_definition_references(&self) -> GameResult<()> {
+        // Validate character behavior references
+        for character in &self.characters {
+            for &(condition_id, action_id) in &character.behaviors {
+                // Validate condition ID
+                self.safe_get_condition_definition(condition_id)?;
+
+                // Validate action ID
+                self.safe_get_action_definition(action_id)?;
+            }
+
+            // Validate status effect references
+            for &status_effect_id in &character.status_effects {
+                self.safe_get_status_effect_instance(status_effect_id)?;
+            }
+        }
+
+        // Validate action definition spawn references
+        for action_def in &self.action_definitions {
+            for &spawn_id in &action_def.spawns {
+                if spawn_id != 0 {
+                    self.safe_get_spawn_definition(spawn_id as usize)?;
+                }
+            }
+        }
+
+        // Validate status effect definition spawn references
+        for status_effect_def in &self.status_effect_definitions {
+            for &spawn_id in &status_effect_def.spawns {
+                if spawn_id != 0 {
+                    self.safe_get_spawn_definition(spawn_id as usize)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Detect and report any circular references in the current game state
+    pub fn detect_runtime_circular_references(&self) -> GameResult<()> {
+        // This is a more comprehensive check that can be run during gameplay
+        // to detect any circular references that might have been introduced
+
+        // Check spawn definition circular references
+        for (spawn_id, _spawn_def) in self.spawn_definitions.iter().enumerate() {
+            let mut visited = alloc::vec![false; self.spawn_definitions.len()];
+            let mut recursion_stack = alloc::vec![false; self.spawn_definitions.len()];
+
+            if self.detect_spawn_cycle_runtime(spawn_id, &mut visited, &mut recursion_stack)? {
+                return Err(crate::api::GameError::CircularReference);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Runtime circular reference detection for spawn definitions
+    fn detect_spawn_cycle_runtime(
+        &self,
+        spawn_id: usize,
+        visited: &mut [bool],
+        recursion_stack: &mut [bool],
+    ) -> GameResult<bool> {
+        if spawn_id >= self.spawn_definitions.len() {
+            return Err(crate::api::GameError::SpawnDefinitionNotFound);
+        }
+
+        visited[spawn_id] = true;
+        recursion_stack[spawn_id] = true;
+
+        let spawn_def = &self.spawn_definitions[spawn_id];
+        for &referenced_spawn_id in &spawn_def.spawns {
+            if referenced_spawn_id != 0 {
+                let referenced_id = referenced_spawn_id as usize;
+
+                // Validate referenced spawn ID exists
+                if referenced_id >= self.spawn_definitions.len() {
+                    return Err(crate::api::GameError::SpawnDefinitionNotFound);
+                }
+
+                // If not visited, recurse
+                if !visited[referenced_id] {
+                    if self.detect_spawn_cycle_runtime(referenced_id, visited, recursion_stack)? {
+                        return Ok(true);
+                    }
+                }
+                // If visited and in recursion stack, we found a cycle
+                else if recursion_stack[referenced_id] {
+                    return Ok(true);
+                }
+            }
+        }
+
+        recursion_stack[spawn_id] = false;
+        Ok(false)
+    }
+
     /// Get action instance by ID
     pub fn get_action_instance(&self, id: usize) -> Option<&ActionInstance> {
         self.action_instances.get(id)
@@ -875,7 +1031,13 @@ impl GameState {
             }
 
             // Check if action is on cooldown before evaluating condition
-            let action_def = &self.action_definitions[action_id];
+            let action_def = match self.safe_get_action_definition(action_id) {
+                Ok(def) => def,
+                Err(_) => {
+                    // Action definition not found - skip this behavior
+                    continue;
+                }
+            };
             let last_used = self.characters[character_idx]
                 .action_last_used
                 .get(action_id)
@@ -1418,15 +1580,16 @@ impl<'a> crate::script::ScriptContext for ActionContext<'a> {
 
     fn create_spawn(&mut self, spawn_id: usize, vars: Option<[u8; 4]>) {
         // Validate spawn definition exists
-        if spawn_id >= self.game_state.spawn_definitions.len() {
-            // Invalid spawn ID - skip spawn creation silently to avoid breaking script execution
-            return;
-        }
-
         // Get character position for spawn creation
         if let Some(character) = self.game_state.characters.get(self.character_idx) {
-            // Get spawn definition (we know it exists from validation above)
-            let spawn_def = &self.game_state.spawn_definitions[spawn_id];
+            // Safe spawn definition lookup with error handling
+            let spawn_def = match self.game_state.safe_get_spawn_definition(spawn_id) {
+                Ok(def) => def,
+                Err(_) => {
+                    // Spawn definition not found - skip spawn creation silently
+                    return;
+                }
+            };
 
             let mut spawn = crate::entity::SpawnInstance::new(
                 spawn_id as u8,

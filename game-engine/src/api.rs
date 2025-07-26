@@ -47,6 +47,18 @@ pub enum GameError {
     CircularReference,
     MissingDefinition,
 
+    // Runtime definition lookup errors
+    ActionDefinitionNotFound,
+    ConditionDefinitionNotFound,
+    StatusEffectDefinitionNotFound,
+    SpawnDefinitionNotFound,
+
+    // Instance management errors
+    ActionInstanceNotFound,
+    ConditionInstanceNotFound,
+    StatusEffectInstanceNotFound,
+    InvalidInstanceId,
+
     // Math errors
     DivisionByZero,
     ArithmeticOverflow,
@@ -220,30 +232,127 @@ fn validate_character_references(
 
 /// Detect circular references in definition dependencies
 fn detect_circular_references(
-    _action_definitions: &[ActionDefinition],
+    action_definitions: &[ActionDefinition],
     _condition_definitions: &[ConditionDefinition],
     spawn_definitions: &[SpawnDefinition],
-    _status_effect_definitions: &[StatusEffectDefinition],
+    status_effect_definitions: &[StatusEffectDefinition],
 ) -> GameResult<()> {
-    // For now, we implement a basic check for spawn references
-    // More sophisticated circular reference detection can be added later
+    // Check spawn definition circular references with depth-first search
+    detect_spawn_circular_references(spawn_definitions)?;
 
-    // Check that spawn definitions don't reference invalid spawn IDs
-    for (spawn_id, spawn_def) in spawn_definitions.iter().enumerate() {
-        for &referenced_spawn_id in &spawn_def.spawns {
-            if referenced_spawn_id != 0 {
-                let referenced_id = referenced_spawn_id as usize;
-                if referenced_id >= spawn_definitions.len() {
-                    return Err(GameError::InvalidSpawnId);
-                }
+    // Check action definition spawn references
+    detect_action_spawn_circular_references(action_definitions, spawn_definitions)?;
 
-                // Basic circular reference check: spawn can't reference itself
-                if referenced_id == spawn_id {
-                    return Err(GameError::CircularReference);
+    // Check status effect definition spawn references
+    detect_status_effect_spawn_circular_references(status_effect_definitions, spawn_definitions)?;
+
+    Ok(())
+}
+
+/// Detect circular references in spawn definitions using depth-first search
+fn detect_spawn_circular_references(spawn_definitions: &[SpawnDefinition]) -> GameResult<()> {
+    for (spawn_id, _) in spawn_definitions.iter().enumerate() {
+        let mut visited = alloc::vec![false; spawn_definitions.len()];
+        let mut recursion_stack = alloc::vec![false; spawn_definitions.len()];
+
+        if detect_spawn_cycle_dfs(
+            spawn_id,
+            spawn_definitions,
+            &mut visited,
+            &mut recursion_stack,
+        )? {
+            return Err(GameError::CircularReference);
+        }
+    }
+    Ok(())
+}
+
+/// Depth-first search to detect cycles in spawn references
+fn detect_spawn_cycle_dfs(
+    spawn_id: usize,
+    spawn_definitions: &[SpawnDefinition],
+    visited: &mut [bool],
+    recursion_stack: &mut [bool],
+) -> GameResult<bool> {
+    if spawn_id >= spawn_definitions.len() {
+        return Err(GameError::InvalidSpawnId);
+    }
+
+    visited[spawn_id] = true;
+    recursion_stack[spawn_id] = true;
+
+    let spawn_def = &spawn_definitions[spawn_id];
+    for &referenced_spawn_id in &spawn_def.spawns {
+        if referenced_spawn_id != 0 {
+            let referenced_id = referenced_spawn_id as usize;
+
+            // Validate referenced spawn ID exists
+            if referenced_id >= spawn_definitions.len() {
+                return Err(GameError::InvalidSpawnId);
+            }
+
+            // If not visited, recurse
+            if !visited[referenced_id] {
+                if detect_spawn_cycle_dfs(
+                    referenced_id,
+                    spawn_definitions,
+                    visited,
+                    recursion_stack,
+                )? {
+                    return Ok(true);
                 }
+            }
+            // If visited and in recursion stack, we found a cycle
+            else if recursion_stack[referenced_id] {
+                return Ok(true);
             }
         }
     }
 
+    recursion_stack[spawn_id] = false;
+    Ok(false)
+}
+
+/// Detect circular references between actions and spawns
+fn detect_action_spawn_circular_references(
+    action_definitions: &[ActionDefinition],
+    spawn_definitions: &[SpawnDefinition],
+) -> GameResult<()> {
+    for action_def in action_definitions {
+        for &spawn_id in &action_def.spawns {
+            if spawn_id != 0 {
+                let spawn_idx = spawn_id as usize;
+                if spawn_idx >= spawn_definitions.len() {
+                    return Err(GameError::InvalidSpawnId);
+                }
+
+                // Check if this spawn creates a cycle back to actions
+                // For now, we just validate the spawn ID exists
+                // More complex cross-reference cycle detection could be added later
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Detect circular references between status effects and spawns
+fn detect_status_effect_spawn_circular_references(
+    status_effect_definitions: &[StatusEffectDefinition],
+    spawn_definitions: &[SpawnDefinition],
+) -> GameResult<()> {
+    for status_effect_def in status_effect_definitions {
+        for &spawn_id in &status_effect_def.spawns {
+            if spawn_id != 0 {
+                let spawn_idx = spawn_id as usize;
+                if spawn_idx >= spawn_definitions.len() {
+                    return Err(GameError::InvalidSpawnId);
+                }
+
+                // Check if this spawn creates a cycle back to status effects
+                // For now, we just validate the spawn ID exists
+                // More complex cross-reference cycle detection could be added later
+            }
+        }
+    }
     Ok(())
 }

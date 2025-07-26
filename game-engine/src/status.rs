@@ -536,13 +536,14 @@ impl<'a> ScriptContext for StatusEffectContext<'a> {
 
     fn create_spawn(&mut self, spawn_id: usize, vars: Option<[u8; 4]>) {
         // Validate spawn definition exists
-        if spawn_id >= self.game_state.spawn_definitions.len() {
-            // Invalid spawn ID - skip spawn creation silently to avoid breaking script execution
-            return;
-        }
-
-        // Get spawn definition (we know it exists from validation above)
-        let spawn_def = &self.game_state.spawn_definitions[spawn_id];
+        // Safe spawn definition lookup with error handling
+        let spawn_def = match self.game_state.safe_get_spawn_definition(spawn_id) {
+            Ok(def) => def,
+            Err(_) => {
+                // Spawn definition not found - skip spawn creation silently
+                return;
+            }
+        };
 
         let mut spawn = crate::entity::SpawnInstance::new(
             spawn_id as u8,

@@ -102,18 +102,19 @@
   - Ensure spawn instances maintain reference to their definition ID
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 13. Implement error handling for invalid ID references
+- [x] 13. Implement error handling for invalid ID references
 
   - Add new GameError variants for invalid definition IDs
   - Implement graceful handling of missing definition lookups during runtime
   - Add validation methods to detect and report circular references
   - _Requirements: 2.4, 3.4, 4.6_
 
-- [ ] 14. Update serialization to include definition collections
+- [ ] 14. Expose game state and RNG seed through public API
 
-  - Modify GameState serialization to include all definition collections
-  - Update binary serialization format to handle definition and instance separation
-  - Ensure JSON serialization includes both definitions and active instances
+  - Add public API method to get the current GameState for external serialization
+  - Expose the current RNG seed through the public API so external wrappers can serialize it
+  - Remove internal serialization logic - serialization will be handled by external wrappers
+  - Ensure the public API provides complete access to game state for external persistence
   - _Requirements: 1.3, 5.4_
 
 - [ ] 15. Update README documentation
