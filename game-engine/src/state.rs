@@ -4,6 +4,7 @@ use crate::api::GameResult;
 use crate::entity::{
     ActionDefinition, ActionId, ActionInstance, Character, ConditionDefinition, ConditionId,
     ConditionInstance, SpawnDefinition, SpawnInstance, StatusEffectDefinition, StatusEffectId,
+    StatusEffectInstance, StatusEffectInstanceId,
 };
 use crate::physics::Tilemap;
 use crate::random::SeededRng;
@@ -37,6 +38,7 @@ pub struct GameState {
     // Instance collections - runtime state
     pub action_instances: Vec<ActionInstance>,
     pub condition_instances: Vec<ConditionInstance>,
+    pub status_effect_instances: Vec<StatusEffectInstance>,
 
     // Random number generator
     rng: SeededRng,
@@ -67,6 +69,7 @@ impl GameState {
             // Initialize new instance collections
             action_instances: Vec::new(),
             condition_instances: Vec::new(),
+            status_effect_instances: Vec::new(),
             rng: SeededRng::new(seed),
         };
 
@@ -288,6 +291,7 @@ impl GameState {
             // Initialize new instance collections
             action_instances: Vec::new(),
             condition_instances: Vec::new(),
+            status_effect_instances: Vec::new(),
 
             rng: SeededRng::new(seed),
         })
@@ -367,6 +371,42 @@ impl GameState {
         self.spawn_definitions.get_mut(id)
     }
 
+    /// Get action instance by ID
+    pub fn get_action_instance(&self, id: usize) -> Option<&ActionInstance> {
+        self.action_instances.get(id)
+    }
+
+    /// Get mutable action instance by ID
+    pub fn get_action_instance_mut(&mut self, id: usize) -> Option<&mut ActionInstance> {
+        self.action_instances.get_mut(id)
+    }
+
+    /// Get condition instance by ID
+    pub fn get_condition_instance(&self, id: usize) -> Option<&ConditionInstance> {
+        self.condition_instances.get(id)
+    }
+
+    /// Get mutable condition instance by ID
+    pub fn get_condition_instance_mut(&mut self, id: usize) -> Option<&mut ConditionInstance> {
+        self.condition_instances.get_mut(id)
+    }
+
+    /// Get status effect instance by ID
+    pub fn get_status_effect_instance(
+        &self,
+        id: StatusEffectInstanceId,
+    ) -> Option<&StatusEffectInstance> {
+        self.status_effect_instances.get(id as usize)
+    }
+
+    /// Get mutable status effect instance by ID
+    pub fn get_status_effect_instance_mut(
+        &mut self,
+        id: StatusEffectInstanceId,
+    ) -> Option<&mut StatusEffectInstance> {
+        self.status_effect_instances.get_mut(id as usize)
+    }
+
     // Helper methods for JSON serialization
     fn character_to_json(&self, character: &Character) -> GameResult<String> {
         let mut json = String::new();
@@ -428,18 +468,13 @@ impl GameState {
             }
         ));
 
-        // Status effects
+        // Status effects (now just IDs)
         json.push_str(r#""status_effects":["#);
-        for (i, effect) in character.status_effects.iter().enumerate() {
+        for (i, &effect_id) in character.status_effects.iter().enumerate() {
             if i > 0 {
                 json.push(',');
             }
-            json.push_str(&format!(
-                r#"{{"effect_id":{},"remaining_duration":{},"stack_count":{},"vars":[{},{},{},{}],"fixed":[{},{},{},{}]}}"#,
-                effect.effect_id, effect.remaining_duration, effect.stack_count,
-                effect.vars[0], effect.vars[1], effect.vars[2], effect.vars[3],
-                effect.fixed[0].to_int(), effect.fixed[1].to_int(), effect.fixed[2].to_int(), effect.fixed[3].to_int()
-            ));
+            json.push_str(&effect_id.to_string());
         }
         json.push_str("]");
 
@@ -539,17 +574,10 @@ impl GameState {
             }
         }
 
-        // Status effects: count (1) + effects (count * 16) - now includes fixed array
+        // Status effects: count (1) + effect IDs (count * 1)
         data.push(character.status_effects.len() as u8);
-        for effect in &character.status_effects {
-            data.push(effect.effect_id);
-            data.extend_from_slice(&effect.remaining_duration.to_le_bytes());
-            data.push(effect.stack_count);
-            data.extend_from_slice(&effect.vars);
-            // Serialize fixed array
-            for fixed_val in &effect.fixed {
-                data.extend_from_slice(&fixed_val.raw().to_le_bytes());
-            }
+        for &effect_id in &character.status_effects {
+            data.push(effect_id);
         }
 
         Ok(())
@@ -587,7 +615,7 @@ impl GameState {
     }
 
     fn deserialize_character(data: &[u8]) -> GameResult<(Character, usize)> {
-        if data.len() < 36 {
+        if data.len() < 30 {
             return Err(crate::api::GameError::InvalidCharacterData);
         }
 
@@ -664,7 +692,7 @@ impl GameState {
         };
         pos += 2;
 
-        // Status effects
+        // Status effects (now just IDs)
         if pos >= data.len() {
             return Err(crate::api::GameError::InvalidCharacterData);
         }
@@ -672,34 +700,12 @@ impl GameState {
         pos += 1;
         let mut status_effects = Vec::new();
         for _ in 0..status_count {
-            if pos + 15 >= data.len() {
-                // Now needs 16 bytes total (1+2+1+4+8)
+            if pos >= data.len() {
                 return Err(crate::api::GameError::InvalidCharacterData);
             }
             let effect_id = data[pos];
             pos += 1;
-            let remaining_duration = u16::from_le_bytes([data[pos], data[pos + 1]]);
-            pos += 2;
-            let stack_count = data[pos];
-            pos += 1;
-            let mut vars = [0u8; 4];
-            vars.copy_from_slice(&data[pos..pos + 4]);
-            pos += 4;
-            // Deserialize fixed array
-            let mut fixed = [crate::math::Fixed::ZERO; 4];
-            for i in 0..4 {
-                fixed[i] =
-                    crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
-                pos += 2;
-            }
-
-            status_effects.push(crate::entity::StatusEffectInstance {
-                effect_id,
-                remaining_duration,
-                stack_count,
-                vars,
-                fixed,
-            });
+            status_effects.push(effect_id);
         }
 
         let character = Character {

@@ -54,7 +54,7 @@
   - Update script execution to use the correct property resolution based on property type across all component types
   - _Requirements: 2.2, 3.1, 3.2, 5.2_
 
-- [ ] 7. Modify Character struct to use ID-based behaviors
+- [x] 7. Modify Character struct to use ID-based behaviors
 
   - Change behaviors field from embedded objects to Vec<(ConditionId, ActionId)>
   - Update locked_action to reference ActionInstanceId instead of embedded action

@@ -16,6 +16,7 @@ pub type StatusEffectId = usize;
 
 /// Instance ID types for runtime state
 pub type ActionInstanceId = u8;
+pub type StatusEffectInstanceId = u8;
 
 /// Action definition - static configuration for actions
 #[derive(Debug, Clone)]
@@ -52,7 +53,7 @@ pub struct Character {
     pub energy_charge_rate: u8, // Tick interval for active energy recovery during Charge action
     pub behaviors: Vec<(ConditionId, ActionId)>,
     pub locked_action: Option<ActionInstanceId>,
-    pub status_effects: Vec<StatusEffectInstance>,
+    pub status_effects: Vec<StatusEffectInstanceId>,
     pub action_last_used: Vec<u16>, // Tracks when each action was last executed (game frame timestamp)
 }
 
@@ -127,7 +128,7 @@ pub struct StatusEffectDefinition {
 /// Active status effect on a character
 #[derive(Debug, Clone)]
 pub struct StatusEffectInstance {
-    pub effect_id: u8,
+    pub definition_id: StatusEffectId,
     pub remaining_duration: u16,
     pub stack_count: u8,
     pub vars: [u8; 4],     // Script variables
@@ -407,6 +408,35 @@ impl StatusEffectDefinition {
             return Err("Stack limit must be at least 1");
         }
         Ok(())
+    }
+
+    /// Create an instance from this definition
+    pub fn create_instance(&self, definition_id: StatusEffectId) -> StatusEffectInstance {
+        StatusEffectInstance {
+            definition_id,
+            remaining_duration: self.duration,
+            stack_count: 1,
+            vars: [0; 4],
+            fixed: [Fixed::ZERO; 4],
+        }
+    }
+}
+
+impl StatusEffectInstance {
+    /// Create a new status effect instance
+    pub fn new(definition_id: StatusEffectId) -> Self {
+        Self {
+            definition_id,
+            remaining_duration: 0, // Will be set from definition
+            stack_count: 1,
+            vars: [0; 4],
+            fixed: [Fixed::ZERO; 4],
+        }
+    }
+
+    /// Check if this status effect has expired
+    pub fn is_expired(&self) -> bool {
+        self.remaining_duration == 0
     }
 }
 
