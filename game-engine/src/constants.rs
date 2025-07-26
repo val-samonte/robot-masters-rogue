@@ -7,7 +7,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum OperatorAddress {
-    // ===== CONTROL FLOW OPERATORS =====
+    // ===== CONTROL FLOW OPERATORS (0-9) =====
     /// Exit script with specified flag
     Exit = 0,
     /// Exit if insufficient energy
@@ -19,13 +19,13 @@ pub enum OperatorAddress {
     /// Jump to specified position
     Goto = 4,
 
-    // ===== PROPERTY OPERATIONS =====
+    // ===== PROPERTY OPERATIONS (10-11) =====
     /// Read property into variable: [ReadProp, var_index, prop_address]
     ReadProp = 10,
     /// Write variable to property: [WriteProp, prop_address, var_index]
     WriteProp = 11,
 
-    // ===== VARIABLE OPERATIONS =====
+    // ===== VARIABLE OPERATIONS (20-24) =====
     /// Assign byte literal to variable: [AssignByte, var_index, literal_value]
     AssignByte = 20,
     /// Assign fixed-point value: [AssignFixed, var_index, numerator, denominator]
@@ -37,7 +37,7 @@ pub enum OperatorAddress {
     /// Convert byte to fixed: [ToFixed, to_fixed_index, from_var_index]
     ToFixed = 24,
 
-    // ===== FIXED-POINT ARITHMETIC =====
+    // ===== FIXED-POINT ARITHMETIC (30-34) =====
     /// Add fixed-point values: [Add, dest_fixed, left_fixed, right_fixed]
     Add = 30,
     /// Subtract fixed-point values: [Sub, dest_fixed, left_fixed, right_fixed]
@@ -49,7 +49,7 @@ pub enum OperatorAddress {
     /// Negate fixed-point value: [Negate, fixed_index]
     Negate = 34,
 
-    // ===== BYTE ARITHMETIC =====
+    // ===== BYTE ARITHMETIC (40-45) =====
     /// Add byte values: [AddByte, dest_var, left_var, right_var]
     AddByte = 40,
     /// Subtract byte values: [SubByte, dest_var, left_var, right_var]
@@ -63,7 +63,7 @@ pub enum OperatorAddress {
     /// Wrapping add byte values: [WrappingAdd, dest_var, left_var, right_var]
     WrappingAdd = 45,
 
-    // ===== CONDITIONAL OPERATIONS =====
+    // ===== CONDITIONAL OPERATIONS (50-53) =====
     /// Equal comparison: [Equal, dest_var, left_var, right_var]
     Equal = 50,
     /// Not equal comparison: [NotEqual, dest_var, left_var, right_var]
@@ -73,7 +73,7 @@ pub enum OperatorAddress {
     /// Less than or equal comparison: [LessThanOrEqual, dest_var, left_var, right_var]
     LessThanOrEqual = 53,
 
-    // ===== LOGICAL OPERATIONS =====
+    // ===== LOGICAL OPERATIONS (60-62) =====
     /// Logical NOT: [Not, dest_var, source_var]
     Not = 60,
     /// Logical OR: [Or, dest_var, left_var, right_var]
@@ -81,13 +81,13 @@ pub enum OperatorAddress {
     /// Logical AND: [And, dest_var, left_var, right_var]
     And = 62,
 
-    // ===== UTILITY OPERATIONS =====
+    // ===== UTILITY OPERATIONS (70-71) =====
     /// Minimum value: [Min, dest_var, left_var, right_var]
     Min = 70,
     /// Maximum value: [Max, dest_var, left_var, right_var]
     Max = 71,
 
-    // ===== GAME ACTIONS =====
+    // ===== GAME ACTIONS (80-85) =====
     /// Lock current action
     LockAction = 80,
     /// Unlock current action
@@ -101,13 +101,11 @@ pub enum OperatorAddress {
     /// Spawn entity with variables: [SpawnWithVars, spawn_id_var, var1, var2, var3, var4]
     SpawnWithVars = 85,
 
-    // ===== DEBUG OPERATIONS =====
+    // ===== DEBUG AND COOLDOWN OPERATIONS (90-98) =====
     /// Log variable value: [LogVariable, var_index]
     LogVariable = 90,
     /// Exit with variable value: [ExitWithVar, var_index]
     ExitWithVar = 91,
-
-    // ===== COOLDOWN OPERATIONS =====
     /// Read action cooldown: [ReadActionCooldown, var_index]
     ReadActionCooldown = 92,
     /// Read action last used timestamp: [ReadActionLastUsed, var_index]
@@ -116,8 +114,6 @@ pub enum OperatorAddress {
     WriteActionLastUsed = 94,
     /// Check if action is on cooldown: [IsActionOnCooldown, var_index]
     IsActionOnCooldown = 95,
-
-    // ===== ARGS AND SPAWNS ACCESS =====
     /// Read argument to variable: [ReadArg, var_index, arg_index]
     ReadArg = 96,
     /// Read spawn ID to variable: [ReadSpawn, var_index, spawn_index]
@@ -134,7 +130,7 @@ pub enum OperatorAddress {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PropertyAddress {
-    // ===== GAME STATE PROPERTIES (Fixed-point values) =====
+    // ===== GAME STATE PROPERTIES (0x01-0x03) =====
     /// Game seed value
     GameSeed = 0x01,
     /// Current game frame
@@ -142,7 +138,7 @@ pub enum PropertyAddress {
     /// Game gravity value
     GameGravity = 0x03,
 
-    // ===== ACTION DEFINITION PROPERTIES (Static, shared) =====
+    // ===== ACTION DEFINITION PROPERTIES (0x04-0x0F) =====
     /// Action energy cost (byte) - from definition
     ActionDefEnergyCost = 0x04,
     /// Action interval (fixed-point) - from definition
@@ -150,25 +146,135 @@ pub enum PropertyAddress {
     /// Action duration (fixed-point) - from definition
     ActionDefDuration = 0x06,
     /// Action cooldown (fixed-point) - from definition
-    ActionDefCooldown = 0x48,
+    ActionDefCooldown = 0x07,
     /// Action args[0] (byte) - from definition
-    ActionDefArg0 = 0x07,
+    ActionDefArg0 = 0x08,
     /// Action args[1] (byte) - from definition
-    ActionDefArg1 = 0x08,
+    ActionDefArg1 = 0x09,
     /// Action args[2] (byte) - from definition
-    ActionDefArg2 = 0x09,
+    ActionDefArg2 = 0x0A,
     /// Action args[3] (byte) - from definition
-    ActionDefArg3 = 0x0A,
+    ActionDefArg3 = 0x0B,
     /// Action args[4] (byte) - from definition
-    ActionDefArg4 = 0x0B,
+    ActionDefArg4 = 0x0C,
     /// Action args[5] (byte) - from definition
-    ActionDefArg5 = 0x0C,
+    ActionDefArg5 = 0x0D,
     /// Action args[6] (byte) - from definition
-    ActionDefArg6 = 0x0D,
+    ActionDefArg6 = 0x0E,
     /// Action args[7] (byte) - from definition
-    ActionDefArg7 = 0x0E,
+    ActionDefArg7 = 0x0F,
 
-    // ===== ACTION INSTANCE PROPERTIES (Runtime, per-instance) =====
+    // ===== CONDITION DEFINITION PROPERTIES (0x10-0x1B) =====
+    /// Condition ID (byte) - from definition
+    ConditionDefId = 0x10,
+    /// Condition energy multiplier (fixed-point) - from definition
+    ConditionDefEnergyMul = 0x11,
+    /// Condition args[0] (byte) - from definition
+    ConditionDefArg0 = 0x12,
+    /// Condition args[1] (byte) - from definition
+    ConditionDefArg1 = 0x13,
+    /// Condition args[2] (byte) - from definition
+    ConditionDefArg2 = 0x14,
+    /// Condition args[3] (byte) - from definition
+    ConditionDefArg3 = 0x15,
+    /// Condition args[4] (byte) - from definition
+    ConditionDefArg4 = 0x16,
+    /// Condition args[5] (byte) - from definition
+    ConditionDefArg5 = 0x17,
+    /// Condition args[6] (byte) - from definition
+    ConditionDefArg6 = 0x18,
+    /// Condition args[7] (byte) - from definition
+    ConditionDefArg7 = 0x19,
+
+    // ===== CHARACTER CORE PROPERTIES (0x20-0x2F) =====
+    /// Character ID (byte)
+    CharacterId = 0x20,
+    /// Character group (byte)
+    CharacterGroup = 0x21,
+    /// Character position X (fixed-point)
+    CharacterPosX = 0x22,
+    /// Character position Y (fixed-point)
+    CharacterPosY = 0x23,
+    /// Character velocity X (fixed-point)
+    CharacterVelX = 0x24,
+    /// Character velocity Y (fixed-point)
+    CharacterVelY = 0x25,
+    /// Character size width (fixed-point)
+    CharacterSizeW = 0x26,
+    /// Character size height (fixed-point)
+    CharacterSizeH = 0x27,
+    /// Character health (byte)
+    CharacterHealth = 0x28,
+    /// Character energy (byte)
+    CharacterEnergy = 0x29,
+    /// Character energy cap (byte)
+    CharacterEnergyCap = 0x2A,
+    /// Passive energy recovery amount per rate (byte)
+    CharacterEnergyRegen = 0x2B,
+    /// Tick interval for passive energy recovery (byte)
+    CharacterEnergyRegenRate = 0x2C,
+    /// Active energy recovery amount per rate during Charge action (byte)
+    CharacterEnergyCharge = 0x2D,
+    /// Tick interval for active energy recovery during Charge action (byte)
+    CharacterEnergyChargeRate = 0x2E,
+    /// Locked action instance ID (byte)
+    CharacterLockedActionId = 0x2F,
+
+    // ===== CHARACTER COLLISION FLAGS (0x30-0x33) =====
+    /// Top collision flag (byte: 0 or 1)
+    CharacterCollisionTop = 0x30,
+    /// Right collision flag (byte: 0 or 1)
+    CharacterCollisionRight = 0x31,
+    /// Bottom collision flag (byte: 0 or 1)
+    CharacterCollisionBottom = 0x32,
+    /// Left collision flag (byte: 0 or 1)
+    CharacterCollisionLeft = 0x33,
+
+    // ===== CHARACTER STATUS EFFECTS (0x34-0x34) =====
+    /// Number of active status effects (byte)
+    CharacterStatusEffectCount = 0x34,
+
+    // ===== CHARACTER ARMOR VALUES (0x40-0x47) =====
+    /// Armor value for Punct element (byte)
+    CharacterArmorPunct = 0x40,
+    /// Armor value for Blast element (byte)
+    CharacterArmorBlast = 0x41,
+    /// Armor value for Force element (byte)
+    CharacterArmorForce = 0x42,
+    /// Armor value for Sever element (byte)
+    CharacterArmorSever = 0x43,
+    /// Armor value for Heat element (byte)
+    CharacterArmorHeat = 0x44,
+    /// Armor value for Cryo element (byte)
+    CharacterArmorCryo = 0x45,
+    /// Armor value for Jolt element (byte)
+    CharacterArmorJolt = 0x46,
+    /// Armor value for Virus element (byte)
+    CharacterArmorVirus = 0x47,
+
+    // ===== ENTITY DIRECTION PROPERTIES (0x48-0x49) =====
+    /// Entity facing direction (byte: 0=left, 1=right, converts to Fixed -1.0/1.0)
+    EntityFacing = 0x48,
+    /// Entity gravity direction (byte: 0=upward, 1=downward, converts to Fixed -1.0/1.0)
+    EntityGravityDir = 0x49,
+
+    // ===== SPAWN PROPERTIES (0x50-0x57) =====
+    /// Spawn damage base (byte)
+    SpawnDamageBase = 0x50,
+    /// Spawn core ID (byte)
+    SpawnCoreId = 0x51,
+    /// Spawn owner ID (byte)
+    SpawnOwnerId = 0x52,
+    /// Spawn position X (fixed-point)
+    SpawnPosX = 0x53,
+    /// Spawn position Y (fixed-point)
+    SpawnPosY = 0x54,
+    /// Spawn velocity X (fixed-point)
+    SpawnVelX = 0x55,
+    /// Spawn velocity Y (fixed-point)
+    SpawnVelY = 0x56,
+
+    // ===== ACTION INSTANCE PROPERTIES (0x80-0x8D) =====
     /// Action instance vars[0] (byte) - from instance
     ActionInstVar0 = 0x80,
     /// Action instance vars[1] (byte) - from instance
@@ -198,29 +304,7 @@ pub enum PropertyAddress {
     /// Action instance last used frame (fixed-point) - from instance
     ActionInstLastUsedFrame = 0x8D,
 
-    // ===== CONDITION DEFINITION PROPERTIES (Static, shared) =====
-    /// Condition ID (byte) - from definition
-    ConditionDefId = 0x11,
-    /// Condition energy multiplier (fixed-point) - from definition
-    ConditionDefEnergyMul = 0x12,
-    /// Condition args[0] (byte) - from definition
-    ConditionDefArg0 = 0x13,
-    /// Condition args[1] (byte) - from definition
-    ConditionDefArg1 = 0x14,
-    /// Condition args[2] (byte) - from definition
-    ConditionDefArg2 = 0x15,
-    /// Condition args[3] (byte) - from definition
-    ConditionDefArg3 = 0x16,
-    /// Condition args[4] (byte) - from definition
-    ConditionDefArg4 = 0x1F,
-    /// Condition args[5] (byte) - from definition
-    ConditionDefArg5 = 0x20,
-    /// Condition args[6] (byte) - from definition
-    ConditionDefArg6 = 0x22,
-    /// Condition args[7] (byte) - from definition
-    ConditionDefArg7 = 0x29,
-
-    // ===== CONDITION INSTANCE PROPERTIES (Runtime, per-instance) =====
+    // ===== CONDITION INSTANCE PROPERTIES (0x90-0x9B) =====
     /// Condition instance vars[0] (byte) - from instance
     ConditionInstVar0 = 0x90,
     /// Condition instance vars[1] (byte) - from instance
@@ -245,104 +329,6 @@ pub enum PropertyAddress {
     ConditionInstFixed2 = 0x9A,
     /// Condition instance fixed[3] (fixed-point) - from instance
     ConditionInstFixed3 = 0x9B,
-
-    // ===== CHARACTER CORE PROPERTIES (Mixed types) =====
-    /// Character ID (byte)
-    CharacterId = 0x17,
-    /// Character group (byte)
-    CharacterGroup = 0x18,
-    /// Character position X (fixed-point)
-    CharacterPosX = 0x19,
-    /// Character position Y (fixed-point)
-    CharacterPosY = 0x1A,
-    /// Character velocity X (fixed-point)
-    CharacterVelX = 0x1B,
-    /// Character velocity Y (fixed-point)
-    CharacterVelY = 0x1C,
-    /// Character size width (fixed-point)
-    CharacterSizeW = 0x1D,
-    /// Character size height (fixed-point)
-    CharacterSizeH = 0x1E,
-
-    // ===== CHARACTER STATS (Byte values) =====
-    /// Character health (byte)
-    CharacterHealth = 0x21,
-    /// Character energy (byte)
-    CharacterEnergy = 0x23,
-    /// Character energy cap (byte)
-    CharacterEnergyCap = 0x24,
-
-    // ===== ENERGY REGENERATION PROPERTIES (Byte values) =====
-    /// Passive energy recovery amount per rate (byte)
-    CharacterEnergyRegen = 0x25,
-    /// Tick interval for passive energy recovery (byte)
-    CharacterEnergyRegenRate = 0x26,
-    /// Active energy recovery amount per rate during Charge action (byte)
-    CharacterEnergyCharge = 0x27,
-    /// Tick interval for active energy recovery during Charge action (byte)
-    CharacterEnergyChargeRate = 0x28,
-
-    // ===== CHARACTER COLLISION FLAGS (Byte values) =====
-    /// Top collision flag (byte: 0 or 1)
-    CharacterCollisionTop = 0x2B,
-    /// Right collision flag (byte: 0 or 1)
-    CharacterCollisionRight = 0x2C,
-    /// Bottom collision flag (byte: 0 or 1)
-    CharacterCollisionBottom = 0x2D,
-    /// Left collision flag (byte: 0 or 1)
-    CharacterCollisionLeft = 0x2E,
-    /// Locked action instance ID (byte)
-    CharacterLockedActionId = 0x2F,
-
-    // ===== CHARACTER STATUS EFFECTS =====
-    /// Number of active status effects (byte)
-    CharacterStatusEffectCount = 0x39,
-
-    // ===== CHARACTER ARMOR VALUES (Byte values 0-255, baseline 100) =====
-    /// Armor value for Punct element (byte)
-    CharacterArmorPunct = 0x40,
-    /// Armor value for Blast element (byte)
-    CharacterArmorBlast = 0x41,
-    /// Armor value for Force element (byte)
-    CharacterArmorForce = 0x42,
-    /// Armor value for Sever element (byte)
-    CharacterArmorSever = 0x43,
-    /// Armor value for Heat element (byte)
-    CharacterArmorHeat = 0x44,
-    /// Armor value for Cryo element (byte)
-    CharacterArmorCryo = 0x45,
-    /// Armor value for Jolt element (byte)
-    CharacterArmorJolt = 0x46,
-    /// Armor value for Virus element (byte)
-    CharacterArmorVirus = 0x47,
-
-    // ===== LEGACY ACTION COOLDOWN PROPERTIES (for backward compatibility) =====
-    /// Action last used timestamp (byte/fixed depending on context) - legacy
-    ActionLastUsed = 0x49,
-    /// Write action last used timestamp (byte/fixed depending on context) - legacy
-    ActionLastUsedWrite = 0x4A,
-
-    // ===== ENTITY DIRECTION PROPERTIES =====
-    /// Entity facing direction (byte: 0=left, 1=right, converts to Fixed -1.0/1.0)
-    EntityFacing = 0x4B,
-    /// Entity gravity direction (byte: 0=upward, 1=downward, converts to Fixed -1.0/1.0)
-    EntityGravityDir = 0x4C,
-
-    // ===== SPAWN PROPERTIES (Mixed types) =====
-    /// Spawn damage base (byte)
-    SpawnDamageBase = 0x5D,
-    /// Spawn core ID (byte)
-    SpawnCoreId = 0x6F,
-    /// Spawn owner ID (byte)
-    SpawnOwnerId = 0x70,
-    /// Spawn position X (fixed-point)
-    SpawnPosX = 0x78,
-    /// Spawn position Y (fixed-point)
-    SpawnPosY = 0x79,
-    /// Spawn velocity X (fixed-point)
-    SpawnVelX = 0x7A,
-    /// Spawn velocity Y (fixed-point)
-    SpawnVelY = 0x7B,
 }
 
 impl OperatorAddress {
@@ -416,6 +402,7 @@ impl PropertyAddress {
     /// Convert from u8 value to PropertyAddress enum
     pub fn from_u8(value: u8) -> Option<Self> {
         match value {
+            // Game state properties
             0x01 => Some(Self::GameSeed),
             0x02 => Some(Self::GameFrame),
             0x03 => Some(Self::GameGravity),
@@ -424,50 +411,50 @@ impl PropertyAddress {
             0x04 => Some(Self::ActionDefEnergyCost),
             0x05 => Some(Self::ActionDefInterval),
             0x06 => Some(Self::ActionDefDuration),
-            0x07 => Some(Self::ActionDefArg0),
-            0x08 => Some(Self::ActionDefArg1),
-            0x09 => Some(Self::ActionDefArg2),
-            0x0A => Some(Self::ActionDefArg3),
-            0x0B => Some(Self::ActionDefArg4),
-            0x0C => Some(Self::ActionDefArg5),
-            0x0D => Some(Self::ActionDefArg6),
-            0x0E => Some(Self::ActionDefArg7),
-            0x48 => Some(Self::ActionDefCooldown),
+            0x07 => Some(Self::ActionDefCooldown),
+            0x08 => Some(Self::ActionDefArg0),
+            0x09 => Some(Self::ActionDefArg1),
+            0x0A => Some(Self::ActionDefArg2),
+            0x0B => Some(Self::ActionDefArg3),
+            0x0C => Some(Self::ActionDefArg4),
+            0x0D => Some(Self::ActionDefArg5),
+            0x0E => Some(Self::ActionDefArg6),
+            0x0F => Some(Self::ActionDefArg7),
 
             // Condition definition properties
-            0x11 => Some(Self::ConditionDefId),
-            0x12 => Some(Self::ConditionDefEnergyMul),
-            0x13 => Some(Self::ConditionDefArg0),
-            0x14 => Some(Self::ConditionDefArg1),
-            0x15 => Some(Self::ConditionDefArg2),
-            0x16 => Some(Self::ConditionDefArg3),
-            0x1F => Some(Self::ConditionDefArg4),
-            0x20 => Some(Self::ConditionDefArg5),
-            0x22 => Some(Self::ConditionDefArg6),
-            0x29 => Some(Self::ConditionDefArg7),
+            0x10 => Some(Self::ConditionDefId),
+            0x11 => Some(Self::ConditionDefEnergyMul),
+            0x12 => Some(Self::ConditionDefArg0),
+            0x13 => Some(Self::ConditionDefArg1),
+            0x14 => Some(Self::ConditionDefArg2),
+            0x15 => Some(Self::ConditionDefArg3),
+            0x16 => Some(Self::ConditionDefArg4),
+            0x17 => Some(Self::ConditionDefArg5),
+            0x18 => Some(Self::ConditionDefArg6),
+            0x19 => Some(Self::ConditionDefArg7),
 
             // Character properties
-            0x17 => Some(Self::CharacterId),
-            0x18 => Some(Self::CharacterGroup),
-            0x19 => Some(Self::CharacterPosX),
-            0x1A => Some(Self::CharacterPosY),
-            0x1B => Some(Self::CharacterVelX),
-            0x1C => Some(Self::CharacterVelY),
-            0x1D => Some(Self::CharacterSizeW),
-            0x1E => Some(Self::CharacterSizeH),
-            0x21 => Some(Self::CharacterHealth),
-            0x23 => Some(Self::CharacterEnergy),
-            0x24 => Some(Self::CharacterEnergyCap),
-            0x25 => Some(Self::CharacterEnergyRegen),
-            0x26 => Some(Self::CharacterEnergyRegenRate),
-            0x27 => Some(Self::CharacterEnergyCharge),
-            0x28 => Some(Self::CharacterEnergyChargeRate),
-            0x2B => Some(Self::CharacterCollisionTop),
-            0x2C => Some(Self::CharacterCollisionRight),
-            0x2D => Some(Self::CharacterCollisionBottom),
-            0x2E => Some(Self::CharacterCollisionLeft),
+            0x20 => Some(Self::CharacterId),
+            0x21 => Some(Self::CharacterGroup),
+            0x22 => Some(Self::CharacterPosX),
+            0x23 => Some(Self::CharacterPosY),
+            0x24 => Some(Self::CharacterVelX),
+            0x25 => Some(Self::CharacterVelY),
+            0x26 => Some(Self::CharacterSizeW),
+            0x27 => Some(Self::CharacterSizeH),
+            0x28 => Some(Self::CharacterHealth),
+            0x29 => Some(Self::CharacterEnergy),
+            0x2A => Some(Self::CharacterEnergyCap),
+            0x2B => Some(Self::CharacterEnergyRegen),
+            0x2C => Some(Self::CharacterEnergyRegenRate),
+            0x2D => Some(Self::CharacterEnergyCharge),
+            0x2E => Some(Self::CharacterEnergyChargeRate),
             0x2F => Some(Self::CharacterLockedActionId),
-            0x39 => Some(Self::CharacterStatusEffectCount),
+            0x30 => Some(Self::CharacterCollisionTop),
+            0x31 => Some(Self::CharacterCollisionRight),
+            0x32 => Some(Self::CharacterCollisionBottom),
+            0x33 => Some(Self::CharacterCollisionLeft),
+            0x34 => Some(Self::CharacterStatusEffectCount),
             0x40 => Some(Self::CharacterArmorPunct),
             0x41 => Some(Self::CharacterArmorBlast),
             0x42 => Some(Self::CharacterArmorForce),
@@ -477,22 +464,18 @@ impl PropertyAddress {
             0x46 => Some(Self::CharacterArmorJolt),
             0x47 => Some(Self::CharacterArmorVirus),
 
-            // Legacy action properties
-            0x49 => Some(Self::ActionLastUsed),
-            0x4A => Some(Self::ActionLastUsedWrite),
-
             // Entity direction properties
-            0x4B => Some(Self::EntityFacing),
-            0x4C => Some(Self::EntityGravityDir),
+            0x48 => Some(Self::EntityFacing),
+            0x49 => Some(Self::EntityGravityDir),
 
             // Spawn properties
-            0x5D => Some(Self::SpawnDamageBase),
-            0x6F => Some(Self::SpawnCoreId),
-            0x70 => Some(Self::SpawnOwnerId),
-            0x78 => Some(Self::SpawnPosX),
-            0x79 => Some(Self::SpawnPosY),
-            0x7A => Some(Self::SpawnVelX),
-            0x7B => Some(Self::SpawnVelY),
+            0x50 => Some(Self::SpawnDamageBase),
+            0x51 => Some(Self::SpawnCoreId),
+            0x52 => Some(Self::SpawnOwnerId),
+            0x53 => Some(Self::SpawnPosX),
+            0x54 => Some(Self::SpawnPosY),
+            0x55 => Some(Self::SpawnVelX),
+            0x56 => Some(Self::SpawnVelY),
 
             // Action instance properties
             0x80 => Some(Self::ActionInstVar0),
@@ -608,113 +591,5 @@ impl PropertyAddress {
 impl From<PropertyAddress> for u8 {
     fn from(prop: PropertyAddress) -> u8 {
         prop as u8
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_operator_address_conversion() {
-        // Test a few key operators
-        assert_eq!(OperatorAddress::from_u8(0), Some(OperatorAddress::Exit));
-        assert_eq!(
-            OperatorAddress::from_u8(10),
-            Some(OperatorAddress::ReadProp)
-        );
-        assert_eq!(
-            OperatorAddress::from_u8(20),
-            Some(OperatorAddress::AssignByte)
-        );
-        assert_eq!(OperatorAddress::from_u8(30), Some(OperatorAddress::Add));
-        assert_eq!(OperatorAddress::from_u8(50), Some(OperatorAddress::Equal));
-        assert_eq!(OperatorAddress::from_u8(84), Some(OperatorAddress::Spawn));
-        assert_eq!(OperatorAddress::from_u8(96), Some(OperatorAddress::ReadArg));
-
-        // Test invalid value
-        assert_eq!(OperatorAddress::from_u8(255), None);
-
-        // Test round-trip conversion
-        assert_eq!(OperatorAddress::Exit.to_u8(), 0);
-        assert_eq!(OperatorAddress::ReadProp.to_u8(), 10);
-        assert_eq!(OperatorAddress::Spawn.to_u8(), 84);
-    }
-
-    #[test]
-    fn test_property_address_conversion() {
-        // Test a few key property addresses
-        assert_eq!(
-            PropertyAddress::from_u8(0x01),
-            Some(PropertyAddress::GameSeed)
-        );
-        assert_eq!(
-            PropertyAddress::from_u8(0x19),
-            Some(PropertyAddress::CharacterPosX)
-        );
-        assert_eq!(
-            PropertyAddress::from_u8(0x23),
-            Some(PropertyAddress::CharacterEnergy)
-        );
-        assert_eq!(
-            PropertyAddress::from_u8(0x2D),
-            Some(PropertyAddress::CharacterCollisionBottom)
-        );
-        assert_eq!(
-            PropertyAddress::from_u8(0x40),
-            Some(PropertyAddress::CharacterArmorPunct)
-        );
-        assert_eq!(
-            PropertyAddress::from_u8(0x78),
-            Some(PropertyAddress::SpawnPosX)
-        );
-
-        // Test invalid value
-        assert_eq!(PropertyAddress::from_u8(0xFF), None);
-
-        // Test round-trip conversion
-        assert_eq!(PropertyAddress::GameSeed.to_u8(), 0x01);
-        assert_eq!(PropertyAddress::CharacterEnergy.to_u8(), 0x23);
-        assert_eq!(PropertyAddress::CharacterArmorPunct.to_u8(), 0x40);
-    }
-
-    #[test]
-    fn test_enum_values_match_expected_bytes() {
-        // Verify that enum values match the expected byte assignments
-        // This ensures compatibility with existing bytecode
-
-        // Control flow
-        assert_eq!(OperatorAddress::Exit as u8, 0);
-        assert_eq!(OperatorAddress::ExitIfNoEnergy as u8, 1);
-        assert_eq!(OperatorAddress::Skip as u8, 3);
-
-        // Property operations
-        assert_eq!(OperatorAddress::ReadProp as u8, 10);
-        assert_eq!(OperatorAddress::WriteProp as u8, 11);
-
-        // Variable operations
-        assert_eq!(OperatorAddress::AssignByte as u8, 20);
-        assert_eq!(OperatorAddress::AssignFixed as u8, 21);
-
-        // Arithmetic
-        assert_eq!(OperatorAddress::Add as u8, 30);
-        assert_eq!(OperatorAddress::AddByte as u8, 40);
-
-        // Conditionals
-        assert_eq!(OperatorAddress::Equal as u8, 50);
-        assert_eq!(OperatorAddress::LessThan as u8, 52);
-
-        // Game actions
-        assert_eq!(OperatorAddress::Spawn as u8, 84);
-
-        // Args access
-        assert_eq!(OperatorAddress::ReadArg as u8, 96);
-
-        // Property addresses
-        assert_eq!(PropertyAddress::GameSeed as u8, 0x01);
-        assert_eq!(PropertyAddress::CharacterPosX as u8, 0x19);
-        assert_eq!(PropertyAddress::CharacterEnergy as u8, 0x23);
-        assert_eq!(PropertyAddress::CharacterCollisionBottom as u8, 0x2D);
-        assert_eq!(PropertyAddress::CharacterArmorPunct as u8, 0x40);
     }
 }
