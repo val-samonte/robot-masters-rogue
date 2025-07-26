@@ -46,7 +46,7 @@
   - Update all tests to reflect that variables are instance-specific, not definition-specific across all components
   - _Requirements: 5.2, 5.3_
 
-- [ ] 6. Update property accessors to handle definition vs instance properties
+- [x] 6. Update property accessors to handle definition vs instance properties
 
   - Modify PropertyAddress enum to distinguish between definition and instance properties for all component types (Action, Condition, StatusEffect, Spawn)
   - Update property accessor methods to resolve definition properties via definition ID lookup for all components

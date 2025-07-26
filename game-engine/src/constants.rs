@@ -186,6 +186,38 @@ pub enum PropertyAddress {
     /// Condition args[7] (byte) - from definition
     ConditionDefArg7 = 0x19,
 
+    // ===== STATUS EFFECT DEFINITION PROPERTIES (0x1A-0x1F) =====
+    /// Status effect duration (fixed-point) - from definition
+    StatusEffectDefDuration = 0x1A,
+    /// Status effect stack limit (byte) - from definition
+    StatusEffectDefStackLimit = 0x1B,
+    /// Status effect reset on stack flag (byte) - from definition
+    StatusEffectDefResetOnStack = 0x1C,
+    /// Status effect args[0] (byte) - from definition
+    StatusEffectDefArg0 = 0x1D,
+    /// Status effect args[1] (byte) - from definition
+    StatusEffectDefArg1 = 0x1E,
+    /// Status effect args[2] (byte) - from definition
+    StatusEffectDefArg2 = 0x1F,
+
+    // ===== SPAWN DEFINITION PROPERTIES (0x58-0x5F) =====
+    /// Spawn definition damage base (byte) - from definition
+    SpawnDefDamageBase = 0x58,
+    /// Spawn definition health cap (byte) - from definition
+    SpawnDefHealthCap = 0x59,
+    /// Spawn definition duration (fixed-point) - from definition
+    SpawnDefDuration = 0x5A,
+    /// Spawn definition element (byte) - from definition
+    SpawnDefElement = 0x5B,
+    /// Spawn definition args[0] (byte) - from definition
+    SpawnDefArg0 = 0x5C,
+    /// Spawn definition args[1] (byte) - from definition
+    SpawnDefArg1 = 0x5D,
+    /// Spawn definition args[2] (byte) - from definition
+    SpawnDefArg2 = 0x5E,
+    /// Spawn definition args[3] (byte) - from definition
+    SpawnDefArg3 = 0x5F,
+
     // ===== CHARACTER CORE PROPERTIES (0x20-0x2F) =====
     /// Character ID (byte)
     CharacterId = 0x20,
@@ -329,6 +361,50 @@ pub enum PropertyAddress {
     ConditionInstFixed2 = 0x9A,
     /// Condition instance fixed[3] (fixed-point) - from instance
     ConditionInstFixed3 = 0x9B,
+
+    // ===== STATUS EFFECT INSTANCE PROPERTIES (0xA0-0xAB) =====
+    /// Status effect instance vars[0] (byte) - from instance
+    StatusEffectInstVar0 = 0xA0,
+    /// Status effect instance vars[1] (byte) - from instance
+    StatusEffectInstVar1 = 0xA1,
+    /// Status effect instance vars[2] (byte) - from instance
+    StatusEffectInstVar2 = 0xA2,
+    /// Status effect instance vars[3] (byte) - from instance
+    StatusEffectInstVar3 = 0xA3,
+    /// Status effect instance fixed[0] (fixed-point) - from instance
+    StatusEffectInstFixed0 = 0xA4,
+    /// Status effect instance fixed[1] (fixed-point) - from instance
+    StatusEffectInstFixed1 = 0xA5,
+    /// Status effect instance fixed[2] (fixed-point) - from instance
+    StatusEffectInstFixed2 = 0xA6,
+    /// Status effect instance fixed[3] (fixed-point) - from instance
+    StatusEffectInstFixed3 = 0xA7,
+    /// Status effect instance remaining duration (fixed-point) - from instance
+    StatusEffectInstRemainingDuration = 0xA8,
+    /// Status effect instance stack count (byte) - from instance
+    StatusEffectInstStackCount = 0xA9,
+
+    // ===== SPAWN INSTANCE PROPERTIES (0xB0-0xBB) =====
+    /// Spawn instance vars[0] (byte) - from instance
+    SpawnInstVar0 = 0xB0,
+    /// Spawn instance vars[1] (byte) - from instance
+    SpawnInstVar1 = 0xB1,
+    /// Spawn instance vars[2] (byte) - from instance
+    SpawnInstVar2 = 0xB2,
+    /// Spawn instance vars[3] (byte) - from instance
+    SpawnInstVar3 = 0xB3,
+    /// Spawn instance fixed[0] (fixed-point) - from instance
+    SpawnInstFixed0 = 0xB4,
+    /// Spawn instance fixed[1] (fixed-point) - from instance
+    SpawnInstFixed1 = 0xB5,
+    /// Spawn instance fixed[2] (fixed-point) - from instance
+    SpawnInstFixed2 = 0xB6,
+    /// Spawn instance fixed[3] (fixed-point) - from instance
+    SpawnInstFixed3 = 0xB7,
+    /// Spawn instance lifespan (fixed-point) - from instance
+    SpawnInstLifespan = 0xB8,
+    /// Spawn instance element (byte) - from instance
+    SpawnInstElement = 0xB9,
 }
 
 impl OperatorAddress {
@@ -433,6 +509,24 @@ impl PropertyAddress {
             0x18 => Some(Self::ConditionDefArg6),
             0x19 => Some(Self::ConditionDefArg7),
 
+            // Status effect definition properties
+            0x1A => Some(Self::StatusEffectDefDuration),
+            0x1B => Some(Self::StatusEffectDefStackLimit),
+            0x1C => Some(Self::StatusEffectDefResetOnStack),
+            0x1D => Some(Self::StatusEffectDefArg0),
+            0x1E => Some(Self::StatusEffectDefArg1),
+            0x1F => Some(Self::StatusEffectDefArg2),
+
+            // Spawn definition properties
+            0x58 => Some(Self::SpawnDefDamageBase),
+            0x59 => Some(Self::SpawnDefHealthCap),
+            0x5A => Some(Self::SpawnDefDuration),
+            0x5B => Some(Self::SpawnDefElement),
+            0x5C => Some(Self::SpawnDefArg0),
+            0x5D => Some(Self::SpawnDefArg1),
+            0x5E => Some(Self::SpawnDefArg2),
+            0x5F => Some(Self::SpawnDefArg3),
+
             // Character properties
             0x20 => Some(Self::CharacterId),
             0x21 => Some(Self::CharacterGroup),
@@ -507,6 +601,30 @@ impl PropertyAddress {
             0x9A => Some(Self::ConditionInstFixed2),
             0x9B => Some(Self::ConditionInstFixed3),
 
+            // Status effect instance properties
+            0xA0 => Some(Self::StatusEffectInstVar0),
+            0xA1 => Some(Self::StatusEffectInstVar1),
+            0xA2 => Some(Self::StatusEffectInstVar2),
+            0xA3 => Some(Self::StatusEffectInstVar3),
+            0xA4 => Some(Self::StatusEffectInstFixed0),
+            0xA5 => Some(Self::StatusEffectInstFixed1),
+            0xA6 => Some(Self::StatusEffectInstFixed2),
+            0xA7 => Some(Self::StatusEffectInstFixed3),
+            0xA8 => Some(Self::StatusEffectInstRemainingDuration),
+            0xA9 => Some(Self::StatusEffectInstStackCount),
+
+            // Spawn instance properties
+            0xB0 => Some(Self::SpawnInstVar0),
+            0xB1 => Some(Self::SpawnInstVar1),
+            0xB2 => Some(Self::SpawnInstVar2),
+            0xB3 => Some(Self::SpawnInstVar3),
+            0xB4 => Some(Self::SpawnInstFixed0),
+            0xB5 => Some(Self::SpawnInstFixed1),
+            0xB6 => Some(Self::SpawnInstFixed2),
+            0xB7 => Some(Self::SpawnInstFixed3),
+            0xB8 => Some(Self::SpawnInstLifespan),
+            0xB9 => Some(Self::SpawnInstElement),
+
             _ => None,
         }
     }
@@ -528,7 +646,15 @@ impl PropertyAddress {
             Self::ConditionDefId | Self::ConditionDefEnergyMul | Self::ConditionDefArg0 |
             Self::ConditionDefArg1 | Self::ConditionDefArg2 | Self::ConditionDefArg3 |
             Self::ConditionDefArg4 | Self::ConditionDefArg5 | Self::ConditionDefArg6 |
-            Self::ConditionDefArg7 => true,
+            Self::ConditionDefArg7 |
+            // Status effect definition properties
+            Self::StatusEffectDefDuration | Self::StatusEffectDefStackLimit |
+            Self::StatusEffectDefResetOnStack | Self::StatusEffectDefArg0 |
+            Self::StatusEffectDefArg1 | Self::StatusEffectDefArg2 |
+            // Spawn definition properties
+            Self::SpawnDefDamageBase | Self::SpawnDefHealthCap | Self::SpawnDefDuration |
+            Self::SpawnDefElement | Self::SpawnDefArg0 | Self::SpawnDefArg1 |
+            Self::SpawnDefArg2 | Self::SpawnDefArg3 => true,
             _ => false,
         }
     }
@@ -546,7 +672,17 @@ impl PropertyAddress {
             Self::ConditionInstVar0 | Self::ConditionInstVar1 | Self::ConditionInstVar2 |
             Self::ConditionInstVar3 | Self::ConditionInstVar4 | Self::ConditionInstVar5 |
             Self::ConditionInstVar6 | Self::ConditionInstVar7 | Self::ConditionInstFixed0 |
-            Self::ConditionInstFixed1 | Self::ConditionInstFixed2 | Self::ConditionInstFixed3 => true,
+            Self::ConditionInstFixed1 | Self::ConditionInstFixed2 | Self::ConditionInstFixed3 |
+            // Status effect instance properties
+            Self::StatusEffectInstVar0 | Self::StatusEffectInstVar1 | Self::StatusEffectInstVar2 |
+            Self::StatusEffectInstVar3 | Self::StatusEffectInstFixed0 | Self::StatusEffectInstFixed1 |
+            Self::StatusEffectInstFixed2 | Self::StatusEffectInstFixed3 |
+            Self::StatusEffectInstRemainingDuration | Self::StatusEffectInstStackCount |
+            // Spawn instance properties
+            Self::SpawnInstVar0 | Self::SpawnInstVar1 | Self::SpawnInstVar2 |
+            Self::SpawnInstVar3 | Self::SpawnInstFixed0 | Self::SpawnInstFixed1 |
+            Self::SpawnInstFixed2 | Self::SpawnInstFixed3 | Self::SpawnInstLifespan |
+            Self::SpawnInstElement => true,
             _ => false,
         }
     }

@@ -152,104 +152,224 @@ impl SpawnDefinition {
 
 impl<'a> ScriptContext for SpawnBehaviorContext<'a> {
     fn read_property(&mut self, engine: &mut ScriptEngine, var_index: usize, prop_address: u8) {
-        match prop_address {
-            0x01 => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = Fixed::from_int(self.game_state.seed as i16);
-                }
-            }
-            0x78 => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.spawn_instance.core.pos.0;
-                }
-            }
-            0x79 => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.spawn_instance.core.pos.1;
-                }
-            }
-            0x7A => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.spawn_instance.core.vel.0;
-                }
-            }
-            0x7B => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.spawn_instance.core.vel.1;
-                }
-            }
-            0x6F => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.spawn_instance.core.id;
-                }
-            }
-            0x70 => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.spawn_instance.owner_id;
-                }
-            }
-            0x5D => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.spawn_def.damage_base;
-                }
-            }
+        use crate::constants::PropertyAddress;
 
-            // Entity direction properties (0x4B-0x4C)
-            0x4B => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.spawn_instance.core.get_facing();
+        if let Some(property) = PropertyAddress::from_u8(prop_address) {
+            match property {
+                // Game state properties
+                PropertyAddress::GameSeed => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = Fixed::from_int(self.game_state.seed as i16);
+                    }
                 }
-            }
-            0x4C => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.spawn_instance.core.get_gravity_dir();
-                }
-            }
 
-            // Note: Energy regeneration properties (0x25-0x28) and armor properties (0x40-0x47)
-            // are not available in spawn context as spawns don't have direct access to character data
-            _ => {}
+                // Spawn definition properties (read from definition)
+                PropertyAddress::SpawnDefDamageBase => {
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = self.spawn_def.damage_base;
+                    }
+                }
+                PropertyAddress::SpawnDefHealthCap => {
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = self.spawn_def.health_cap;
+                    }
+                }
+                PropertyAddress::SpawnDefDuration => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = Fixed::from_int(self.spawn_def.duration as i16);
+                    }
+                }
+                PropertyAddress::SpawnDefElement => {
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = self.spawn_def.element.map_or(255, |e| e as u8);
+                    }
+                }
+                PropertyAddress::SpawnDefArg0
+                | PropertyAddress::SpawnDefArg1
+                | PropertyAddress::SpawnDefArg2
+                | PropertyAddress::SpawnDefArg3 => {
+                    if var_index < engine.vars.len() {
+                        let arg_index =
+                            (prop_address - PropertyAddress::SpawnDefArg0 as u8) as usize;
+                        if arg_index < self.spawn_def.args.len() {
+                            engine.vars[var_index] = self.spawn_def.args[arg_index];
+                        }
+                    }
+                }
+
+                // Spawn instance properties (read from instance)
+                PropertyAddress::SpawnInstVar0
+                | PropertyAddress::SpawnInstVar1
+                | PropertyAddress::SpawnInstVar2
+                | PropertyAddress::SpawnInstVar3 => {
+                    if var_index < engine.vars.len() {
+                        let var_idx =
+                            (prop_address - PropertyAddress::SpawnInstVar0 as u8) as usize;
+                        if var_idx < self.spawn_instance.vars.len() {
+                            engine.vars[var_index] = self.spawn_instance.vars[var_idx];
+                        }
+                    }
+                }
+                PropertyAddress::SpawnInstFixed0
+                | PropertyAddress::SpawnInstFixed1
+                | PropertyAddress::SpawnInstFixed2
+                | PropertyAddress::SpawnInstFixed3 => {
+                    if var_index < engine.fixed.len() {
+                        let fixed_idx =
+                            (prop_address - PropertyAddress::SpawnInstFixed0 as u8) as usize;
+                        if fixed_idx < self.spawn_instance.fixed.len() {
+                            engine.fixed[var_index] = self.spawn_instance.fixed[fixed_idx];
+                        }
+                    }
+                }
+                PropertyAddress::SpawnInstLifespan => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] =
+                            Fixed::from_int(self.spawn_instance.lifespan as i16);
+                    }
+                }
+                PropertyAddress::SpawnInstElement => {
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = self.spawn_instance.element as u8;
+                    }
+                }
+
+                // Spawn core properties
+                PropertyAddress::SpawnCoreId => {
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = self.spawn_instance.core.id;
+                    }
+                }
+                PropertyAddress::SpawnOwnerId => {
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = self.spawn_instance.owner_id;
+                    }
+                }
+                PropertyAddress::SpawnPosX => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = self.spawn_instance.core.pos.0;
+                    }
+                }
+                PropertyAddress::SpawnPosY => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = self.spawn_instance.core.pos.1;
+                    }
+                }
+                PropertyAddress::SpawnVelX => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = self.spawn_instance.core.vel.0;
+                    }
+                }
+                PropertyAddress::SpawnVelY => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = self.spawn_instance.core.vel.1;
+                    }
+                }
+
+                // Entity direction properties
+                PropertyAddress::EntityFacing => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = self.spawn_instance.core.get_facing();
+                    }
+                }
+                PropertyAddress::EntityGravityDir => {
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = self.spawn_instance.core.get_gravity_dir();
+                    }
+                }
+
+                _ => {
+                    // Property not supported in spawn context
+                }
+            }
         }
     }
 
     fn write_property(&mut self, engine: &mut ScriptEngine, prop_address: u8, var_index: usize) {
-        match prop_address {
-            0x78 => {
-                if var_index < engine.fixed.len() {
-                    self.spawn_instance.core.pos.0 = engine.fixed[var_index];
-                }
-            }
-            0x79 => {
-                if var_index < engine.fixed.len() {
-                    self.spawn_instance.core.pos.1 = engine.fixed[var_index];
-                }
-            }
-            0x7A => {
-                if var_index < engine.fixed.len() {
-                    self.spawn_instance.core.vel.0 = engine.fixed[var_index];
-                }
-            }
-            0x7B => {
-                if var_index < engine.fixed.len() {
-                    self.spawn_instance.core.vel.1 = engine.fixed[var_index];
-                }
-            }
+        use crate::constants::PropertyAddress;
 
-            // Entity direction properties (0x4B-0x4C) - write support
-            0x4B => {
-                if var_index < engine.fixed.len() {
-                    self.spawn_instance.core.set_facing(engine.fixed[var_index]);
+        if let Some(property) = PropertyAddress::from_u8(prop_address) {
+            match property {
+                // Spawn instance properties (writable)
+                PropertyAddress::SpawnInstVar0
+                | PropertyAddress::SpawnInstVar1
+                | PropertyAddress::SpawnInstVar2
+                | PropertyAddress::SpawnInstVar3 => {
+                    if var_index < engine.vars.len() {
+                        let var_idx =
+                            (prop_address - PropertyAddress::SpawnInstVar0 as u8) as usize;
+                        if var_idx < self.spawn_instance.vars.len() {
+                            self.spawn_instance.vars[var_idx] = engine.vars[var_index];
+                        }
+                    }
                 }
-            }
-            0x4C => {
-                if var_index < engine.fixed.len() {
-                    self.spawn_instance
-                        .core
-                        .set_gravity_dir(engine.fixed[var_index]);
+                PropertyAddress::SpawnInstFixed0
+                | PropertyAddress::SpawnInstFixed1
+                | PropertyAddress::SpawnInstFixed2
+                | PropertyAddress::SpawnInstFixed3 => {
+                    if var_index < engine.fixed.len() {
+                        let fixed_idx =
+                            (prop_address - PropertyAddress::SpawnInstFixed0 as u8) as usize;
+                        if fixed_idx < self.spawn_instance.fixed.len() {
+                            self.spawn_instance.fixed[fixed_idx] = engine.fixed[var_index];
+                        }
+                    }
                 }
-            }
+                PropertyAddress::SpawnInstLifespan => {
+                    if var_index < engine.fixed.len() {
+                        self.spawn_instance.lifespan = engine.fixed[var_index].to_int() as u16;
+                    }
+                }
+                PropertyAddress::SpawnInstElement => {
+                    if var_index < engine.vars.len() {
+                        if let Some(element) =
+                            crate::entity::Element::from_u8(engine.vars[var_index])
+                        {
+                            self.spawn_instance.element = element;
+                        }
+                    }
+                }
 
-            _ => {}
+                // Spawn core properties (writable)
+                PropertyAddress::SpawnPosX => {
+                    if var_index < engine.fixed.len() {
+                        self.spawn_instance.core.pos.0 = engine.fixed[var_index];
+                    }
+                }
+                PropertyAddress::SpawnPosY => {
+                    if var_index < engine.fixed.len() {
+                        self.spawn_instance.core.pos.1 = engine.fixed[var_index];
+                    }
+                }
+                PropertyAddress::SpawnVelX => {
+                    if var_index < engine.fixed.len() {
+                        self.spawn_instance.core.vel.0 = engine.fixed[var_index];
+                    }
+                }
+                PropertyAddress::SpawnVelY => {
+                    if var_index < engine.fixed.len() {
+                        self.spawn_instance.core.vel.1 = engine.fixed[var_index];
+                    }
+                }
+
+                // Entity direction properties (writable)
+                PropertyAddress::EntityFacing => {
+                    if var_index < engine.fixed.len() {
+                        self.spawn_instance.core.set_facing(engine.fixed[var_index]);
+                    }
+                }
+                PropertyAddress::EntityGravityDir => {
+                    if var_index < engine.fixed.len() {
+                        self.spawn_instance
+                            .core
+                            .set_gravity_dir(engine.fixed[var_index]);
+                    }
+                }
+
+                _ => {
+                    // Property not writable or not supported in spawn context
+                }
+            }
         }
     }
 
