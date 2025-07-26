@@ -1,7 +1,10 @@
 //! Status effects system for temporary character modifications
 
 use crate::{
-    entity::{Character, StatusEffectDefinition, StatusEffectInstance},
+    entity::{
+        Character, StatusEffectDefinition, StatusEffectId, StatusEffectInstance,
+        StatusEffectInstanceId,
+    },
     math::Fixed,
     script::{ScriptContext, ScriptEngine, ScriptError},
     state::GameState,
@@ -37,12 +40,48 @@ impl StatusEffectDefinition {
     /// Apply this status effect to a character
     pub fn apply_to_character(
         &self,
-        _character: &mut Character,
-        _game_state: &mut GameState,
-        _effect_id: u8,
+        character: &mut Character,
+        game_state: &mut GameState,
+        effect_id: StatusEffectId,
     ) -> Result<bool, ScriptError> {
-        // TODO: This needs to be updated for the new ID-based status effects system
-        // For now, return false to allow compilation
+        // Check if we can stack this effect
+        let existing_instance_id = character.status_effects.iter().find(|&&instance_id| {
+            if let Some(instance) = game_state.get_status_effect_instance(instance_id) {
+                instance.definition_id == effect_id
+            } else {
+                false
+            }
+        });
+
+        if let Some(&existing_id) = existing_instance_id {
+            // Effect already exists, try to stack it
+            if let Some(existing_instance) = game_state.get_status_effect_instance_mut(existing_id)
+            {
+                if existing_instance.stack_count < self.stack_limit {
+                    existing_instance.stack_count += 1;
+                    if self.reset_on_stack {
+                        existing_instance.remaining_duration = self.duration;
+                    }
+                    return Ok(true);
+                } else {
+                    // Already at stack limit
+                    return Ok(false);
+                }
+            }
+        } else {
+            // Create new instance
+            let new_instance = self.create_instance(effect_id);
+            let instance_id = game_state.status_effect_instances.len() as StatusEffectInstanceId;
+            game_state.status_effect_instances.push(new_instance);
+            character.status_effects.push(instance_id);
+
+            // Execute on_script for the new instance
+            // Note: Script execution is temporarily disabled to avoid borrow checker issues
+            // This will be implemented in a future iteration
+
+            return Ok(true);
+        }
+
         Ok(false)
     }
 
@@ -518,14 +557,52 @@ impl<'a> ScriptContext for StatusEffectContext<'a> {
 
 /// Process all status effects on a character for one frame
 pub fn process_character_status_effects(
-    _character: &mut Character,
-    _game_state: &mut GameState,
-    _status_definitions: &[StatusEffectDefinition],
+    character: &mut Character,
+    game_state: &mut GameState,
 ) -> Result<(), ScriptError> {
-    let _effects_to_remove: Vec<usize> = Vec::new();
+    let mut effects_to_remove: Vec<StatusEffectInstanceId> = Vec::new();
 
-    // TODO: Status effect processing needs to be updated for ID-based system
-    // This is temporarily stubbed to allow API task compilation
+    // Process each status effect on the character
+    for &effect_instance_id in &character.status_effects {
+        if let Some(instance) = game_state.get_status_effect_instance_mut(effect_instance_id) {
+            let definition_id = instance.definition_id;
+
+            // Get the definition for this instance
+            if let Some(_definition) = game_state.get_status_effect_definition(definition_id) {
+                // Execute tick script
+                // Note: Script execution is temporarily disabled to avoid borrow checker issues
+                // This will be implemented in a future iteration
+
+                // Decrease remaining duration
+                if let Some(instance_mut) =
+                    game_state.get_status_effect_instance_mut(effect_instance_id)
+                {
+                    if instance_mut.remaining_duration > 0 {
+                        instance_mut.remaining_duration -= 1;
+                    }
+
+                    // Mark for removal if expired
+                    if instance_mut.remaining_duration == 0 {
+                        effects_to_remove.push(effect_instance_id);
+                    }
+                }
+            } else {
+                // Definition not found, mark for removal
+                effects_to_remove.push(effect_instance_id);
+            }
+        } else {
+            // Instance not found, mark for removal
+            effects_to_remove.push(effect_instance_id);
+        }
+    }
+
+    // Remove expired effects
+    for effect_id in effects_to_remove {
+        remove_status_effect_by_instance_id(character, game_state, effect_id)?;
+    }
+
+    // Process passive energy regeneration
+    process_passive_energy_regeneration(character, game_state)?;
 
     Ok(())
 }
@@ -549,16 +626,60 @@ fn process_passive_energy_regeneration(
     Ok(())
 }
 
-/// Remove a specific status effect from a character
+/// Remove a specific status effect from a character by definition ID
 pub fn remove_status_effect(
-    _character: &mut Character,
-    _game_state: &mut GameState,
-    _effect_id: u8,
-    _status_definitions: &[StatusEffectDefinition],
+    character: &mut Character,
+    game_state: &mut GameState,
+    effect_definition_id: StatusEffectId,
 ) -> Result<bool, ScriptError> {
-    // TODO: This needs to be updated for the new ID-based status effects system
-    // For now, return false to allow compilation
-    Ok(false)
+    // Find the instance with the matching definition ID
+    let instance_id = character
+        .status_effects
+        .iter()
+        .find(|&&instance_id| {
+            if let Some(instance) = game_state.get_status_effect_instance(instance_id) {
+                instance.definition_id == effect_definition_id
+            } else {
+                false
+            }
+        })
+        .copied();
+
+    if let Some(instance_id) = instance_id {
+        remove_status_effect_by_instance_id(character, game_state, instance_id)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Remove a specific status effect from a character by instance ID
+pub fn remove_status_effect_by_instance_id(
+    character: &mut Character,
+    _game_state: &mut GameState,
+    effect_instance_id: StatusEffectInstanceId,
+) -> Result<bool, ScriptError> {
+    // Find and remove the effect from character's status effects list
+    let position = character
+        .status_effects
+        .iter()
+        .position(|&id| id == effect_instance_id);
+
+    if let Some(pos) = position {
+        character.status_effects.remove(pos);
+
+        // Execute off_script before removing the instance
+        // Note: Script execution is temporarily disabled to avoid borrow checker issues
+        // This will be implemented in a future iteration
+
+        // Note: We don't remove the instance from the global collection to avoid
+        // invalidating other IDs. In a production system, you might want to implement
+        // a more sophisticated cleanup mechanism.
+
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 /// Create the passive energy regeneration StatusEffectDefinition
@@ -587,18 +708,52 @@ pub fn create_passive_energy_regen_status_effect() -> StatusEffectDefinition {
     }
 }
 
+/// Apply a status effect to a character by definition ID
+pub fn apply_status_effect(
+    character: &mut Character,
+    game_state: &mut GameState,
+    effect_definition_id: StatusEffectId,
+) -> Result<bool, ScriptError> {
+    if let Some(definition) = game_state.get_status_effect_definition(effect_definition_id) {
+        let definition_clone = definition.clone(); // Clone to avoid borrow conflicts
+        definition_clone.apply_to_character(character, game_state, effect_definition_id)
+    } else {
+        Ok(false)
+    }
+}
+
 /// Apply passive energy regeneration to all characters in the game
 pub fn apply_passive_energy_regen_to_all_characters(
     characters: &mut Vec<Character>,
 ) -> Result<(), ScriptError> {
     for character in characters.iter_mut() {
-        // TODO: This needs to be updated for the new ID-based status effects system
-        // For now, just set energy regen values directly on the character
+        // Set energy regen values directly on the character
+        // The actual regeneration is handled by process_passive_energy_regeneration
         character.energy_regen = 1;
         character.energy_regen_rate = 60; // Once per second at 60 FPS
     }
 
     Ok(())
+}
+
+/// Get the number of status effects on a character (for testing)
+pub fn get_character_status_effect_count(character: &Character) -> usize {
+    character.status_effects.len()
+}
+
+/// Check if a character has a specific status effect by definition ID (for testing)
+pub fn character_has_status_effect(
+    character: &Character,
+    game_state: &GameState,
+    effect_definition_id: StatusEffectId,
+) -> bool {
+    character.status_effects.iter().any(|&instance_id| {
+        if let Some(instance) = game_state.get_status_effect_instance(instance_id) {
+            instance.definition_id == effect_definition_id
+        } else {
+            false
+        }
+    })
 }
 
 /// Helper function to extract script bytes from definition

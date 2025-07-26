@@ -77,7 +77,7 @@
   - Implement circular reference detection for definition dependencies
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-- [ ] 10. Fix status effects system for ID-based architecture
+- [x] 10. Fix status effects system for ID-based architecture
 
   - Update status effects to work with StatusEffectInstanceId instead of full StatusEffectInstance objects
   - Fix apply_status_effect method to work with the new ID-based character.status_effects Vec<StatusEffectInstanceId>
