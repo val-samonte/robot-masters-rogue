@@ -152,353 +152,344 @@ impl StatusEffectDefinition {
     }
 }
 
-impl<'a> ScriptContext for StatusEffectContext<'a> {
+impl ScriptContext for StatusEffectContext<'_> {
     fn read_property(&mut self, engine: &mut ScriptEngine, var_index: usize, prop_address: u8) {
-        use crate::constants::PropertyAddress;
+        use crate::constants::property_address;
 
-        if let Some(property) = PropertyAddress::from_u8(prop_address) {
-            match property {
-                // Game state properties
-                PropertyAddress::GameSeed => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = Fixed::from_int(self.game_state.seed as i16);
-                    }
-                }
-                PropertyAddress::GameFrame => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = Fixed::from_int(self.game_state.frame as i16);
-                    }
-                }
-
-                // Character properties
-                PropertyAddress::CharacterId => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.core.id;
-                    }
-                }
-                PropertyAddress::CharacterGroup => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.core.group;
-                    }
-                }
-                PropertyAddress::CharacterPosX => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.character.core.pos.0;
-                    }
-                }
-                PropertyAddress::CharacterPosY => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.character.core.pos.1;
-                    }
-                }
-                PropertyAddress::CharacterVelX => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.character.core.vel.0;
-                    }
-                }
-                PropertyAddress::CharacterVelY => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.character.core.vel.1;
-                    }
-                }
-                PropertyAddress::CharacterHealth => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.health;
-                    }
-                }
-                PropertyAddress::CharacterEnergy => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.energy;
-                    }
-                }
-                PropertyAddress::CharacterEnergyRegen => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.energy_regen;
-                    }
-                }
-                PropertyAddress::CharacterEnergyRegenRate => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.energy_regen_rate;
-                    }
-                }
-                PropertyAddress::CharacterEnergyCharge => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.energy_charge;
-                    }
-                }
-                PropertyAddress::CharacterEnergyChargeRate => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.energy_charge_rate;
-                    }
-                }
-
-                // Character armor properties
-                PropertyAddress::CharacterArmorPunct => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.armor[0];
-                    }
-                }
-                PropertyAddress::CharacterArmorBlast => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.armor[1];
-                    }
-                }
-                PropertyAddress::CharacterArmorForce => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.armor[2];
-                    }
-                }
-                PropertyAddress::CharacterArmorSever => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.armor[3];
-                    }
-                }
-                PropertyAddress::CharacterArmorHeat => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.armor[4];
-                    }
-                }
-                PropertyAddress::CharacterArmorCryo => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.armor[5];
-                    }
-                }
-                PropertyAddress::CharacterArmorJolt => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.armor[6];
-                    }
-                }
-                PropertyAddress::CharacterArmorVirus => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.character.armor[7];
-                    }
-                }
-
-                // Status effect definition properties
-                PropertyAddress::StatusEffectDefDuration => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = Fixed::from_int(self.status_def.duration as i16);
-                    }
-                }
-                PropertyAddress::StatusEffectDefStackLimit => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.status_def.stack_limit;
-                    }
-                }
-                PropertyAddress::StatusEffectDefResetOnStack => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = if self.status_def.reset_on_stack { 1 } else { 0 };
-                    }
-                }
-                PropertyAddress::StatusEffectDefArg0
-                | PropertyAddress::StatusEffectDefArg1
-                | PropertyAddress::StatusEffectDefArg2 => {
-                    if var_index < engine.vars.len() {
-                        let arg_index =
-                            (prop_address - PropertyAddress::StatusEffectDefArg0 as u8) as usize;
-                        if arg_index < self.status_def.args.len() {
-                            engine.vars[var_index] = self.status_def.args[arg_index];
-                        }
-                    }
-                }
-
-                // Status effect instance properties
-                PropertyAddress::StatusEffectInstVar0
-                | PropertyAddress::StatusEffectInstVar1
-                | PropertyAddress::StatusEffectInstVar2
-                | PropertyAddress::StatusEffectInstVar3 => {
-                    if var_index < engine.vars.len() {
-                        let var_idx =
-                            (prop_address - PropertyAddress::StatusEffectInstVar0 as u8) as usize;
-                        if var_idx < self.status_instance.vars.len() {
-                            engine.vars[var_index] = self.status_instance.vars[var_idx];
-                        }
-                    }
-                }
-                PropertyAddress::StatusEffectInstFixed0
-                | PropertyAddress::StatusEffectInstFixed1
-                | PropertyAddress::StatusEffectInstFixed2
-                | PropertyAddress::StatusEffectInstFixed3 => {
-                    if var_index < engine.fixed.len() {
-                        let fixed_idx =
-                            (prop_address - PropertyAddress::StatusEffectInstFixed0 as u8) as usize;
-                        if fixed_idx < self.status_instance.fixed.len() {
-                            engine.fixed[var_index] = self.status_instance.fixed[fixed_idx];
-                        }
-                    }
-                }
-                PropertyAddress::StatusEffectInstRemainingDuration => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] =
-                            Fixed::from_int(self.status_instance.remaining_duration as i16);
-                    }
-                }
-                PropertyAddress::StatusEffectInstStackCount => {
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = self.status_instance.stack_count;
-                    }
-                }
-
-                // Entity direction properties
-                PropertyAddress::EntityFacing => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.character.core.get_facing();
-                    }
-                }
-                PropertyAddress::EntityGravityDir => {
-                    if var_index < engine.fixed.len() {
-                        engine.fixed[var_index] = self.character.core.get_gravity_dir();
-                    }
-                }
-
-                _ => {
-                    // Property not supported in status effect context
+        match prop_address {
+            // Game state properties
+            property_address::GAME_SEED => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.game_state.seed as i16);
                 }
             }
+            property_address::GAME_FRAME => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.game_state.frame as i16);
+                }
+            }
+
+            // Character properties
+            property_address::CHARACTER_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.core.id;
+                }
+            }
+            property_address::CHARACTER_GROUP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.core.group;
+                }
+            }
+            property_address::CHARACTER_POS_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.pos.0;
+                }
+            }
+            property_address::CHARACTER_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.pos.1;
+                }
+            }
+            property_address::CHARACTER_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.vel.0;
+                }
+            }
+            property_address::CHARACTER_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.vel.1;
+                }
+            }
+            property_address::CHARACTER_HEALTH => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.health;
+                }
+            }
+            property_address::CHARACTER_ENERGY => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy;
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_regen;
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN_RATE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_regen_rate;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_charge;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE_RATE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_charge_rate;
+                }
+            }
+
+            // Character armor properties
+            property_address::CHARACTER_ARMOR_PUNCT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.armor[0];
+                }
+            }
+            property_address::CHARACTER_ARMOR_BLAST => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.armor[1];
+                }
+            }
+            property_address::CHARACTER_ARMOR_FORCE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.armor[2];
+                }
+            }
+            property_address::CHARACTER_ARMOR_SEVER => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.armor[3];
+                }
+            }
+            property_address::CHARACTER_ARMOR_HEAT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.armor[4];
+                }
+            }
+            property_address::CHARACTER_ARMOR_CRYO => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.armor[5];
+                }
+            }
+            property_address::CHARACTER_ARMOR_JOLT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.armor[6];
+                }
+            }
+            property_address::CHARACTER_ARMOR_VIRUS => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.armor[7];
+                }
+            }
+
+            // Status effect definition properties
+            property_address::STATUS_EFFECT_DEF_DURATION => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.status_def.duration as i16);
+                }
+            }
+            property_address::STATUS_EFFECT_DEF_STACK_LIMIT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.status_def.stack_limit;
+                }
+            }
+            property_address::STATUS_EFFECT_DEF_RESET_ON_STACK => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if self.status_def.reset_on_stack { 1 } else { 0 };
+                }
+            }
+            property_address::STATUS_EFFECT_DEF_ARG0
+            | property_address::STATUS_EFFECT_DEF_ARG1
+            | property_address::STATUS_EFFECT_DEF_ARG2 => {
+                if var_index < engine.vars.len() {
+                    let arg_index =
+                        (prop_address - property_address::STATUS_EFFECT_DEF_ARG0) as usize;
+                    if arg_index < self.status_def.args.len() {
+                        engine.vars[var_index] = self.status_def.args[arg_index];
+                    }
+                }
+            }
+
+            // Status effect instance properties
+            property_address::STATUS_EFFECT_INST_VAR0
+            | property_address::STATUS_EFFECT_INST_VAR1
+            | property_address::STATUS_EFFECT_INST_VAR2
+            | property_address::STATUS_EFFECT_INST_VAR3 => {
+                if var_index < engine.vars.len() {
+                    let var_idx =
+                        (prop_address - property_address::STATUS_EFFECT_INST_VAR0) as usize;
+                    if var_idx < self.status_instance.vars.len() {
+                        engine.vars[var_index] = self.status_instance.vars[var_idx];
+                    }
+                }
+            }
+            property_address::STATUS_EFFECT_INST_FIXED0
+            | property_address::STATUS_EFFECT_INST_FIXED1
+            | property_address::STATUS_EFFECT_INST_FIXED2
+            | property_address::STATUS_EFFECT_INST_FIXED3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx =
+                        (prop_address - property_address::STATUS_EFFECT_INST_FIXED0) as usize;
+                    if fixed_idx < self.status_instance.fixed.len() {
+                        engine.fixed[var_index] = self.status_instance.fixed[fixed_idx];
+                    }
+                }
+            }
+            property_address::STATUS_EFFECT_INST_REMAINING_DURATION => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] =
+                        Fixed::from_int(self.status_instance.remaining_duration as i16);
+                }
+            }
+            property_address::STATUS_EFFECT_INST_STACK_COUNT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.status_instance.stack_count;
+                }
+            }
+
+            // Entity direction properties
+            property_address::ENTITY_FACING => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_facing();
+                }
+            }
+            property_address::ENTITY_GRAVITY_DIR => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.core.get_gravity_dir();
+                }
+            }
+
+            _ => {} // Property not supported in status effect context
         }
     }
 
     fn write_property(&mut self, engine: &mut ScriptEngine, prop_address: u8, var_index: usize) {
-        use crate::constants::PropertyAddress;
+        use crate::constants::property_address;
 
-        if let Some(property) = PropertyAddress::from_u8(prop_address) {
-            match property {
-                // Character properties (status effects can modify character state)
-                PropertyAddress::CharacterPosX => {
-                    if var_index < engine.fixed.len() {
-                        self.character.core.pos.0 = engine.fixed[var_index];
-                    }
-                }
-                PropertyAddress::CharacterPosY => {
-                    if var_index < engine.fixed.len() {
-                        self.character.core.pos.1 = engine.fixed[var_index];
-                    }
-                }
-                PropertyAddress::CharacterVelX => {
-                    if var_index < engine.fixed.len() {
-                        self.character.core.vel.0 = engine.fixed[var_index];
-                    }
-                }
-                PropertyAddress::CharacterVelY => {
-                    if var_index < engine.fixed.len() {
-                        self.character.core.vel.1 = engine.fixed[var_index];
-                    }
-                }
-                PropertyAddress::CharacterHealth => {
-                    if var_index < engine.vars.len() {
-                        self.character.health = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterEnergy => {
-                    if var_index < engine.vars.len() {
-                        self.character.energy = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterEnergyRegen => {
-                    if var_index < engine.vars.len() {
-                        self.character.energy_regen = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterEnergyRegenRate => {
-                    if var_index < engine.vars.len() {
-                        self.character.energy_regen_rate = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterEnergyCharge => {
-                    if var_index < engine.vars.len() {
-                        self.character.energy_charge = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterEnergyChargeRate => {
-                    if var_index < engine.vars.len() {
-                        self.character.energy_charge_rate = engine.vars[var_index];
-                    }
-                }
-
-                // Character armor properties (writable)
-                PropertyAddress::CharacterArmorPunct => {
-                    if var_index < engine.vars.len() {
-                        self.character.armor[0] = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterArmorBlast => {
-                    if var_index < engine.vars.len() {
-                        self.character.armor[1] = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterArmorForce => {
-                    if var_index < engine.vars.len() {
-                        self.character.armor[2] = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterArmorSever => {
-                    if var_index < engine.vars.len() {
-                        self.character.armor[3] = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterArmorHeat => {
-                    if var_index < engine.vars.len() {
-                        self.character.armor[4] = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterArmorCryo => {
-                    if var_index < engine.vars.len() {
-                        self.character.armor[5] = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterArmorJolt => {
-                    if var_index < engine.vars.len() {
-                        self.character.armor[6] = engine.vars[var_index];
-                    }
-                }
-                PropertyAddress::CharacterArmorVirus => {
-                    if var_index < engine.vars.len() {
-                        self.character.armor[7] = engine.vars[var_index];
-                    }
-                }
-
-                // Status effect instance properties (writable)
-                PropertyAddress::StatusEffectInstVar0
-                | PropertyAddress::StatusEffectInstVar1
-                | PropertyAddress::StatusEffectInstVar2
-                | PropertyAddress::StatusEffectInstVar3 => {
-                    if var_index < engine.vars.len() {
-                        let var_idx =
-                            (prop_address - PropertyAddress::StatusEffectInstVar0 as u8) as usize;
-                        if var_idx < self.status_instance.vars.len() {
-                            self.status_instance.vars[var_idx] = engine.vars[var_index];
-                        }
-                    }
-                }
-                PropertyAddress::StatusEffectInstFixed0
-                | PropertyAddress::StatusEffectInstFixed1
-                | PropertyAddress::StatusEffectInstFixed2
-                | PropertyAddress::StatusEffectInstFixed3 => {
-                    if var_index < engine.fixed.len() {
-                        let fixed_idx =
-                            (prop_address - PropertyAddress::StatusEffectInstFixed0 as u8) as usize;
-                        if fixed_idx < self.status_instance.fixed.len() {
-                            self.status_instance.fixed[fixed_idx] = engine.fixed[var_index];
-                        }
-                    }
-                }
-
-                // Entity direction properties (writable)
-                PropertyAddress::EntityFacing => {
-                    if var_index < engine.fixed.len() {
-                        self.character.core.set_facing(engine.fixed[var_index]);
-                    }
-                }
-                PropertyAddress::EntityGravityDir => {
-                    if var_index < engine.fixed.len() {
-                        self.character.core.set_gravity_dir(engine.fixed[var_index]);
-                    }
-                }
-
-                _ => {
-                    // Property not writable or not supported in status effect context
+        match prop_address {
+            // Character properties (status effects can modify character state)
+            property_address::CHARACTER_POS_X => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.pos.0 = engine.fixed[var_index];
                 }
             }
+            property_address::CHARACTER_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.pos.1 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.vel.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.vel.1 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_HEALTH => {
+                if var_index < engine.vars.len() {
+                    self.character.health = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY => {
+                if var_index < engine.vars.len() {
+                    self.character.energy = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_regen = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN_RATE => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_regen_rate = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_charge = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE_RATE => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_charge_rate = engine.vars[var_index];
+                }
+            }
+
+            // Character armor properties (writable)
+            property_address::CHARACTER_ARMOR_PUNCT => {
+                if var_index < engine.vars.len() {
+                    self.character.armor[0] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_BLAST => {
+                if var_index < engine.vars.len() {
+                    self.character.armor[1] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_FORCE => {
+                if var_index < engine.vars.len() {
+                    self.character.armor[2] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_SEVER => {
+                if var_index < engine.vars.len() {
+                    self.character.armor[3] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_HEAT => {
+                if var_index < engine.vars.len() {
+                    self.character.armor[4] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_CRYO => {
+                if var_index < engine.vars.len() {
+                    self.character.armor[5] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_JOLT => {
+                if var_index < engine.vars.len() {
+                    self.character.armor[6] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_VIRUS => {
+                if var_index < engine.vars.len() {
+                    self.character.armor[7] = engine.vars[var_index];
+                }
+            }
+
+            // Status effect instance properties (writable)
+            property_address::STATUS_EFFECT_INST_VAR0
+            | property_address::STATUS_EFFECT_INST_VAR1
+            | property_address::STATUS_EFFECT_INST_VAR2
+            | property_address::STATUS_EFFECT_INST_VAR3 => {
+                if var_index < engine.vars.len() {
+                    let var_idx =
+                        (prop_address - property_address::STATUS_EFFECT_INST_VAR0) as usize;
+                    if var_idx < self.status_instance.vars.len() {
+                        self.status_instance.vars[var_idx] = engine.vars[var_index];
+                    }
+                }
+            }
+            property_address::STATUS_EFFECT_INST_FIXED0
+            | property_address::STATUS_EFFECT_INST_FIXED1
+            | property_address::STATUS_EFFECT_INST_FIXED2
+            | property_address::STATUS_EFFECT_INST_FIXED3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx =
+                        (prop_address - property_address::STATUS_EFFECT_INST_FIXED0) as usize;
+                    if fixed_idx < self.status_instance.fixed.len() {
+                        self.status_instance.fixed[fixed_idx] = engine.fixed[var_index];
+                    }
+                }
+            }
+
+            // Entity direction properties (writable)
+            property_address::ENTITY_FACING => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.set_facing(engine.fixed[var_index]);
+                }
+            }
+            property_address::ENTITY_GRAVITY_DIR => {
+                if var_index < engine.fixed.len() {
+                    self.character.core.set_gravity_dir(engine.fixed[var_index]);
+                }
+            }
+            _ => {} // Property not writable or not supported in status effect context
         }
     }
 
@@ -752,7 +743,7 @@ pub fn apply_status_effect(
 
 /// Apply passive energy regeneration to all characters in the game
 pub fn apply_passive_energy_regen_to_all_characters(
-    characters: &mut Vec<Character>,
+    characters: &mut [Character],
 ) -> Result<(), ScriptError> {
     for character in characters.iter_mut() {
         // Set energy regen values directly on the character

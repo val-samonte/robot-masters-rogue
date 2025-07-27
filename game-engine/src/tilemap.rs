@@ -130,12 +130,10 @@ impl Tilemap {
                 } else {
                     next_delta
                 }
+            } else if next_delta.raw() < delta_x.raw() {
+                delta_x
             } else {
-                if next_delta.raw() < delta_x.raw() {
-                    delta_x
-                } else {
-                    next_delta
-                }
+                next_delta
             };
 
             let test_rect = CollisionRect {
@@ -186,12 +184,10 @@ impl Tilemap {
                 } else {
                     next_delta
                 }
+            } else if next_delta.raw() < delta_y.raw() {
+                delta_y
             } else {
-                if next_delta.raw() < delta_y.raw() {
-                    delta_y
-                } else {
-                    next_delta
-                }
+                next_delta
             };
 
             let test_rect = CollisionRect {
@@ -278,4 +274,3 @@ impl CollisionRect {
             && self.bottom().raw() > other.y.raw()
     }
 }
-

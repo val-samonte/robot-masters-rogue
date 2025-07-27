@@ -32,6 +32,15 @@
 - Focus on implementation first, testing comes later when systems stabilize
 - Avoid test-driven development during this rapid prototyping phase
 
+### 5. Test File Organization
+
+- **IF you really need to create test files** to test functionality during development:
+  - Place all test files under a `test/` directory in the project root
+  - This ensures test files can be deleted without dependency problems
+  - Keep test files completely separate from main source code
+  - Structure: `test/unit/`, `test/integration/`, etc.
+- This separation allows easy cleanup when transitioning to production testing
+
 ## Remember
 
 This project is in active development. We can break things, change APIs, and redesign systems freely. Use this freedom to build something great, not to maintain something old.

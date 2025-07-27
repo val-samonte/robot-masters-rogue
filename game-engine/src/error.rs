@@ -18,34 +18,9 @@ impl ErrorRecovery {
         }
     }
 
-    /// Handle serialization errors with recovery options
-    pub fn handle_serialization_error(error: GameError) -> GameResult<()> {
-        match error {
-            GameError::SerializationError => {
-                // Log error but continue execution
-                // Note: In no_std environment, we can't use eprintln!
-                // Error logging would be handled by the platform-specific wrapper
-                Ok(())
-            }
-            GameError::DeserializationError => {
-                // Cannot recover from deserialization errors
-                Err(GameError::DeserializationError)
-            }
-            GameError::InvalidBinaryData => {
-                // Cannot recover from corrupted data
-                Err(GameError::InvalidBinaryData)
-            }
-            GameError::DataTooShort => {
-                // Cannot recover from incomplete data
-                Err(GameError::DataTooShort)
-            }
-            _ => Err(error),
-        }
-    }
-
     /// Validate game state integrity and attempt recovery
     pub fn validate_and_recover_game_state(
-        characters: &mut alloc::vec::Vec<crate::entity::Character>,
+        characters: &mut [crate::entity::Character],
         spawn_instances: &mut alloc::vec::Vec<crate::entity::SpawnInstance>,
     ) -> GameResult<()> {
         // Validate character data
@@ -187,7 +162,7 @@ impl ErrorRecovery {
 
         // If we found errors but they're all recoverable, return them for logging
         // but don't fail the validation
-        let all_recoverable = errors.iter().all(|e| Self::is_recoverable(e));
+        let all_recoverable = errors.iter().all(Self::is_recoverable);
 
         if all_recoverable {
             Ok(errors)
@@ -207,10 +182,7 @@ impl ErrorRecovery {
             GameError::ScriptExecutionError => "Script execution failed",
             GameError::InvalidOperator => "Unknown script operator",
             GameError::ScriptIndexOutOfBounds => "Script index out of bounds",
-            GameError::SerializationError => "Failed to serialize game state",
-            GameError::DeserializationError => "Failed to deserialize game state",
-            GameError::InvalidBinaryData => "Binary data is corrupted",
-            GameError::DataTooShort => "Binary data is incomplete",
+
             GameError::InvalidGameState => "Game state is invalid",
             GameError::InvalidCharacterData => "Character data is corrupted",
             GameError::InvalidSpawnData => "Spawn data is corrupted",
@@ -255,14 +227,6 @@ impl ErrorRecovery {
             GameError::ScriptExecutionError => true,
             GameError::InvalidOperator => true,
             GameError::ScriptIndexOutOfBounds => true,
-
-            // Serialization errors may be recoverable depending on context
-            GameError::SerializationError => true,
-
-            // These errors are generally not recoverable
-            GameError::DeserializationError => false,
-            GameError::InvalidBinaryData => false,
-            GameError::DataTooShort => false,
 
             // Game state errors may be recoverable with validation
             GameError::InvalidGameState => true,
@@ -313,8 +277,8 @@ macro_rules! safe_script_execute {
         match $script_engine.execute($script, $context) {
             Ok(exit_code) => exit_code,
             Err(script_error) => {
-                let game_error = crate::api::GameError::from(script_error);
-                crate::error::ErrorRecovery::handle_script_error(game_error)
+                let game_error = $crate::api::GameError::from(script_error);
+                $crate::error::ErrorRecovery::handle_script_error(game_error)
             }
         }
     };
@@ -353,7 +317,7 @@ macro_rules! safe_definition_lookup {
             Ok(definition) => Some(definition),
             Err(error) => {
                 // Log error and continue execution
-                let _ = crate::error::ErrorRecovery::handle_definition_lookup_error(error);
+                let _ = $crate::error::ErrorRecovery::handle_definition_lookup_error(error);
                 None
             }
         }
@@ -364,6 +328,6 @@ macro_rules! safe_definition_lookup {
 #[macro_export]
 macro_rules! safe_definition_access {
     ($collection:expr, $id:expr, $error_type:expr) => {
-        crate::error::ErrorRecovery::safe_definition_access($id, $collection, $error_type)
+        $crate::error::ErrorRecovery::safe_definition_access($id, $collection, $error_type)
     };
 }
