@@ -443,19 +443,15 @@ pub fn process_spawn_instances(
     let mut to_spawn = Vec::new();
     let mut spawns_to_remove = Vec::new();
 
-    for index in 0..spawn_instances.len() {
-        if let Some(spawn_def) = spawn_definitions.get(spawn_instances[index].spawn_id as usize) {
-            spawn_def.execute_behavior_script(
-                game_state,
-                &mut spawn_instances[index],
-                &mut to_spawn,
-            )?;
+    for (index, spawn_instance) in spawn_instances.iter_mut().enumerate() {
+        if let Some(spawn_def) = spawn_definitions.get(spawn_instance.spawn_id as usize) {
+            spawn_def.execute_behavior_script(game_state, spawn_instance, &mut to_spawn)?;
 
-            if spawn_instances[index].lifespan > 0 {
-                spawn_instances[index].lifespan -= 1;
+            if spawn_instance.lifespan > 0 {
+                spawn_instance.lifespan -= 1;
             }
 
-            if spawn_instances[index].lifespan == 0 {
+            if spawn_instance.lifespan == 0 {
                 spawns_to_remove.push(index);
             }
         }

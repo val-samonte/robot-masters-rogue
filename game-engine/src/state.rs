@@ -784,8 +784,9 @@ impl GameState {
         pos += 4;
         // Deserialize fixed array
         let mut fixed = [crate::math::Fixed::ZERO; 4];
-        for i in 0..4 {
-            fixed[i] = crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
+        for fixed_val in fixed.iter_mut() {
+            *fixed_val =
+                crate::math::Fixed::from_raw(i16::from_le_bytes([data[pos], data[pos + 1]]));
             pos += 2;
         }
 

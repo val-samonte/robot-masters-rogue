@@ -180,7 +180,7 @@ fn validate_definitions(
     status_effect_definitions: &[StatusEffectDefinition],
 ) -> GameResult<()> {
     // Validate action definitions
-    for (_id, action) in action_definitions.iter().enumerate() {
+    for action in action_definitions.iter() {
         action.validate().map_err(|_| GameError::InvalidActionId)?;
 
         // Validate spawn references in action
@@ -192,14 +192,14 @@ fn validate_definitions(
     }
 
     // Validate condition definitions
-    for (_id, condition) in condition_definitions.iter().enumerate() {
+    for condition in condition_definitions.iter() {
         condition
             .validate()
             .map_err(|_| GameError::InvalidConditionId)?;
     }
 
     // Validate status effect definitions
-    for (_id, status_effect) in status_effect_definitions.iter().enumerate() {
+    for status_effect in status_effect_definitions.iter() {
         status_effect
             .validate()
             .map_err(|_| GameError::InvalidStatusEffectId)?;

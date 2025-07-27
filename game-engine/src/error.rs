@@ -187,7 +187,7 @@ impl ErrorRecovery {
 
         // If we found errors but they're all recoverable, return them for logging
         // but don't fail the validation
-        let all_recoverable = errors.iter().all(|e| Self::is_recoverable(e));
+        let all_recoverable = errors.iter().all(Self::is_recoverable);
 
         if all_recoverable {
             Ok(errors)
