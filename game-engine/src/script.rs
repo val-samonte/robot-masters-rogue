@@ -1,5 +1,6 @@
 //! Bytecode scripting system for game logic
 
+use crate::constants::OperatorAddress;
 use crate::math::Fixed;
 
 extern crate alloc;
@@ -19,140 +20,6 @@ pub struct ScriptEngine {
     pub args: [u8; 8],
     /// Spawn IDs for spawn creation
     pub spawns: [u8; 4],
-}
-
-/// Bytecode operators with explicit byte values
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Operator {
-    // Control flow
-    Exit = 0,
-    ExitIfNoEnergy = 1,
-    ExitIfCooldown = 2,
-    Skip = 3,
-    Goto = 4,
-
-    // Property operations
-    ReadProp = 10,  // [ReadProp, var_index, prop_address]
-    WriteProp = 11, // [WriteProp, prop_address, var_index]
-
-    // Variable operations
-    AssignByte = 20,   // [AssignByte, var_index, literal_value]
-    AssignFixed = 21,  // [AssignFixed, var_index, numerator, denominator]
-    AssignRandom = 22, // [AssignRandom, var_index]
-    ToByte = 23,       // [ToByte, to_var_index, from_fixed_index]
-    ToFixed = 24,      // [ToFixed, to_fixed_index, from_var_index]
-
-    // Arithmetic (Fixed-point)
-    Add = 30,    // [Add, dest_fixed, left_fixed, right_fixed]
-    Sub = 31,    // [Sub, dest_fixed, left_fixed, right_fixed]
-    Mul = 32,    // [Mul, dest_fixed, left_fixed, right_fixed]
-    Div = 33,    // [Div, dest_fixed, left_fixed, right_fixed]
-    Negate = 34, // [Negate, fixed_index]
-
-    // Arithmetic (Byte)
-    AddByte = 40,     // [AddByte, dest_var, left_var, right_var]
-    SubByte = 41,     // [SubByte, dest_var, left_var, right_var]
-    MulByte = 42,     // [MulByte, dest_var, left_var, right_var]
-    DivByte = 43,     // [DivByte, dest_var, left_var, right_var]
-    ModByte = 44,     // [ModByte, dest_var, left_var, right_var]
-    WrappingAdd = 45, // [WrappingAdd, dest_var, left_var, right_var]
-
-    // Conditionals
-    Equal = 50,           // [Equal, dest_var, left_var, right_var]
-    NotEqual = 51,        // [NotEqual, dest_var, left_var, right_var]
-    LessThan = 52,        // [LessThan, dest_var, left_var, right_var]
-    LessThanOrEqual = 53, // [LessThanOrEqual, dest_var, left_var, right_var]
-
-    // Logical operations
-    Not = 60, // [Not, dest_var, source_var]
-    Or = 61,  // [Or, dest_var, left_var, right_var]
-    And = 62, // [And, dest_var, left_var, right_var]
-
-    // Utility operations
-    Min = 70, // [Min, dest_var, left_var, right_var]
-    Max = 71, // [Max, dest_var, left_var, right_var]
-
-    // Game actions
-    LockAction = 80,
-    UnlockAction = 81,
-    ApplyEnergyCost = 82,
-    ApplyDuration = 83,
-    Spawn = 84,         // [Spawn, spawn_id_var]
-    SpawnWithVars = 85, // [SpawnWithVars, spawn_id_var, var1, var2, var3, var4]
-
-    // Debug
-    LogVariable = 90, // [LogVariable, var_index]
-
-    // Conditional exit
-    ExitWithVar = 91, // [ExitWithVar, var_index] - Exit with value from variable
-
-    // Args and spawns access
-    ReadArg = 96,    // [ReadArg, var_index, arg_index] - Read from args array
-    ReadSpawn = 97,  // [ReadSpawn, var_index, spawn_index] - Read from spawns array
-    WriteSpawn = 98, // [WriteSpawn, spawn_index, var_index] - Write to spawns array
-
-    // Cooldown operators
-    ReadActionCooldown = 100, // [ReadActionCooldown, var_index] - Read Action cooldown into vars
-    ReadActionLastUsed = 101, // [ReadActionLastUsed, var_index] - Read when action was last used
-    WriteActionLastUsed = 102, // [WriteActionLastUsed, var_index] - Update last used timestamp
-    IsActionOnCooldown = 103, // [IsActionOnCooldown, var_index] - Check if action is on cooldown
-}
-
-impl Operator {
-    /// Simple byte-to-enum conversion
-    pub fn from_u8(byte: u8) -> Option<Operator> {
-        match byte {
-            0 => Some(Operator::Exit),
-            1 => Some(Operator::ExitIfNoEnergy),
-            2 => Some(Operator::ExitIfCooldown),
-            3 => Some(Operator::Skip),
-            4 => Some(Operator::Goto),
-            10 => Some(Operator::ReadProp),
-            11 => Some(Operator::WriteProp),
-            20 => Some(Operator::AssignByte),
-            21 => Some(Operator::AssignFixed),
-            22 => Some(Operator::AssignRandom),
-            23 => Some(Operator::ToByte),
-            24 => Some(Operator::ToFixed),
-            30 => Some(Operator::Add),
-            31 => Some(Operator::Sub),
-            32 => Some(Operator::Mul),
-            33 => Some(Operator::Div),
-            34 => Some(Operator::Negate),
-            40 => Some(Operator::AddByte),
-            41 => Some(Operator::SubByte),
-            42 => Some(Operator::MulByte),
-            43 => Some(Operator::DivByte),
-            44 => Some(Operator::ModByte),
-            45 => Some(Operator::WrappingAdd),
-            50 => Some(Operator::Equal),
-            51 => Some(Operator::NotEqual),
-            52 => Some(Operator::LessThan),
-            53 => Some(Operator::LessThanOrEqual),
-            60 => Some(Operator::Not),
-            61 => Some(Operator::Or),
-            62 => Some(Operator::And),
-            70 => Some(Operator::Min),
-            71 => Some(Operator::Max),
-            80 => Some(Operator::LockAction),
-            81 => Some(Operator::UnlockAction),
-            82 => Some(Operator::ApplyEnergyCost),
-            83 => Some(Operator::ApplyDuration),
-            84 => Some(Operator::Spawn),
-            85 => Some(Operator::SpawnWithVars),
-            90 => Some(Operator::LogVariable),
-            91 => Some(Operator::ExitWithVar),
-            96 => Some(Operator::ReadArg),
-            97 => Some(Operator::ReadSpawn),
-            98 => Some(Operator::WriteSpawn),
-            100 => Some(Operator::ReadActionCooldown),
-            101 => Some(Operator::ReadActionLastUsed),
-            102 => Some(Operator::WriteActionLastUsed),
-            103 => Some(Operator::IsActionOnCooldown),
-            _ => None,
-        }
-    }
 }
 
 impl ScriptEngine {
@@ -241,16 +108,16 @@ impl ScriptEngine {
         }
 
         let op_byte = self.read_u8(script)?;
-        let op = Operator::from_u8(op_byte).ok_or(ScriptError::InvalidOperator)?;
+        let op = OperatorAddress::from_u8(op_byte).ok_or(ScriptError::InvalidOperator)?;
 
         match op {
             // Control flow operations
-            Operator::Exit => {
+            OperatorAddress::Exit => {
                 self.exit_flag = self.read_u8(script)?;
                 self.pos = script.len();
             }
 
-            Operator::ExitIfNoEnergy => {
+            OperatorAddress::ExitIfNoEnergy => {
                 let exit_flag = self.read_u8(script)?;
                 let energy_req = context.get_energy_requirement();
                 if context.get_current_energy() < energy_req {
@@ -259,7 +126,7 @@ impl ScriptEngine {
                 }
             }
 
-            Operator::ExitIfCooldown => {
+            OperatorAddress::ExitIfCooldown => {
                 let exit_flag = self.read_u8(script)?;
                 if context.is_on_cooldown() {
                     self.exit_flag = exit_flag;
@@ -267,12 +134,12 @@ impl ScriptEngine {
                 }
             }
 
-            Operator::Skip => {
+            OperatorAddress::Skip => {
                 let skip_count = self.read_u8(script)? as usize;
                 self.pos += skip_count;
             }
 
-            Operator::Goto => {
+            OperatorAddress::Goto => {
                 let target = self.read_u8(script)? as usize;
                 if target >= script.len() {
                     return Err(ScriptError::InvalidScript);
@@ -281,7 +148,7 @@ impl ScriptEngine {
             }
 
             // Property operations - easily extensible
-            Operator::ReadProp => {
+            OperatorAddress::ReadProp => {
                 let var_index = self.read_u8(script)? as usize;
                 let prop_address = self.read_u8(script)?;
                 if var_index >= self.vars.len() + self.fixed.len() {
@@ -290,7 +157,7 @@ impl ScriptEngine {
                 context.read_property(self, var_index, prop_address);
             }
 
-            Operator::WriteProp => {
+            OperatorAddress::WriteProp => {
                 let prop_address = self.read_u8(script)?;
                 let var_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() + self.fixed.len() {
@@ -300,7 +167,7 @@ impl ScriptEngine {
             }
 
             // Variable assignment operations
-            Operator::AssignByte => {
+            OperatorAddress::AssignByte => {
                 let var_index = self.read_u8(script)? as usize;
                 let literal = self.read_u8(script)?;
                 if var_index >= self.vars.len() {
@@ -309,7 +176,7 @@ impl ScriptEngine {
                 self.vars[var_index] = literal;
             }
 
-            Operator::AssignFixed => {
+            OperatorAddress::AssignFixed => {
                 let var_index = self.read_u8(script)? as usize;
                 let numerator = self.read_u8(script)? as i32;
                 let denominator = self.read_u8(script)? as i32;
@@ -324,7 +191,7 @@ impl ScriptEngine {
                 }
             }
 
-            Operator::AssignRandom => {
+            OperatorAddress::AssignRandom => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() {
                     return Err(ScriptError::IndexOutOfBounds);
@@ -332,7 +199,7 @@ impl ScriptEngine {
                 self.vars[var_index] = context.get_random_u8();
             }
 
-            Operator::ToByte => {
+            OperatorAddress::ToByte => {
                 let to_var_index = self.read_u8(script)? as usize;
                 let from_fixed_index = self.read_u8(script)? as usize;
                 if to_var_index >= self.vars.len() || from_fixed_index >= self.fixed.len() {
@@ -341,7 +208,7 @@ impl ScriptEngine {
                 self.vars[to_var_index] = self.fixed[from_fixed_index].to_int() as u8;
             }
 
-            Operator::ToFixed => {
+            OperatorAddress::ToFixed => {
                 let to_fixed_index = self.read_u8(script)? as usize;
                 let from_var_index = self.read_u8(script)? as usize;
                 if to_fixed_index >= self.fixed.len() || from_var_index >= self.vars.len() {
@@ -351,11 +218,14 @@ impl ScriptEngine {
             }
 
             // Generic 3-operand fixed-point arithmetic
-            Operator::Add | Operator::Sub | Operator::Mul | Operator::Div => {
+            OperatorAddress::Add
+            | OperatorAddress::Sub
+            | OperatorAddress::Mul
+            | OperatorAddress::Div => {
                 self.execute_fixed_arithmetic(script, op)?;
             }
 
-            Operator::Negate => {
+            OperatorAddress::Negate => {
                 let fixed_index = self.read_u8(script)? as usize;
                 if fixed_index >= self.fixed.len() {
                     return Err(ScriptError::InvalidScript);
@@ -364,29 +234,29 @@ impl ScriptEngine {
             }
 
             // Generic 3-operand byte arithmetic
-            Operator::AddByte
-            | Operator::SubByte
-            | Operator::MulByte
-            | Operator::DivByte
-            | Operator::ModByte
-            | Operator::WrappingAdd => {
+            OperatorAddress::AddByte
+            | OperatorAddress::SubByte
+            | OperatorAddress::MulByte
+            | OperatorAddress::DivByte
+            | OperatorAddress::ModByte
+            | OperatorAddress::WrappingAdd => {
                 self.execute_byte_arithmetic(script, op)?;
             }
 
             // Generic 3-operand conditional operations
-            Operator::Equal
-            | Operator::NotEqual
-            | Operator::LessThan
-            | Operator::LessThanOrEqual => {
+            OperatorAddress::Equal
+            | OperatorAddress::NotEqual
+            | OperatorAddress::LessThan
+            | OperatorAddress::LessThanOrEqual => {
                 self.execute_conditional(script, op)?;
             }
 
             // Generic logical operations
-            Operator::Or | Operator::And => {
+            OperatorAddress::Or | OperatorAddress::And => {
                 self.execute_logical_binary(script, op)?;
             }
 
-            Operator::Not => {
+            OperatorAddress::Not => {
                 let dest_index = self.read_u8(script)? as usize;
                 let source_index = self.read_u8(script)? as usize;
                 if dest_index >= self.vars.len() || source_index >= self.vars.len() {
@@ -396,33 +266,33 @@ impl ScriptEngine {
             }
 
             // Generic utility operations
-            Operator::Min | Operator::Max => {
+            OperatorAddress::Min | OperatorAddress::Max => {
                 self.execute_utility_binary(script, op)?;
             }
 
             // Game-specific operations
-            Operator::LockAction => {
+            OperatorAddress::LockAction => {
                 context.lock_action();
             }
 
-            Operator::UnlockAction => {
+            OperatorAddress::UnlockAction => {
                 context.unlock_action();
             }
 
-            Operator::ApplyEnergyCost => {
+            OperatorAddress::ApplyEnergyCost => {
                 context.apply_energy_cost();
             }
 
-            Operator::ApplyDuration => {
+            OperatorAddress::ApplyDuration => {
                 context.apply_duration();
             }
 
-            Operator::Spawn => {
+            OperatorAddress::Spawn => {
                 let spawn_id = self.vars[self.read_u8(script)? as usize] as usize;
                 context.create_spawn(spawn_id, None);
             }
 
-            Operator::SpawnWithVars => {
+            OperatorAddress::SpawnWithVars => {
                 let spawn_id = self.vars[self.read_u8(script)? as usize] as usize;
                 let vars = [
                     self.vars[self.read_u8(script)? as usize],
@@ -433,7 +303,7 @@ impl ScriptEngine {
                 context.create_spawn(spawn_id, Some(vars));
             }
 
-            Operator::LogVariable => {
+            OperatorAddress::LogVariable => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index < self.vars.len() {
                     context.log_debug("variable logged");
@@ -442,7 +312,7 @@ impl ScriptEngine {
                 }
             }
 
-            Operator::ExitWithVar => {
+            OperatorAddress::ExitWithVar => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() {
                     return Err(ScriptError::InvalidScript);
@@ -452,7 +322,7 @@ impl ScriptEngine {
             }
 
             // Cooldown operators
-            Operator::ReadActionCooldown => {
+            OperatorAddress::ReadActionCooldown => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() {
                     return Err(ScriptError::InvalidScript);
@@ -461,7 +331,7 @@ impl ScriptEngine {
                 context.read_action_cooldown(self, var_index);
             }
 
-            Operator::ReadActionLastUsed => {
+            OperatorAddress::ReadActionLastUsed => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() {
                     return Err(ScriptError::InvalidScript);
@@ -469,7 +339,7 @@ impl ScriptEngine {
                 context.read_action_last_used(self, var_index);
             }
 
-            Operator::WriteActionLastUsed => {
+            OperatorAddress::WriteActionLastUsed => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() {
                     return Err(ScriptError::InvalidScript);
@@ -477,7 +347,7 @@ impl ScriptEngine {
                 context.write_action_last_used(self, var_index);
             }
 
-            Operator::IsActionOnCooldown => {
+            OperatorAddress::IsActionOnCooldown => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() {
                     return Err(ScriptError::InvalidScript);
@@ -486,7 +356,7 @@ impl ScriptEngine {
             }
 
             // Args and Spawns access operations
-            Operator::ReadArg => {
+            OperatorAddress::ReadArg => {
                 let var_index = self.read_u8(script)? as usize;
                 let arg_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() || arg_index >= self.args.len() {
@@ -495,7 +365,7 @@ impl ScriptEngine {
                 self.vars[var_index] = self.args[arg_index];
             }
 
-            Operator::ReadSpawn => {
+            OperatorAddress::ReadSpawn => {
                 let var_index = self.read_u8(script)? as usize;
                 let spawn_index = self.read_u8(script)? as usize;
                 if var_index >= self.vars.len() || spawn_index >= self.spawns.len() {
@@ -504,7 +374,7 @@ impl ScriptEngine {
                 self.vars[var_index] = self.spawns[spawn_index];
             }
 
-            Operator::WriteSpawn => {
+            OperatorAddress::WriteSpawn => {
                 let spawn_index = self.read_u8(script)? as usize;
                 let var_index = self.read_u8(script)? as usize;
                 if spawn_index >= self.spawns.len() || var_index >= self.vars.len() {
@@ -533,7 +403,11 @@ impl ScriptEngine {
     }
 
     // Generic arithmetic operation handlers
-    fn execute_fixed_arithmetic(&mut self, script: &[u8], op: Operator) -> Result<(), ScriptError> {
+    fn execute_fixed_arithmetic(
+        &mut self,
+        script: &[u8],
+        op: OperatorAddress,
+    ) -> Result<(), ScriptError> {
         let dest = self.read_u8(script)? as usize;
         let left = self.read_u8(script)? as usize;
         let right = self.read_u8(script)? as usize;
@@ -543,17 +417,21 @@ impl ScriptEngine {
         }
 
         self.fixed[dest] = match op {
-            Operator::Add => self.fixed[left].add(self.fixed[right]),
-            Operator::Sub => self.fixed[left].sub(self.fixed[right]),
-            Operator::Mul => self.fixed[left].mul(self.fixed[right]),
-            Operator::Div => self.fixed[left].div(self.fixed[right]),
+            OperatorAddress::Add => self.fixed[left].add(self.fixed[right]),
+            OperatorAddress::Sub => self.fixed[left].sub(self.fixed[right]),
+            OperatorAddress::Mul => self.fixed[left].mul(self.fixed[right]),
+            OperatorAddress::Div => self.fixed[left].div(self.fixed[right]),
             _ => unreachable!(),
         };
 
         Ok(())
     }
 
-    fn execute_byte_arithmetic(&mut self, script: &[u8], op: Operator) -> Result<(), ScriptError> {
+    fn execute_byte_arithmetic(
+        &mut self,
+        script: &[u8],
+        op: OperatorAddress,
+    ) -> Result<(), ScriptError> {
         let dest = self.read_u8(script)? as usize;
         let left = self.read_u8(script)? as usize;
         let right = self.read_u8(script)? as usize;
@@ -563,31 +441,35 @@ impl ScriptEngine {
         }
 
         self.vars[dest] = match op {
-            Operator::AddByte => self.vars[left].saturating_add(self.vars[right]),
-            Operator::SubByte => self.vars[left].saturating_sub(self.vars[right]),
-            Operator::MulByte => self.vars[left].saturating_mul(self.vars[right]),
-            Operator::DivByte => {
+            OperatorAddress::AddByte => self.vars[left].saturating_add(self.vars[right]),
+            OperatorAddress::SubByte => self.vars[left].saturating_sub(self.vars[right]),
+            OperatorAddress::MulByte => self.vars[left].saturating_mul(self.vars[right]),
+            OperatorAddress::DivByte => {
                 if self.vars[right] == 0 {
                     u8::MAX
                 } else {
                     self.vars[left] / self.vars[right]
                 }
             }
-            Operator::ModByte => {
+            OperatorAddress::ModByte => {
                 if self.vars[right] == 0 {
                     0
                 } else {
                     self.vars[left] % self.vars[right]
                 }
             }
-            Operator::WrappingAdd => self.vars[left].wrapping_add(self.vars[right]),
+            OperatorAddress::WrappingAdd => self.vars[left].wrapping_add(self.vars[right]),
             _ => unreachable!(),
         };
 
         Ok(())
     }
 
-    fn execute_conditional(&mut self, script: &[u8], op: Operator) -> Result<(), ScriptError> {
+    fn execute_conditional(
+        &mut self,
+        script: &[u8],
+        op: OperatorAddress,
+    ) -> Result<(), ScriptError> {
         let dest = self.read_u8(script)? as usize;
         let left = self.read_u8(script)? as usize;
         let right = self.read_u8(script)? as usize;
@@ -597,28 +479,28 @@ impl ScriptEngine {
         }
 
         self.vars[dest] = match op {
-            Operator::Equal => {
+            OperatorAddress::Equal => {
                 if self.vars[left] == self.vars[right] {
                     1
                 } else {
                     0
                 }
             }
-            Operator::NotEqual => {
+            OperatorAddress::NotEqual => {
                 if self.vars[left] != self.vars[right] {
                     1
                 } else {
                     0
                 }
             }
-            Operator::LessThan => {
+            OperatorAddress::LessThan => {
                 if self.vars[left] < self.vars[right] {
                     1
                 } else {
                     0
                 }
             }
-            Operator::LessThanOrEqual => {
+            OperatorAddress::LessThanOrEqual => {
                 if self.vars[left] <= self.vars[right] {
                     1
                 } else {
@@ -631,7 +513,11 @@ impl ScriptEngine {
         Ok(())
     }
 
-    fn execute_logical_binary(&mut self, script: &[u8], op: Operator) -> Result<(), ScriptError> {
+    fn execute_logical_binary(
+        &mut self,
+        script: &[u8],
+        op: OperatorAddress,
+    ) -> Result<(), ScriptError> {
         let dest = self.read_u8(script)? as usize;
         let left = self.read_u8(script)? as usize;
         let right = self.read_u8(script)? as usize;
@@ -641,14 +527,14 @@ impl ScriptEngine {
         }
 
         self.vars[dest] = match op {
-            Operator::Or => {
+            OperatorAddress::Or => {
                 if self.vars[left] != 0 || self.vars[right] != 0 {
                     1
                 } else {
                     0
                 }
             }
-            Operator::And => {
+            OperatorAddress::And => {
                 if self.vars[left] != 0 && self.vars[right] != 0 {
                     1
                 } else {
@@ -661,7 +547,11 @@ impl ScriptEngine {
         Ok(())
     }
 
-    fn execute_utility_binary(&mut self, script: &[u8], op: Operator) -> Result<(), ScriptError> {
+    fn execute_utility_binary(
+        &mut self,
+        script: &[u8],
+        op: OperatorAddress,
+    ) -> Result<(), ScriptError> {
         let dest = self.read_u8(script)? as usize;
         let left = self.read_u8(script)? as usize;
         let right = self.read_u8(script)? as usize;
@@ -671,8 +561,8 @@ impl ScriptEngine {
         }
 
         self.vars[dest] = match op {
-            Operator::Min => self.vars[left].min(self.vars[right]),
-            Operator::Max => self.vars[left].max(self.vars[right]),
+            OperatorAddress::Min => self.vars[left].min(self.vars[right]),
+            OperatorAddress::Max => self.vars[left].max(self.vars[right]),
             _ => unreachable!(),
         };
 

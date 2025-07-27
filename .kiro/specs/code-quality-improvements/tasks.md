@@ -47,14 +47,23 @@
   - Replace single character `push_str("]")` with `push(']')` in src/state.rs line 471
   - _Requirements: 4.3, 4.4_
 
-- [ ] 7. Replace match expression with matches! macro
+- [x] 7. Replace match expression with matches! macro
 
   - Replace large match expression in src/constants.rs line 695 with `matches!` macro
   - Maintain identical boolean logic and behavior
   - Improve code readability and potentially performance
   - _Requirements: 3.3_
 
-- [ ] 8. Final validation and cleanup
+- [x] 8. Eliminate duplicate operator enums between constants.rs and script.rs
+
+  - Remove duplicate `Operator` enum from src/script.rs
+  - Update script.rs to use `OperatorAddress` from src/constants.rs instead
+  - Update constants.rs `OperatorAddress` to match the byte values used in script.rs (100-103 for cooldown operators)
+  - Update all references in script.rs from `Operator` to `OperatorAddress`
+  - Add necessary imports and ensure functionality remains identical
+  - _Requirements: 1.1, 3.4_
+
+- [ ] 9. Final validation and cleanup
   - Run `cargo clippy` to verify zero warnings
   - Run `cargo check` to verify zero compiler warnings
   - Build project to confirm no compilation issues

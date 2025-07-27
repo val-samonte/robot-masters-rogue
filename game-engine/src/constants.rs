@@ -101,25 +101,29 @@ pub enum OperatorAddress {
     /// Spawn entity with variables: [SpawnWithVars, spawn_id_var, var1, var2, var3, var4]
     SpawnWithVars = 85,
 
-    // ===== DEBUG AND COOLDOWN OPERATIONS (90-98) =====
+    // ===== DEBUG OPERATIONS (90-91) =====
     /// Log variable value: [LogVariable, var_index]
     LogVariable = 90,
     /// Exit with variable value: [ExitWithVar, var_index]
     ExitWithVar = 91,
-    /// Read action cooldown: [ReadActionCooldown, var_index]
-    ReadActionCooldown = 92,
-    /// Read action last used timestamp: [ReadActionLastUsed, var_index]
-    ReadActionLastUsed = 93,
-    /// Write action last used timestamp: [WriteActionLastUsed, var_index]
-    WriteActionLastUsed = 94,
-    /// Check if action is on cooldown: [IsActionOnCooldown, var_index]
-    IsActionOnCooldown = 95,
+
+    // ===== ARGS AND SPAWNS ACCESS (96-98) =====
     /// Read argument to variable: [ReadArg, var_index, arg_index]
     ReadArg = 96,
     /// Read spawn ID to variable: [ReadSpawn, var_index, spawn_index]
     ReadSpawn = 97,
     /// Write variable to spawn ID: [WriteSpawn, spawn_index, var_index]
     WriteSpawn = 98,
+
+    // ===== COOLDOWN OPERATIONS (100-103) =====
+    /// Read action cooldown: [ReadActionCooldown, var_index]
+    ReadActionCooldown = 100,
+    /// Read action last used timestamp: [ReadActionLastUsed, var_index]
+    ReadActionLastUsed = 101,
+    /// Write action last used timestamp: [WriteActionLastUsed, var_index]
+    WriteActionLastUsed = 102,
+    /// Check if action is on cooldown: [IsActionOnCooldown, var_index]
+    IsActionOnCooldown = 103,
 }
 
 /// Property address constants for script property access
@@ -453,13 +457,13 @@ impl OperatorAddress {
             85 => Some(Self::SpawnWithVars),
             90 => Some(Self::LogVariable),
             91 => Some(Self::ExitWithVar),
-            92 => Some(Self::ReadActionCooldown),
-            93 => Some(Self::ReadActionLastUsed),
-            94 => Some(Self::WriteActionLastUsed),
-            95 => Some(Self::IsActionOnCooldown),
             96 => Some(Self::ReadArg),
             97 => Some(Self::ReadSpawn),
             98 => Some(Self::WriteSpawn),
+            100 => Some(Self::ReadActionCooldown),
+            101 => Some(Self::ReadActionLastUsed),
+            102 => Some(Self::WriteActionLastUsed),
+            103 => Some(Self::IsActionOnCooldown),
             _ => None,
         }
     }
