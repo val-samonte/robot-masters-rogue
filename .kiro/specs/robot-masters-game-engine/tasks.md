@@ -100,7 +100,7 @@
   - Write unit tests for serialization round-trip consistency
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [-] 11. Build core game loop and frame processing with essential scripts
+- [x] 11. Build core game loop and frame processing with essential scripts
 - [x] 11.1 Implement deterministic frame-based game loop
 
   - Create game_loop function that advances state by exactly one frame
@@ -147,8 +147,8 @@
   - Write integration tests for complete API functionality
   - _Requirements: 1.3, 1.4, 10.2_
 
-- [ ] 13. Add malleable logging system
-- [ ] 13.1 Create platform-adaptive logging interface
+- [x] 13. Add malleable logging system
+- [x] 13.1 Create platform-adaptive logging interface
 
   - Define Logger trait with log, debug, and error methods
   - Implement conditional compilation for different platform loggers
@@ -222,7 +222,7 @@
   - Write unit tests for energy charging mechanics and movement restriction
   - _Requirements: 6.2, 6.9, 6.10, 5.1_
 
-- [-] 17. Update Character properties for energy regeneration and simplified armor
+- [x] 17. Update Character properties for energy regeneration and simplified armor
 - [x] 17.1 Replace ElementalImmunity with simplified armor array and add energy regeneration properties
 
   - Replace `elemental_immunity: ElementalImmunity` with `armor: [u8; 8]` in Character struct
@@ -379,7 +379,7 @@
   - Write unit tests for script engine functionality with constant-based addressing
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [-] 21. Create integration tests and performance benchmarks
+- [x] 21. Create integration tests and performance benchmarks
 - [x] 21.1 Build end-to-end game scenarios and performance tests
 
   - Create multi-frame game scenarios with complex character behaviors
@@ -388,7 +388,7 @@
   - Write property-based tests for arithmetic and serialization consistency
   - _Requirements: 1.1, 2.4, 3.4, 9.2_
 
-- [-] 22. Code cleanup and optimization
+- [x] 22. Code cleanup and optimization
 - [x] 22.1 Remove redundant code and unused variables
   - Identify and remove duplicate code patterns across modules
   - Remove unused variables, imports, and dead code
