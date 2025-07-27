@@ -7,7 +7,7 @@
   - Ensure macros work correctly when used in external crates
   - _Requirements: 1.3, 5.1, 5.2_
 
-- [ ] 2. Implement standard arithmetic traits for Fixed type
+- [x] 2. Implement standard arithmetic traits for Fixed type
 
   - Add `std::ops::Add` trait implementation for Fixed type in src/math.rs
   - Add `std::ops::Sub` trait implementation for Fixed type

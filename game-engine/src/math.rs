@@ -1,6 +1,8 @@
 //! Fixed-point mathematics for no_std environment
 //! Avoiding floats for Solana compatibility
 
+use core::ops;
+
 /// Fixed-point number with 5-bit precision for optimal storage/performance balance
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Fixed(i16);
@@ -88,6 +90,47 @@ impl Fixed {
     /// Check if the value is zero
     pub fn is_zero(self) -> bool {
         self.0 == 0
+    }
+}
+
+// Standard arithmetic trait implementations for Fixed type
+impl ops::Add for Fixed {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        self.add(rhs)
+    }
+}
+
+impl ops::Sub for Fixed {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.sub(rhs)
+    }
+}
+
+impl ops::Mul for Fixed {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        self.mul(rhs)
+    }
+}
+
+impl ops::Div for Fixed {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        self.div(rhs)
+    }
+}
+
+impl ops::Neg for Fixed {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        self.neg()
     }
 }
 
@@ -253,4 +296,3 @@ impl TrigTables {
         self.atan2_table[y_index][x_index]
     }
 }
-
