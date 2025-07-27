@@ -150,7 +150,7 @@ impl SpawnDefinition {
     }
 }
 
-impl<'a> ScriptContext for SpawnBehaviorContext<'a> {
+impl ScriptContext for SpawnBehaviorContext<'_> {
     fn read_property(&mut self, engine: &mut ScriptEngine, var_index: usize, prop_address: u8) {
         use crate::constants::PropertyAddress;
 

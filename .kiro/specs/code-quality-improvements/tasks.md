@@ -32,7 +32,7 @@
   - Replace redundant closure in src/error.rs line 190 with direct function reference
   - _Requirements: 3.1, 3.2_
 
-- [ ] 5. Simplify conditional logic and lifetime annotations
+- [x] 5. Simplify conditional logic and lifetime annotations
 
   - Collapse `else if` blocks in src/tilemap.rs lines 133 and 189
   - Remove unnecessary explicit lifetimes in src/spawn.rs line 153

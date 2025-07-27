@@ -1109,7 +1109,7 @@ impl<'a> ConditionContext<'a> {
     }
 }
 
-impl<'a> crate::script::ScriptContext for ConditionContext<'a> {
+impl crate::script::ScriptContext for ConditionContext<'_> {
     fn read_property(
         &mut self,
         engine: &mut crate::script::ScriptEngine,
@@ -1285,7 +1285,7 @@ impl<'a> ActionContext<'a> {
     }
 }
 
-impl<'a> crate::script::ScriptContext for ActionContext<'a> {
+impl crate::script::ScriptContext for ActionContext<'_> {
     fn read_property(
         &mut self,
         engine: &mut crate::script::ScriptEngine,
