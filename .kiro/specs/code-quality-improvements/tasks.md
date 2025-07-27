@@ -73,7 +73,7 @@
   - Update any other files that reference these enums to use the new constants
   - _Requirements: 1.1, 3.4, 4.1_
 
-- [ ] 10. Fix disabled script execution due to borrow checker issues
+- [x] 10. Fix disabled script execution due to borrow checker issues
 
   - Re-enable status effect on_script execution in src/status.rs (around line 79)
   - Re-enable status effect tick_script execution in src/status.rs (around line 592)
