@@ -692,39 +692,39 @@ impl PropertyAddress {
 
     /// Check if this property address refers to a character property (direct access)
     pub fn is_character_property(self) -> bool {
-        match self {
+        matches!(
+            self,
             Self::CharacterId
-            | Self::CharacterGroup
-            | Self::CharacterPosX
-            | Self::CharacterPosY
-            | Self::CharacterVelX
-            | Self::CharacterVelY
-            | Self::CharacterSizeW
-            | Self::CharacterSizeH
-            | Self::CharacterHealth
-            | Self::CharacterEnergy
-            | Self::CharacterEnergyCap
-            | Self::CharacterEnergyRegen
-            | Self::CharacterEnergyRegenRate
-            | Self::CharacterEnergyCharge
-            | Self::CharacterEnergyChargeRate
-            | Self::CharacterCollisionTop
-            | Self::CharacterCollisionRight
-            | Self::CharacterCollisionBottom
-            | Self::CharacterCollisionLeft
-            | Self::CharacterLockedActionId
-            | Self::CharacterStatusEffectCount
-            | Self::CharacterArmorPunct
-            | Self::CharacterArmorBlast
-            | Self::CharacterArmorForce
-            | Self::CharacterArmorSever
-            | Self::CharacterArmorHeat
-            | Self::CharacterArmorCryo
-            | Self::CharacterArmorJolt
-            | Self::CharacterArmorAcid
-            | Self::CharacterArmorVirus => true,
-            _ => false,
-        }
+                | Self::CharacterGroup
+                | Self::CharacterPosX
+                | Self::CharacterPosY
+                | Self::CharacterVelX
+                | Self::CharacterVelY
+                | Self::CharacterSizeW
+                | Self::CharacterSizeH
+                | Self::CharacterHealth
+                | Self::CharacterEnergy
+                | Self::CharacterEnergyCap
+                | Self::CharacterEnergyRegen
+                | Self::CharacterEnergyRegenRate
+                | Self::CharacterEnergyCharge
+                | Self::CharacterEnergyChargeRate
+                | Self::CharacterCollisionTop
+                | Self::CharacterCollisionRight
+                | Self::CharacterCollisionBottom
+                | Self::CharacterCollisionLeft
+                | Self::CharacterLockedActionId
+                | Self::CharacterStatusEffectCount
+                | Self::CharacterArmorPunct
+                | Self::CharacterArmorBlast
+                | Self::CharacterArmorForce
+                | Self::CharacterArmorSever
+                | Self::CharacterArmorHeat
+                | Self::CharacterArmorCryo
+                | Self::CharacterArmorJolt
+                | Self::CharacterArmorAcid
+                | Self::CharacterArmorVirus
+        )
     }
 }
 
