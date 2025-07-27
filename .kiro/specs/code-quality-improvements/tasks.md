@@ -17,7 +17,7 @@
   - Delegate to existing methods to maintain identical behavior
   - _Requirements: 2.1, 2.4_
 
-- [ ] 3. Implement standard traits for Vec2 and TrigTables
+- [x] 3. Implement standard traits for Vec2 and TrigTables
 
   - Add `std::ops::Add` trait implementation for Vec2 type in src/math.rs
   - Add `Default` trait implementation for TrigTables struct

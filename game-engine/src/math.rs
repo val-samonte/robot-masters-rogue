@@ -161,6 +161,14 @@ impl Vec2 {
     }
 }
 
+impl ops::Add for Vec2 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        self.add(rhs)
+    }
+}
+
 /// Precomputed trigonometry tables for performance
 pub struct TrigTables {
     sin_table: [Fixed; 360], // 1-degree precision
@@ -294,5 +302,11 @@ impl TrigTables {
         let x_index = ((x.to_int().clamp(-128, 127) + 128) as usize).min(255);
 
         self.atan2_table[y_index][x_index]
+    }
+}
+
+impl Default for TrigTables {
+    fn default() -> Self {
+        Self::new()
     }
 }
