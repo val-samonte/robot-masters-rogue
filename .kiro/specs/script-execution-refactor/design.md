@@ -2,213 +2,150 @@
 
 ## Overview
 
-The script execution refactor addresses the fundamental borrow checker conflicts in the current system by introducing a proper separation of concerns between script execution and game state management. The solution leverages Rust's ownership system properly while maintaining the existing ScriptEngine and ScriptContext abstractions.
+The status effect script execution system is currently disabled due to borrow checker conflicts. However, the game architecture is already correct - it uses an ID-based system where characters store `Vec<StatusEffectInstanceId>` and instances are stored in `GameState.status_effect_instances`. The solution is to fix the existing script execution code to properly sequence borrows and use this ID-based system.
 
 ## Architecture
 
 ### Current Problem Analysis
 
-The current system has these architectural issues:
+The disabled code in `status.rs` has borrow checker issues because it tries to:
 
-1. **Simultaneous Mutable Borrows**: Script execution functions need `&mut GameState`, `&mut Character`, and `&mut StatusEffectInstance`, but `StatusEffectInstance` comes from `GameState`, creating conflicts.
+1. Borrow `&mut GameState` to access various collections
+2. Borrow `&mut Character` from within GameState
+3. Borrow `&mut StatusEffectInstance` from within GameState
+4. Create `StatusEffectContext` with all three references simultaneously
 
-2. **Tight Coupling**: Script execution is tightly coupled to specific data structures, making it hard to extend.
+This creates simultaneous mutable borrows of GameState, which Rust prevents.
 
-3. **Context Creation Issues**: Creating `StatusEffectContext` requires borrowing multiple mutable references simultaneously.
+### Correct Solution
 
-### Proposed Solution
+The solution is to **properly sequence the borrows** using the existing ID-based architecture:
 
-The solution introduces a **Script Execution Coordinator** pattern that:
+1. **Use IDs to avoid simultaneous borrows**: Instead of holding multiple mutable references, use character_id, instance_id, and definition_id to get references one at a time when needed.
 
-1. **Separates Data Preparation from Execution**: Collect all needed data first, then execute scripts with prepared context.
+2. **Sequence context creation properly**: Create the StatusEffectContext by getting references in the right order without conflicts.
 
-2. **Uses Owned Context Data**: Create contexts with owned/copied data instead of borrowed references where possible.
-
-3. **Implements Deferred Execution**: Queue script executions and process them when we have exclusive access to game state.
+3. **Use existing ScriptEngine and ScriptContext**: No new systems needed - just fix the borrow sequencing.
 
 ## Components and Interfaces
 
-### 1. ScriptExecutionRequest
+### 1. Fixed StatusEffectContext Creation
 
-A data structure that captures all information needed to execute a script later:
+Create a helper function that safely creates StatusEffectContext:
 
 ```rust
-#[derive(Debug, Clone)]
-pub struct ScriptExecutionRequest {
-    pub script_type: ScriptType,
-    pub script_data: Vec<u8>,
-    pub args: [u8; 8],
-    pub spawns: [u8; 4],
-    pub context_data: ScriptContextData,
+fn execute_status_effect_script(
+    game_state: &mut GameState,
+    character_id: u8,
+    instance_id: StatusEffectInstanceId,
+    definition_id: StatusEffectId,
+    script_type: StatusEffectScriptType,
+) -> Result<u8, ScriptError> {
+    // Get references in proper sequence to avoid borrow conflicts
+    // Implementation details in the actual code
 }
 
-#[derive(Debug, Clone)]
-pub enum ScriptType {
-    StatusEffectOn,
-    StatusEffectTick,
-    StatusEffectOff,
-    // Future: ActionScript, ConditionScript, etc.
-}
-
-#[derive(Debug, Clone)]
-pub struct ScriptContextData {
-    pub character_id: u8,
-    pub instance_id: Option<StatusEffectInstanceId>,
-    pub definition_id: Option<StatusEffectId>,
-    // Other context-specific data
+enum StatusEffectScriptType {
+    On,
+    Tick,
+    Off,
 }
 ```
 
-### 2. ScriptExecutionCoordinator
+### 2. Updated Status Effect Functions
 
-A component that manages script execution requests and processes them safely:
+Fix the existing functions in `status.rs`:
 
-```rust
-pub struct ScriptExecutionCoordinator {
-    pending_requests: Vec<ScriptExecutionRequest>,
-    script_engine: ScriptEngine, // Reused engine instance
-}
+- `apply_to_character`: Enable on_script execution
+- `process_character_status_effects`: Enable tick_script execution
+- `remove_status_effect_by_instance_id`: Enable off_script execution
 
-impl ScriptExecutionCoordinator {
-    pub fn queue_script_execution(&mut self, request: ScriptExecutionRequest);
-    pub fn process_pending_scripts(&mut self, game_state: &mut GameState) -> Result<(), ScriptError>;
-    pub fn execute_script_immediately(&mut self, request: ScriptExecutionRequest, game_state: &mut GameState) -> Result<u8, ScriptError>;
-}
-```
+### 3. Proper Borrow Sequencing Pattern
 
-### 3. Enhanced ScriptContext Creation
-
-Modify context creation to work with the coordinator pattern:
+The key pattern is to avoid holding multiple mutable references simultaneously:
 
 ```rust
-impl StatusEffectContext<'_> {
-    pub fn create_for_execution(
-        game_state: &mut GameState,
-        character_id: u8,
-        instance_id: StatusEffectInstanceId,
-        definition_id: StatusEffectId,
-    ) -> Result<(StatusEffectContext, &mut Character, &mut StatusEffectInstance), ScriptError>;
-}
-```
+// WRONG - simultaneous mutable borrows
+let character = &mut game_state.characters[character_id];
+let instance = &mut game_state.status_effect_instances[instance_id];
+let context = StatusEffectContext { game_state, character, instance, ... };
 
-### 4. GameState Integration
-
-Add methods to GameState for coordinated script execution:
-
-```rust
-impl GameState {
-    pub fn get_script_coordinator(&mut self) -> &mut ScriptExecutionCoordinator;
-    pub fn process_all_pending_scripts(&mut self) -> Result<(), ScriptError>;
-}
+// RIGHT - sequence the borrows properly
+// Implementation uses proper sequencing to avoid conflicts
 ```
 
 ## Data Models
 
-### ScriptExecutionRequest Structure
+No new data models needed. Use existing:
 
-- **script_type**: Enum identifying the type of script (on/tick/off for status effects)
-- **script_data**: The actual bytecode to execute
-- **args**: Arguments passed to the script engine
-- **spawns**: Spawn IDs for spawn creation
-- **context_data**: All data needed to recreate the execution context
-
-### ScriptContextData Structure
-
-- **character_id**: ID to locate the character in game state
-- **instance_id**: Optional instance ID for status effects
-- **definition_id**: Optional definition ID for status effects
-- **Additional fields**: As needed for different script types
+- `StatusEffectInstance` (already in GameState)
+- `StatusEffectDefinition` (already in GameState)
+- `Character` (already in GameState)
+- `StatusEffectContext` (already exists)
+- `ScriptEngine` (already exists)
 
 ## Error Handling
 
-### Script Execution Errors
+Use existing error handling:
 
-- **InvalidContext**: When context data references non-existent entities
-- **BorrowConflict**: If somehow borrow conflicts still occur (should not happen with proper design)
-- **ScriptError**: Existing script execution errors are propagated
-
-### Error Recovery
-
-- Failed script executions are logged but don't crash the game
-- Invalid context data results in script being skipped
-- Partial failures in batch processing continue with remaining scripts
+- `ScriptError` for script execution failures
+- Graceful handling when character/instance/definition not found
+- Continue game execution even if individual scripts fail
 
 ## Testing Strategy
 
-### Unit Tests
-
-1. **ScriptExecutionRequest Creation**: Test request creation with various context types
-2. **Coordinator Queuing**: Test queuing and processing of multiple requests
-3. **Context Creation**: Test safe context creation without borrow conflicts
-4. **Error Handling**: Test error scenarios and recovery
-
 ### Integration Tests
 
-1. **Status Effect Scripts**: Test all three script types (on/tick/off) execute properly
-2. **Multiple Characters**: Test script execution with multiple characters
-3. **Concurrent Requests**: Test handling of multiple queued script requests
-4. **Performance**: Verify no performance regression from original system
+1. **Status Effect On Script**: Test script executes when status effect is applied
+2. **Status Effect Tick Script**: Test script executes every frame while active
+3. **Status Effect Off Script**: Test script executes when status effect is removed
+4. **Multiple Status Effects**: Test multiple effects on same character
+5. **Script Failures**: Test graceful handling of script execution errors
 
 ### Regression Tests
 
 1. **Existing Functionality**: Ensure all existing game logic continues to work
-2. **Script Behavior**: Verify scripts produce the same results as before
-3. **Memory Safety**: Confirm no unsafe code is needed
+2. **Script Behavior**: Verify scripts produce expected results
+3. **Performance**: Ensure no performance regression
 
-## Implementation Phases
+## Implementation Plan
 
-### Phase 1: Core Infrastructure
+### Phase 1: Fix On Script Execution
 
-- Implement ScriptExecutionRequest and related data structures
-- Create ScriptExecutionCoordinator with basic queuing
-- Add GameState integration methods
+- Remove disabled code comments in `apply_to_character`
+- Implement proper borrow sequencing for on_script execution
+- Test that status effects can execute on_script when applied
 
-### Phase 2: Status Effect Integration
+### Phase 2: Fix Tick Script Execution
 
-- Modify status effect script execution to use coordinator
-- Update apply_to_character, process_character_status_effects, and remove functions
-- Implement safe context creation for status effects
+- Remove disabled code comments in `process_character_status_effects`
+- Implement proper borrow sequencing for tick_script execution
+- Test that status effects execute tick_script every frame
 
-### Phase 3: Testing and Optimization
+### Phase 3: Fix Off Script Execution
+
+- Remove disabled code comments in `remove_status_effect_by_instance_id`
+- Implement proper borrow sequencing for off_script execution
+- Test that status effects execute off_script when removed
+
+### Phase 4: Testing and Cleanup
 
 - Comprehensive testing of all script execution paths
-- Performance optimization and engine reuse
-- Documentation and cleanup
-
-### Phase 4: Future Extensibility
-
-- Design patterns for adding action and condition script execution
-- Generalize the coordinator for other script types
-- API documentation for extending the system
+- Remove all "temporarily disabled" comments
+- Verify no performance regression
 
 ## Migration Strategy
 
-### Backward Compatibility
+### No Breaking Changes
 
-- Existing script bytecode remains unchanged
-- ScriptEngine and ScriptContext interfaces remain stable
-- Game logic behavior is identical to original working implementation
+- Existing script bytecode works unchanged
+- ScriptEngine and ScriptContext interfaces unchanged
+- Game logic behavior identical to original working implementation
+- No new APIs or data structures
 
-### Rollout Plan
+### Simple Rollout
 
-1. Implement new system alongside existing disabled code
-2. Enable new system for status effects only
-3. Verify functionality through testing
-4. Remove old disabled code
-5. Document new patterns for future script types
-
-## Performance Considerations
-
-### Optimization Strategies
-
-- **Engine Reuse**: Single ScriptEngine instance per coordinator, reset between executions
-- **Batch Processing**: Process multiple queued scripts in single game state access
-- **Minimal Cloning**: Only clone data that's actually needed for context
-- **Lazy Context Creation**: Create contexts only when scripts actually need to execute
-
-### Memory Management
-
-- ScriptExecutionRequest uses minimal owned data
-- Context creation borrows from game state only during execution
-- No long-lived references that could cause borrow conflicts
-- Coordinator clears processed requests to prevent memory leaks
+1. Fix the disabled code in status.rs
+2. Test thoroughly
+3. Remove disabled code comments
+4. Done - no migration needed
