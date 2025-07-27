@@ -46,12 +46,12 @@ pub struct Character {
     pub core: EntityCore,
     pub health: u8,
     pub energy: u8,
-    pub armor: [u8; 8],         // Armor values for all 8 elements (baseline 100)
+    pub armor: [u8; 9],         // Armor values for all 9 elements (baseline 100)
     pub energy_regen: u8,       // Passive energy recovery amount per rate
     pub energy_regen_rate: u8,  // Tick interval for passive energy recovery
     pub energy_charge: u8,      // Active energy recovery amount per rate during Charge action
     pub energy_charge_rate: u8, // Tick interval for active energy recovery during Charge action
-    pub behaviors: Vec<(ConditionId, ActionId)>,
+    pub behaviors: Vec<(ConditionId, ActionId)>, // todo: add slot type Vec<(SlotType, ConditionId, ActionId)>. slot types are needed for the virus status effect to know which action should be disabled.
     pub locked_action: Option<ActionInstanceId>,
     pub status_effects: Vec<StatusEffectInstanceId>,
     pub action_last_used: Vec<u16>, // Tracks when each action was last executed (game frame timestamp)
@@ -210,7 +210,7 @@ impl Character {
             core: EntityCore::new(id, group),
             health: 100,
             energy: 100,
-            armor: [100; 8], // Default armor values (baseline 100)
+            armor: [100; 9], // Default armor values (baseline 100)
             energy_regen: 0, // Values will be set during new_game/game initialization
             energy_regen_rate: 0,
             energy_charge: 0,
@@ -444,14 +444,15 @@ impl StatusEffectInstance {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Element {
-    Punct = 0, // Puncture/piercing - goes through multiple enemies and walls
+    Punct = 0, // Puncture / piercing - goes through multiple enemies and walls, ignores force fields
     Blast = 1, // Explosive AOE damage
-    Force = 2, // Blunt weapons - impact damage, bonus based on entity weight if melee
+    Force = 2, // Blunt weapons - impact damage, bonus based on entity weight if melee, negated by force fields
     Sever = 3, // Critical chance (x1.5 to x2 damage)
-    Heat = 4,  // Applies overtime burning effect
-    Cryo = 5,  // Applies slow movement/cooldown, frostbite (max HP % damage)
+    Heat = 4,  // Applies damage overtime / burning effect
+    Cryo = 5,  // Applies slow movement / cooldown, frostbite (max HP % damage)
     Jolt = 6,  // Energy altering - slow recharging, energy damage, energy leak
-    Virus = 7, // Alters target behavior - inject erratic bugs, disable behaviors
+    Acid = 7,  // Disables regenerative and other supportive buffs
+    Virus = 8, // Alters target behavior - inject erratic bugs, disable behaviors
 }
 
 impl Element {
@@ -465,13 +466,14 @@ impl Element {
             4 => Some(Element::Heat),
             5 => Some(Element::Cryo),
             6 => Some(Element::Jolt),
-            7 => Some(Element::Virus),
+            7 => Some(Element::Acid),
+            8 => Some(Element::Virus),
             _ => None,
         }
     }
 }
 
 /// Character armor values (0-255, baseline 100) - simplified elemental immunity
-/// Index corresponds to Element enum values: [Punct, Blast, Force, Sever, Heat, Cryo, Jolt, Virus]
+/// Index corresponds to Element enum values: [Punct, Blast, Force, Sever, Heat, Cryo, Jolt, Acid, Virus]
 /// Lower values = more vulnerable, higher values = more resistant
-pub type Armor = [u8; 8];
+pub type Armor = [u8; 9];

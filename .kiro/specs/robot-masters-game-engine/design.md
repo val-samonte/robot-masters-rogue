@@ -226,18 +226,19 @@ The elemental system provides strategic depth through damage types and character
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Element {
-    Punct = 0, // Puncture/piercing - goes through multiple enemies and walls
+    Punct = 0, // Puncture / piercing - goes through multiple enemies and walls, ignores force fields
     Blast = 1, // Explosive AOE damage
     Force = 2, // Blunt weapons - impact damage, bonus based on entity weight if melee
     Sever = 3, // Critical chance (x1.5 to x2 damage)
-    Heat = 4,  // Applies overtime burning effect
-    Cryo = 5,  // Applies slow movement/cooldown, frostbite (max HP % damage)
+    Heat = 4,  // Applies damage overtime / burning effect
+    Cryo = 5,  // Applies slow movement / cooldown, frostbite (max HP % damage)
     Jolt = 6,  // Energy altering - slow recharging, energy damage, energy leak
-    Virus = 7, // Alters target behavior - inject erratic bugs, disable behaviors
+    Acid = 7,  // Disables regenerative and other supportive buffs
+    Virus = 8, // Alters target behavior - inject erratic bugs, disable behaviors
 }
 
 impl Element {
-    /// Convert from u8 value with bounds checking
+    /// Convert from u8 value
     pub fn from_u8(value: u8) -> Option<Element> {
         match value {
             0 => Some(Element::Punct),
@@ -247,16 +248,17 @@ impl Element {
             4 => Some(Element::Heat),
             5 => Some(Element::Cryo),
             6 => Some(Element::Jolt),
-            7 => Some(Element::Virus),
+            7 => Some(Element::Acid),
+            8 => Some(Element::Virus),
             _ => None,
         }
     }
 }
 
 /// Character armor values (0-255, baseline 100) - simplified elemental immunity
-/// Index corresponds to Element enum values: [Punct, Blast, Force, Sever, Heat, Cryo, Jolt, Virus]
+/// Index corresponds to Element enum values: [Punct, Blast, Force, Sever, Heat, Cryo, Jolt, Acid, Virus]
 /// Lower values = more vulnerable, higher values = more resistant
-pub type Armor = [u8; 8];
+pub type Armor = [u8; 9];
 
 /// Helper functions for armor array access
 impl Character {

@@ -200,23 +200,23 @@ pub enum PropertyAddress {
     /// Status effect args[2] (byte) - from definition
     StatusEffectDefArg2 = 0x1F,
 
-    // ===== SPAWN DEFINITION PROPERTIES (0x58-0x5F) =====
+    // ===== SPAWN DEFINITION PROPERTIES (0x5A-0x61) =====
     /// Spawn definition damage base (byte) - from definition
-    SpawnDefDamageBase = 0x58,
+    SpawnDefDamageBase = 0x5A,
     /// Spawn definition health cap (byte) - from definition
-    SpawnDefHealthCap = 0x59,
+    SpawnDefHealthCap = 0x5B,
     /// Spawn definition duration (fixed-point) - from definition
-    SpawnDefDuration = 0x5A,
+    SpawnDefDuration = 0x5C,
     /// Spawn definition element (byte) - from definition
-    SpawnDefElement = 0x5B,
+    SpawnDefElement = 0x5D,
     /// Spawn definition args[0] (byte) - from definition
-    SpawnDefArg0 = 0x5C,
+    SpawnDefArg0 = 0x5E,
     /// Spawn definition args[1] (byte) - from definition
-    SpawnDefArg1 = 0x5D,
+    SpawnDefArg1 = 0x5F,
     /// Spawn definition args[2] (byte) - from definition
-    SpawnDefArg2 = 0x5E,
+    SpawnDefArg2 = 0x60,
     /// Spawn definition args[3] (byte) - from definition
-    SpawnDefArg3 = 0x5F,
+    SpawnDefArg3 = 0x61,
 
     // ===== CHARACTER CORE PROPERTIES (0x20-0x2F) =====
     /// Character ID (byte)
@@ -266,7 +266,7 @@ pub enum PropertyAddress {
     /// Number of active status effects (byte)
     CharacterStatusEffectCount = 0x34,
 
-    // ===== CHARACTER ARMOR VALUES (0x40-0x47) =====
+    // ===== CHARACTER ARMOR VALUES (0x40-0x48) =====
     /// Armor value for Punct element (byte)
     CharacterArmorPunct = 0x40,
     /// Armor value for Blast element (byte)
@@ -281,30 +281,32 @@ pub enum PropertyAddress {
     CharacterArmorCryo = 0x45,
     /// Armor value for Jolt element (byte)
     CharacterArmorJolt = 0x46,
+    /// Armor value for Acid element (byte)
+    CharacterArmorAcid = 0x47,
     /// Armor value for Virus element (byte)
-    CharacterArmorVirus = 0x47,
+    CharacterArmorVirus = 0x48,
 
-    // ===== ENTITY DIRECTION PROPERTIES (0x48-0x49) =====
+    // ===== ENTITY DIRECTION PROPERTIES (0x50-0x51) =====
     /// Entity facing direction (byte: 0=left, 1=right, converts to Fixed -1.0/1.0)
-    EntityFacing = 0x48,
+    EntityFacing = 0x50,
     /// Entity gravity direction (byte: 0=upward, 1=downward, converts to Fixed -1.0/1.0)
-    EntityGravityDir = 0x49,
+    EntityGravityDir = 0x51,
 
-    // ===== SPAWN PROPERTIES (0x50-0x57) =====
+    // ===== SPAWN PROPERTIES (0x52-0x59) =====
     /// Spawn damage base (byte)
-    SpawnDamageBase = 0x50,
+    SpawnDamageBase = 0x52,
     /// Spawn core ID (byte)
-    SpawnCoreId = 0x51,
+    SpawnCoreId = 0x53,
     /// Spawn owner ID (byte)
-    SpawnOwnerId = 0x52,
+    SpawnOwnerId = 0x54,
     /// Spawn position X (fixed-point)
-    SpawnPosX = 0x53,
+    SpawnPosX = 0x55,
     /// Spawn position Y (fixed-point)
-    SpawnPosY = 0x54,
+    SpawnPosY = 0x56,
     /// Spawn velocity X (fixed-point)
-    SpawnVelX = 0x55,
+    SpawnVelX = 0x57,
     /// Spawn velocity Y (fixed-point)
-    SpawnVelY = 0x56,
+    SpawnVelY = 0x58,
 
     // ===== ACTION INSTANCE PROPERTIES (0x80-0x8D) =====
     /// Action instance vars[0] (byte) - from instance
@@ -518,14 +520,14 @@ impl PropertyAddress {
             0x1F => Some(Self::StatusEffectDefArg2),
 
             // Spawn definition properties
-            0x58 => Some(Self::SpawnDefDamageBase),
-            0x59 => Some(Self::SpawnDefHealthCap),
-            0x5A => Some(Self::SpawnDefDuration),
-            0x5B => Some(Self::SpawnDefElement),
-            0x5C => Some(Self::SpawnDefArg0),
-            0x5D => Some(Self::SpawnDefArg1),
-            0x5E => Some(Self::SpawnDefArg2),
-            0x5F => Some(Self::SpawnDefArg3),
+            0x5A => Some(Self::SpawnDefDamageBase),
+            0x5B => Some(Self::SpawnDefHealthCap),
+            0x5C => Some(Self::SpawnDefDuration),
+            0x5D => Some(Self::SpawnDefElement),
+            0x5E => Some(Self::SpawnDefArg0),
+            0x5F => Some(Self::SpawnDefArg1),
+            0x60 => Some(Self::SpawnDefArg2),
+            0x61 => Some(Self::SpawnDefArg3),
 
             // Character properties
             0x20 => Some(Self::CharacterId),
@@ -556,20 +558,21 @@ impl PropertyAddress {
             0x44 => Some(Self::CharacterArmorHeat),
             0x45 => Some(Self::CharacterArmorCryo),
             0x46 => Some(Self::CharacterArmorJolt),
-            0x47 => Some(Self::CharacterArmorVirus),
+            0x47 => Some(Self::CharacterArmorAcid),
+            0x48 => Some(Self::CharacterArmorVirus),
 
             // Entity direction properties
-            0x48 => Some(Self::EntityFacing),
-            0x49 => Some(Self::EntityGravityDir),
+            0x50 => Some(Self::EntityFacing),
+            0x51 => Some(Self::EntityGravityDir),
 
             // Spawn properties
-            0x50 => Some(Self::SpawnDamageBase),
-            0x51 => Some(Self::SpawnCoreId),
-            0x52 => Some(Self::SpawnOwnerId),
-            0x53 => Some(Self::SpawnPosX),
-            0x54 => Some(Self::SpawnPosY),
-            0x55 => Some(Self::SpawnVelX),
-            0x56 => Some(Self::SpawnVelY),
+            0x52 => Some(Self::SpawnDamageBase),
+            0x53 => Some(Self::SpawnCoreId),
+            0x54 => Some(Self::SpawnOwnerId),
+            0x55 => Some(Self::SpawnPosX),
+            0x56 => Some(Self::SpawnPosY),
+            0x57 => Some(Self::SpawnVelX),
+            0x58 => Some(Self::SpawnVelY),
 
             // Action instance properties
             0x80 => Some(Self::ActionInstVar0),
@@ -718,6 +721,7 @@ impl PropertyAddress {
             | Self::CharacterArmorHeat
             | Self::CharacterArmorCryo
             | Self::CharacterArmorJolt
+            | Self::CharacterArmorAcid
             | Self::CharacterArmorVirus => true,
             _ => false,
         }

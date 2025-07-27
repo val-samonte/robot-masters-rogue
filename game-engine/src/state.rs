@@ -543,7 +543,7 @@ impl GameState {
         data.push(character.core.facing);
         data.push(character.core.gravity_dir);
 
-        // Character-specific: health (1) + energy (1) + armor (8) = 10 bytes
+        // Character-specific: health (1) + energy (1) + armor (9) = 11 bytes
         data.push(character.health);
         data.push(character.energy);
         data.extend_from_slice(&character.armor);
@@ -611,7 +611,7 @@ impl GameState {
 
     #[allow(dead_code)]
     fn deserialize_character(data: &[u8]) -> GameResult<(Character, usize)> {
-        if data.len() < 30 {
+        if data.len() < 31 {
             return Err(crate::api::GameError::InvalidCharacterData);
         }
 
@@ -651,9 +651,9 @@ impl GameState {
         pos += 1;
         let energy = data[pos];
         pos += 1;
-        let mut armor = [0u8; 8];
-        armor.copy_from_slice(&data[pos..pos + 8]);
-        pos += 8;
+        let mut armor = [0u8; 9];
+        armor.copy_from_slice(&data[pos..pos + 9]);
+        pos += 9;
 
         // Behaviors
         if pos >= data.len() {

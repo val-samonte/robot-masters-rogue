@@ -117,7 +117,7 @@
   - Ensure the public API provides complete access to game state for external persistence
   - _Requirements: 1.3, 5.4_
 
-- [ ] 15. Update README documentation
+- [x] 15. Update README documentation
   - Update game-engine/README.md to reflect the new definition-based architecture
   - Document the new API signature for new_game function
   - Explain the benefits of the definition-based approach for memory efficiency
