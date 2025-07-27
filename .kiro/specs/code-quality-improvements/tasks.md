@@ -73,7 +73,18 @@
   - Update any other files that reference these enums to use the new constants
   - _Requirements: 1.1, 3.4, 4.1_
 
-- [ ] 10. Final validation and cleanup
+- [ ] 10. Fix disabled script execution due to borrow checker issues
+
+  - Re-enable status effect on_script execution in src/status.rs (around line 79)
+  - Re-enable status effect tick_script execution in src/status.rs (around line 592)
+  - Re-enable status effect off_script execution in src/state.rs (around line 624)
+  - Resolve borrow checker conflicts by restructuring code to avoid simultaneous mutable borrows
+  - Use techniques like cloning definitions, splitting borrows, or refactoring to separate concerns
+  - Ensure all script execution paths are fully functional and tested
+  - Maintain identical functionality while fixing borrowing issues
+  - _Requirements: 1.1, 2.1, 5.1_
+
+- [ ] 11. Final validation and cleanup
   - Run `cargo clippy` to verify zero warnings
   - Run `cargo check` to verify zero compiler warnings
   - Build project to confirm no compilation issues
