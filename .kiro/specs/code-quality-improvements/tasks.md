@@ -63,7 +63,17 @@
   - Add necessary imports and ensure functionality remains identical
   - _Requirements: 1.1, 3.4_
 
-- [ ] 9. Final validation and cleanup
+- [x] 9. Simplify OperatorAddress and PropertyAddress from enums to constants
+
+  - Replace `OperatorAddress` enum with module containing `const` declarations in src/constants.rs
+  - Replace `PropertyAddress` enum with module containing `const` declarations in src/constants.rs
+  - Update all usage in src/script.rs to use the new constant values directly
+  - Remove unnecessary `from_u8()` methods and enum conversion overhead
+  - Maintain identical byte values and functionality while simplifying the API
+  - Update any other files that reference these enums to use the new constants
+  - _Requirements: 1.1, 3.4, 4.1_
+
+- [ ] 10. Final validation and cleanup
   - Run `cargo clippy` to verify zero warnings
   - Run `cargo check` to verify zero compiler warnings
   - Build project to confirm no compilation issues
