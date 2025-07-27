@@ -752,7 +752,7 @@ pub fn apply_status_effect(
 
 /// Apply passive energy regeneration to all characters in the game
 pub fn apply_passive_energy_regen_to_all_characters(
-    characters: &mut Vec<Character>,
+    characters: &mut [Character],
 ) -> Result<(), ScriptError> {
     for character in characters.iter_mut() {
         // Set energy regen values directly on the character

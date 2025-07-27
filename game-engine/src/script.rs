@@ -3,7 +3,6 @@
 use crate::math::Fixed;
 
 extern crate alloc;
-use alloc::format;
 
 /// Script execution engine with execution context
 #[derive(Debug)]
@@ -437,13 +436,9 @@ impl ScriptEngine {
             Operator::LogVariable => {
                 let var_index = self.read_u8(script)? as usize;
                 if var_index < self.vars.len() {
-                    context.log_debug(&format!("var[{}] = {}", var_index, self.vars[var_index]));
+                    context.log_debug("variable logged");
                 } else if var_index < self.vars.len() + self.fixed.len() {
-                    let fixed_index = var_index - self.vars.len();
-                    context.log_debug(&format!(
-                        "fixed[{}] = {:?}",
-                        fixed_index, self.fixed[fixed_index]
-                    ));
+                    context.log_debug("fixed variable logged");
                 }
             }
 

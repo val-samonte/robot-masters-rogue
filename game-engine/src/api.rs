@@ -21,12 +21,6 @@ pub enum GameError {
     InvalidOperator,
     ScriptIndexOutOfBounds,
 
-    // Serialization errors
-    SerializationError,
-    DeserializationError,
-    InvalidBinaryData,
-    DataTooShort,
-
     // Game state errors
     InvalidGameState,
     InvalidCharacterData,
@@ -71,11 +65,8 @@ impl From<&str> for GameError {
     fn from(msg: &str) -> Self {
         match msg {
             s if s.contains("script") => GameError::InvalidScript,
-            s if s.contains("serializ") => GameError::SerializationError,
-            s if s.contains("binary") => GameError::InvalidBinaryData,
             s if s.contains("character") => GameError::InvalidCharacterData,
             s if s.contains("spawn") => GameError::InvalidSpawnData,
-            s if s.contains("short") => GameError::DataTooShort,
             _ => GameError::InvalidInput,
         }
     }

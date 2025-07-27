@@ -40,7 +40,7 @@
   - Remove unnecessary explicit lifetimes in src/status.rs line 155
   - _Requirements: 4.1, 4.2_
 
-- [ ] 6. Optimize function parameters and string operations
+- [x] 6. Optimize function parameters and string operations
 
   - Change `&mut Vec<Character>` to `&mut [Character]` in src/error.rs line 48
   - Change `&mut Vec<Character>` to `&mut [Character]` in src/status.rs line 755

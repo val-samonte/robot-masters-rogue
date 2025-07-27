@@ -18,34 +18,9 @@ impl ErrorRecovery {
         }
     }
 
-    /// Handle serialization errors with recovery options
-    pub fn handle_serialization_error(error: GameError) -> GameResult<()> {
-        match error {
-            GameError::SerializationError => {
-                // Log error but continue execution
-                // Note: In no_std environment, we can't use eprintln!
-                // Error logging would be handled by the platform-specific wrapper
-                Ok(())
-            }
-            GameError::DeserializationError => {
-                // Cannot recover from deserialization errors
-                Err(GameError::DeserializationError)
-            }
-            GameError::InvalidBinaryData => {
-                // Cannot recover from corrupted data
-                Err(GameError::InvalidBinaryData)
-            }
-            GameError::DataTooShort => {
-                // Cannot recover from incomplete data
-                Err(GameError::DataTooShort)
-            }
-            _ => Err(error),
-        }
-    }
-
     /// Validate game state integrity and attempt recovery
     pub fn validate_and_recover_game_state(
-        characters: &mut alloc::vec::Vec<crate::entity::Character>,
+        characters: &mut [crate::entity::Character],
         spawn_instances: &mut alloc::vec::Vec<crate::entity::SpawnInstance>,
     ) -> GameResult<()> {
         // Validate character data
@@ -207,10 +182,7 @@ impl ErrorRecovery {
             GameError::ScriptExecutionError => "Script execution failed",
             GameError::InvalidOperator => "Unknown script operator",
             GameError::ScriptIndexOutOfBounds => "Script index out of bounds",
-            GameError::SerializationError => "Failed to serialize game state",
-            GameError::DeserializationError => "Failed to deserialize game state",
-            GameError::InvalidBinaryData => "Binary data is corrupted",
-            GameError::DataTooShort => "Binary data is incomplete",
+
             GameError::InvalidGameState => "Game state is invalid",
             GameError::InvalidCharacterData => "Character data is corrupted",
             GameError::InvalidSpawnData => "Spawn data is corrupted",
@@ -255,14 +227,6 @@ impl ErrorRecovery {
             GameError::ScriptExecutionError => true,
             GameError::InvalidOperator => true,
             GameError::ScriptIndexOutOfBounds => true,
-
-            // Serialization errors may be recoverable depending on context
-            GameError::SerializationError => true,
-
-            // These errors are generally not recoverable
-            GameError::DeserializationError => false,
-            GameError::InvalidBinaryData => false,
-            GameError::DataTooShort => false,
 
             // Game state errors may be recoverable with validation
             GameError::InvalidGameState => true,
