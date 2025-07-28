@@ -22,5 +22,9 @@ pub mod state;
 pub mod status;
 pub mod tilemap;
 
+// Test modules
+#[cfg(test)]
+pub mod tests;
+
 // Re-export public API
 pub use api::*;

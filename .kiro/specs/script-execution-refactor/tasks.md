@@ -36,7 +36,7 @@
   - Maintain access to status effect data during off_script execution
   - _Requirements: 1.1, 1.4, 3.1_
 
-- [ ] 5. Test status effect script execution functionality
+- [x] 5. Test status effect script execution functionality
 
   - Test that on_script executes when status effect is applied to character
   - Test that tick_script executes every frame for active status effects
