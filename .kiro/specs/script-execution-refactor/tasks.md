@@ -27,7 +27,7 @@
   - Maintain proper timing and state for tick script execution
   - _Requirements: 1.1, 1.3, 3.1_
 
-- [ ] 4. Fix status effect off_script execution in remove_status_effect_by_instance_id
+- [x] 4. Fix status effect off_script execution in remove_status_effect_by_instance_id
 
   - Remove "temporarily disabled" comments from remove_status_effect_by_instance_id method
   - Replace disabled code with call to execute_status_effect_script for off_script

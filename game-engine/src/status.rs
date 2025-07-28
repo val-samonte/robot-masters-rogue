@@ -780,7 +780,7 @@ pub fn remove_status_effect(
 /// Remove a specific status effect from a character by instance ID
 pub fn remove_status_effect_by_instance_id(
     character: &mut Character,
-    _game_state: &mut GameState,
+    game_state: &mut GameState,
     effect_instance_id: StatusEffectInstanceId,
 ) -> Result<bool, ScriptError> {
     // Find and remove the effect from character's status effects list
@@ -790,11 +790,35 @@ pub fn remove_status_effect_by_instance_id(
         .position(|&id| id == effect_instance_id);
 
     if let Some(pos) = position {
-        character.status_effects.remove(pos);
+        // Get the definition ID before removing the effect
+        let definition_id =
+            if let Some(instance) = game_state.get_status_effect_instance(effect_instance_id) {
+                instance.definition_id
+            } else {
+                // Instance not found, just remove from character's list
+                character.status_effects.remove(pos);
+                return Ok(true);
+            };
 
-        // Execute off_script before removing the instance
-        // Note: Script execution is temporarily disabled to avoid borrow checker issues
-        // This will be implemented in a future iteration
+        // Execute off_script before removing the status effect
+        let character_id = character.core.id;
+        match execute_status_effect_script(
+            game_state,
+            character_id,
+            effect_instance_id,
+            definition_id,
+            StatusEffectScriptType::Off,
+        ) {
+            Ok(_) => {
+                // Script executed successfully, continue with removal
+            }
+            Err(_script_error) => {
+                // Handle script execution error gracefully - don't break status effect removal
+                // Log the error if logging is available, but continue with status effect removal
+            }
+        }
+
+        character.status_effects.remove(pos);
 
         // Note: We don't remove the instance from the global collection to avoid
         // invalidating other IDs. In a production system, you might want to implement
