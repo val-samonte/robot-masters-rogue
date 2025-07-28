@@ -33,7 +33,7 @@
   - Add comprehensive error handling for initialization failures
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 5. Add frame execution and game loop methods
+- [x] 5. Add frame execution and game loop methods
 
   - Implement step_frame method that advances game by one frame
   - Ensure proper error propagation from game engine
@@ -41,7 +41,7 @@
   - Maintain deterministic behavior across WASM boundary
   - _Requirements: 4.1, 4.2, 4.4, 1.5_
 
-- [ ] 6. Create game state serialization to JSON
+- [x] 6. Create game state serialization to JSON
 
   - Implement get_state_json method for complete game state
   - Add specialized methods for characters, spawns, status effects

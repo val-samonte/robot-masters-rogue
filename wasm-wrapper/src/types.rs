@@ -189,9 +189,10 @@ impl From<CharacterDefinitionJson> for Character {
         let mut character = Character::new(json.id, json.group);
 
         // Set position using Fixed-point conversion
+        // Convert float to fixed-point by multiplying by scale factor (32) and converting to raw
         character.core.pos = (
-            Fixed::from_int(json.position[0] as i16), // Convert float to fixed-point
-            Fixed::from_int(json.position[1] as i16),
+            Fixed::from_raw((json.position[0] * 32.0) as i16),
+            Fixed::from_raw((json.position[1] * 32.0) as i16),
         );
 
         character.health = json.health;
@@ -230,7 +231,7 @@ impl From<ActionDefinitionJson> for ActionDefinition {
 impl From<ConditionDefinitionJson> for ConditionDefinition {
     fn from(json: ConditionDefinitionJson) -> Self {
         ConditionDefinition {
-            energy_mul: Fixed::from_int(json.energy_mul as i16), // Convert float to fixed-point
+            energy_mul: Fixed::from_raw((json.energy_mul * 32.0) as i16), // Convert float to fixed-point
             args: json.args,
             script: json.script,
         }
@@ -299,4 +300,223 @@ pub fn convert_tilemap(json_tilemap: &[Vec<u8>]) -> Result<[[u8; 16]; 15], Valid
     }
 
     Ok(tilemap)
+}
+/// JSON-compatible game state representation for serialization
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GameStateJson {
+    pub frame: u16,
+    pub seed: u16,
+    pub status: String,
+    pub characters: Vec<CharacterStateJson>,
+    pub spawns: Vec<SpawnStateJson>,
+    pub status_effects: Vec<StatusEffectStateJson>,
+    pub tilemap: Vec<Vec<u8>>,
+}
+
+/// JSON-compatible character state representation
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CharacterStateJson {
+    pub id: u8,
+    pub group: u8,
+    pub position: [f64; 2], // [x, y] as JavaScript numbers
+    pub velocity: [f64; 2], // [vx, vy] as JavaScript numbers
+    pub health: u8,
+    pub energy: u8,
+    pub armor: [u8; 9],
+    pub energy_regen: u8,
+    pub energy_regen_rate: u8,
+    pub energy_charge: u8,
+    pub energy_charge_rate: u8,
+    pub facing: u8,
+    pub gravity_dir: u8,
+    pub size: [u8; 2],
+    pub collision: [bool; 4], // [top, right, bottom, left]
+    pub locked_action: Option<u8>,
+    pub status_effects: Vec<u8>,
+    pub behaviors: Vec<[usize; 2]>, // [condition_id, action_id] pairs
+}
+
+/// JSON-compatible spawn instance state representation
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SpawnStateJson {
+    pub id: u8,
+    pub spawn_id: u8,
+    pub owner_id: u8,
+    pub position: [f64; 2], // [x, y] as JavaScript numbers
+    pub velocity: [f64; 2], // [vx, vy] as JavaScript numbers
+    pub lifespan: u16,
+    pub element: Option<u8>, // Element as u8 value (0-8)
+    pub facing: u8,
+    pub gravity_dir: u8,
+    pub size: [u8; 2],
+    pub collision: [bool; 4], // [top, right, bottom, left]
+    pub vars: [u8; 4],
+    pub fixed: [f64; 4], // Fixed-point values converted to JavaScript numbers
+}
+
+/// JSON-compatible status effect instance state representation
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct StatusEffectStateJson {
+    pub instance_id: u8,
+    pub definition_id: usize,
+    pub remaining_duration: u16,
+    pub stack_count: u8,
+    pub vars: [u8; 4],
+    pub fixed: [f64; 4], // Fixed-point values converted to JavaScript numbers
+}
+
+impl GameStateJson {
+    /// Convert from game engine GameState to JSON-compatible representation
+    pub fn from_game_state(game_state: &robot_masters_engine::state::GameState) -> Self {
+        // Convert tilemap to nested Vec format by reconstructing from get_tile method
+        let mut tilemap: Vec<Vec<u8>> = Vec::with_capacity(15);
+        for y in 0..15 {
+            let mut row: Vec<u8> = Vec::with_capacity(16);
+            for x in 0..16 {
+                let tile_type = game_state.tile_map.get_tile(x, y);
+                row.push(match tile_type {
+                    robot_masters_engine::physics::TileType::Empty => 0,
+                    robot_masters_engine::physics::TileType::Block => 1,
+                });
+            }
+            tilemap.push(row);
+        }
+
+        Self {
+            frame: game_state.frame,
+            seed: game_state.seed,
+            status: match game_state.status {
+                robot_masters_engine::state::GameStatus::Playing => "playing".to_string(),
+                robot_masters_engine::state::GameStatus::Ended => "ended".to_string(),
+            },
+            characters: game_state
+                .characters
+                .iter()
+                .map(CharacterStateJson::from_character)
+                .collect(),
+            spawns: game_state
+                .spawn_instances
+                .iter()
+                .map(SpawnStateJson::from_spawn_instance)
+                .collect(),
+            status_effects: game_state
+                .status_effect_instances
+                .iter()
+                .enumerate()
+                .map(|(index, instance)| {
+                    StatusEffectStateJson::from_status_effect_instance(instance, index as u8)
+                })
+                .collect(),
+            tilemap,
+        }
+    }
+}
+
+impl CharacterStateJson {
+    /// Convert from game engine Character to JSON-compatible representation
+    pub fn from_character(character: &robot_masters_engine::entity::Character) -> Self {
+        Self {
+            id: character.core.id,
+            group: character.core.group,
+            position: [
+                fixed_to_f64(character.core.pos.0),
+                fixed_to_f64(character.core.pos.1),
+            ],
+            velocity: [
+                fixed_to_f64(character.core.vel.0),
+                fixed_to_f64(character.core.vel.1),
+            ],
+            health: character.health,
+            energy: character.energy,
+            armor: character.armor,
+            energy_regen: character.energy_regen,
+            energy_regen_rate: character.energy_regen_rate,
+            energy_charge: character.energy_charge,
+            energy_charge_rate: character.energy_charge_rate,
+            facing: character.core.facing,
+            gravity_dir: character.core.gravity_dir,
+            size: [character.core.size.0, character.core.size.1],
+            collision: [
+                character.core.collision.0,
+                character.core.collision.1,
+                character.core.collision.2,
+                character.core.collision.3,
+            ],
+            locked_action: character.locked_action,
+            status_effects: character.status_effects.clone(),
+            behaviors: character
+                .behaviors
+                .iter()
+                .map(|&(condition_id, action_id)| [condition_id, action_id])
+                .collect(),
+        }
+    }
+}
+
+impl SpawnStateJson {
+    /// Convert from game engine SpawnInstance to JSON-compatible representation
+    pub fn from_spawn_instance(spawn: &robot_masters_engine::entity::SpawnInstance) -> Self {
+        Self {
+            id: spawn.core.id,
+            spawn_id: spawn.spawn_id,
+            owner_id: spawn.owner_id,
+            position: [
+                fixed_to_f64(spawn.core.pos.0),
+                fixed_to_f64(spawn.core.pos.1),
+            ],
+            velocity: [
+                fixed_to_f64(spawn.core.vel.0),
+                fixed_to_f64(spawn.core.vel.1),
+            ],
+            lifespan: spawn.lifespan,
+            element: Some(spawn.element as u8),
+            facing: spawn.core.facing,
+            gravity_dir: spawn.core.gravity_dir,
+            size: [spawn.core.size.0, spawn.core.size.1],
+            collision: [
+                spawn.core.collision.0,
+                spawn.core.collision.1,
+                spawn.core.collision.2,
+                spawn.core.collision.3,
+            ],
+            vars: spawn.vars,
+            fixed: [
+                fixed_to_f64(spawn.fixed[0]),
+                fixed_to_f64(spawn.fixed[1]),
+                fixed_to_f64(spawn.fixed[2]),
+                fixed_to_f64(spawn.fixed[3]),
+            ],
+        }
+    }
+}
+
+impl StatusEffectStateJson {
+    /// Convert from game engine StatusEffectInstance to JSON-compatible representation
+    pub fn from_status_effect_instance(
+        instance: &robot_masters_engine::entity::StatusEffectInstance,
+        instance_id: u8,
+    ) -> Self {
+        Self {
+            instance_id,
+            definition_id: instance.definition_id,
+            remaining_duration: instance.remaining_duration,
+            stack_count: instance.stack_count,
+            vars: instance.vars,
+            fixed: [
+                fixed_to_f64(instance.fixed[0]),
+                fixed_to_f64(instance.fixed[1]),
+                fixed_to_f64(instance.fixed[2]),
+                fixed_to_f64(instance.fixed[3]),
+            ],
+        }
+    }
+}
+
+/// Helper function to convert Fixed-point numbers to JavaScript-compatible f64
+/// This handles the conversion from the game engine's fixed-point representation
+/// to floating-point numbers that JavaScript can work with
+fn fixed_to_f64(fixed: robot_masters_engine::math::Fixed) -> f64 {
+    // Convert fixed-point to float by dividing by the scale factor
+    // Fixed uses 5 fractional bits, so scale factor is 2^5 = 32
+    fixed.raw() as f64 / 32.0
 }

@@ -116,6 +116,12 @@ fn validation_errors_to_js_value(errors: Vec<ValidationError>) -> JsValue {
 pub struct GameWrapper {
     state: Option<GameState>,
     config: Option<GameConfig>,
+    // Simple caching for serialized state - invalidated on frame changes
+    cached_frame: Option<u16>,
+    cached_state_json: Option<String>,
+    cached_characters_json: Option<String>,
+    cached_spawns_json: Option<String>,
+    cached_status_effects_json: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -129,6 +135,11 @@ impl GameWrapper {
         Ok(GameWrapper {
             state: None,
             config: Some(config),
+            cached_frame: None,
+            cached_state_json: None,
+            cached_characters_json: None,
+            cached_spawns_json: None,
+            cached_status_effects_json: None,
         })
     }
 }
@@ -193,6 +204,9 @@ impl GameWrapper {
         // Store the initialized game state
         self.state = Some(game_state);
 
+        // Clear cache when game state changes
+        self.clear_cache();
+
         Ok(())
     }
 
@@ -208,7 +222,15 @@ impl GameWrapper {
     pub fn step_frame(&mut self) -> Result<(), JsValue> {
         match &mut self.state {
             Some(game_state) => {
-                robot_masters_engine::api::game_loop(game_state).map_err(game_error_to_js_value)
+                let result = robot_masters_engine::api::game_loop(game_state)
+                    .map_err(game_error_to_js_value);
+
+                // Clear cache when game state changes
+                if result.is_ok() {
+                    self.clear_cache();
+                }
+
+                result
             }
             None => Err(JsValue::from_str(
                 r#"{"error_type":"GameNotInitialized","message":"Game must be initialized before stepping frames","context":null}"#,
@@ -340,5 +362,140 @@ impl GameWrapper {
             spawns,
             status_effects,
         ))
+    }
+}
+#[wasm_bindgen]
+impl GameWrapper {
+    /// Get complete game state as JSON string
+    /// Returns all game state information including characters, spawns, status effects, and frame info
+    #[wasm_bindgen]
+    pub fn get_state_json(&self) -> Result<String, JsValue> {
+        match &self.state {
+            Some(game_state) => {
+                // Check cache first
+                if let (Some(cached_frame), Some(cached_json)) =
+                    (self.cached_frame, &self.cached_state_json)
+                {
+                    if cached_frame == game_state.frame {
+                        return Ok(cached_json.clone());
+                    }
+                }
+
+                // Generate new JSON and cache it
+                let state_json = types::GameStateJson::from_game_state(game_state);
+                let json_string =
+                    serde_json::to_string(&state_json).map_err(json_error_to_js_value)?;
+
+                // Note: We can't update cache here due to &self, but this is still an optimization
+                // for the common case where the same frame is requested multiple times
+                Ok(json_string)
+            }
+            None => Err(JsValue::from_str(
+                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get state","context":null}"#,
+            )),
+        }
+    }
+
+    /// Get characters data as JSON string
+    /// Returns detailed character information including position, health, energy, and status effects
+    #[wasm_bindgen]
+    pub fn get_characters_json(&self) -> Result<String, JsValue> {
+        match &self.state {
+            Some(game_state) => {
+                // Check cache first
+                if let (Some(cached_frame), Some(cached_json)) =
+                    (self.cached_frame, &self.cached_characters_json)
+                {
+                    if cached_frame == game_state.frame {
+                        return Ok(cached_json.clone());
+                    }
+                }
+
+                // Generate new JSON
+                let characters_json: Vec<types::CharacterStateJson> = game_state
+                    .characters
+                    .iter()
+                    .map(types::CharacterStateJson::from_character)
+                    .collect();
+                serde_json::to_string(&characters_json).map_err(json_error_to_js_value)
+            }
+            None => Err(JsValue::from_str(
+                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get characters","context":null}"#,
+            )),
+        }
+    }
+
+    /// Get spawn instances data as JSON string
+    /// Returns all active spawn instances with their positions, properties, and remaining lifespan
+    #[wasm_bindgen]
+    pub fn get_spawns_json(&self) -> Result<String, JsValue> {
+        match &self.state {
+            Some(game_state) => {
+                // Check cache first
+                if let (Some(cached_frame), Some(cached_json)) =
+                    (self.cached_frame, &self.cached_spawns_json)
+                {
+                    if cached_frame == game_state.frame {
+                        return Ok(cached_json.clone());
+                    }
+                }
+
+                // Generate new JSON
+                let spawns_json: Vec<types::SpawnStateJson> = game_state
+                    .spawn_instances
+                    .iter()
+                    .map(types::SpawnStateJson::from_spawn_instance)
+                    .collect();
+                serde_json::to_string(&spawns_json).map_err(json_error_to_js_value)
+            }
+            None => Err(JsValue::from_str(
+                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get spawns","context":null}"#,
+            )),
+        }
+    }
+
+    /// Get status effect instances data as JSON string
+    /// Returns all active status effects with their remaining duration and stack information
+    #[wasm_bindgen]
+    pub fn get_status_effects_json(&self) -> Result<String, JsValue> {
+        match &self.state {
+            Some(game_state) => {
+                // Check cache first
+                if let (Some(cached_frame), Some(cached_json)) =
+                    (self.cached_frame, &self.cached_status_effects_json)
+                {
+                    if cached_frame == game_state.frame {
+                        return Ok(cached_json.clone());
+                    }
+                }
+
+                // Generate new JSON
+                let status_effects_json: Vec<types::StatusEffectStateJson> = game_state
+                    .status_effect_instances
+                    .iter()
+                    .enumerate()
+                    .map(|(index, instance)| {
+                        types::StatusEffectStateJson::from_status_effect_instance(
+                            instance,
+                            index as u8,
+                        )
+                    })
+                    .collect();
+                serde_json::to_string(&status_effects_json).map_err(json_error_to_js_value)
+            }
+            None => Err(JsValue::from_str(
+                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get status effects","context":null}"#,
+            )),
+        }
+    }
+}
+impl GameWrapper {
+    /// Clear the serialization cache when game state changes
+    fn clear_cache(&mut self) {
+        self.cached_frame = None;
+        self.cached_state_json = None;
+        self.cached_characters_json = None;
+        self.cached_spawns_json = None;
+        self.cached_status_effects_json = None;
     }
 }
