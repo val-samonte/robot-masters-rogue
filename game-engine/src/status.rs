@@ -679,9 +679,23 @@ pub fn process_character_status_effects(
 
             // Get the definition for this instance
             if let Some(_definition) = game_state.get_status_effect_definition(definition_id) {
-                // Execute tick script
-                // Note: Script execution is temporarily disabled to avoid borrow checker issues
-                // This will be implemented in a future iteration
+                // Execute tick script for the status effect
+                let character_id = character.core.id;
+                match execute_status_effect_script(
+                    game_state,
+                    character_id,
+                    effect_instance_id,
+                    definition_id,
+                    StatusEffectScriptType::Tick,
+                ) {
+                    Ok(_) => {
+                        // Script executed successfully, continue
+                    }
+                    Err(_script_error) => {
+                        // Handle script execution error gracefully - don't break status effect processing
+                        // Log the error if logging is available, but continue with status effect processing
+                    }
+                }
 
                 // Decrease remaining duration
                 if let Some(instance_mut) =
