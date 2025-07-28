@@ -41,6 +41,10 @@
   - Example structure: `/game-engine/src/tests/`, `/wasm-wrapper/tests/`, etc.
 - This separation allows easy cleanup when transitioning to production testing
 
+### 6. Avoid preoptimization
+
+- There is no point to optimize this project for now
+
 ## Remember
 
 This project is in active development. We can break things, change APIs, and redesign systems freely. Use this freedom to build something great, not to maintain something old.

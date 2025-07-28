@@ -61,28 +61,6 @@ fn validation_errors_to_js_value(errors: Vec<ValidationError>) -> JsValue {
     error.to_js_value()
 }
 
-// Helper function to create initialization errors
-fn initialization_error_to_js_value(message: &str) -> JsValue {
-    WasmError::with_context(
-        ErrorType::InitializationError,
-        message.to_string(),
-        ErrorContext {
-            source: Some("GameWrapper".to_string()),
-            stack_trace: None,
-            data: None,
-            error_code: Some(2001),
-            debug_info: None,
-        },
-        ErrorSeverity::Critical,
-    )
-    .with_suggestions(vec![
-        "Check game configuration".to_string(),
-        "Ensure proper initialization sequence".to_string(),
-        "Verify all dependencies are available".to_string(),
-    ])
-    .to_js_value()
-}
-
 // Helper function to create execution errors
 fn execution_error_to_js_value(message: &str) -> JsValue {
     WasmError::with_context(

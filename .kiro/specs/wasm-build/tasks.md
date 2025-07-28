@@ -65,15 +65,7 @@
   - Ensure application stability despite engine errors
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 9. Add memory management and performance optimization
-
-  - Implement efficient memory allocation patterns
-  - Minimize JSON serialization overhead in hot paths
-  - Add memory usage monitoring and optimization
-  - Configure wee_alloc for optimized WASM memory usage
-  - _Requirements: 1.4, 4.3, 4.5_
-
-- [ ] 10. Create comprehensive API documentation
+- [ ] 9. Create comprehensive API documentation
 
   - Document all public WASM methods with examples
   - Create TypeScript interface definitions
@@ -81,7 +73,7 @@
   - Document error handling patterns and recovery strategies
   - _Requirements: 6.2, 5.2_
 
-- [ ] 11. Set up testing infrastructure
+- [ ] 10. Set up testing infrastructure
 
   - Create unit tests for JSON serialization/deserialization
   - Add integration tests for complete game scenarios
@@ -89,7 +81,7 @@
   - Validate deterministic behavior across multiple runs
   - _Requirements: 1.5, 3.4, 5.5_
 
-- [ ] 12. Optimize and finalize WASM build
+- [ ] 11. Optimize and finalize WASM build
   - Configure release build optimizations
   - Minimize WASM binary size
   - Test performance with realistic game data
