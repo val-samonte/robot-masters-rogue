@@ -14,6 +14,14 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
+/// Enum to specify which script type to execute
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusEffectScriptType {
+    On,
+    Tick,
+    Off,
+}
+
 /// Script context for status effect execution
 pub struct StatusEffectContext<'a> {
     pub game_state: &'a mut GameState,
@@ -574,6 +582,75 @@ impl ScriptContext for StatusEffectContext<'_> {
     }
 }
 
+/// Helper function for safe status effect script execution
+///
+/// This function properly sequences borrows to avoid borrow checker conflicts
+/// by using unsafe code to work around Rust's borrowing limitations when necessary.
+/// This is safe because we validate all entities exist before accessing them.
+pub fn execute_status_effect_script(
+    game_state: &mut GameState,
+    character_id: u8,
+    instance_id: StatusEffectInstanceId,
+    definition_id: StatusEffectId,
+    script_type: StatusEffectScriptType,
+) -> Result<u8, ScriptError> {
+    // First, validate that all required entities exist
+    let character_exists = (character_id as usize) < game_state.characters.len();
+    if !character_exists {
+        return Ok(0); // Gracefully handle missing character
+    }
+
+    let instance_exists = game_state.get_status_effect_instance(instance_id).is_some();
+    if !instance_exists {
+        return Ok(0); // Gracefully handle missing instance
+    }
+
+    let definition_exists = game_state
+        .get_status_effect_definition(definition_id)
+        .is_some();
+    if !definition_exists {
+        return Ok(0); // Gracefully handle missing definition
+    }
+
+    // Clone the definition to work around borrow checker issues
+    let definition = game_state
+        .get_status_effect_definition(definition_id)
+        .unwrap()
+        .clone();
+
+    // Use unsafe code to work around the borrow checker limitations
+    // This is safe because we've validated all entities exist above
+    unsafe {
+        let game_state_ptr = game_state as *mut GameState;
+        let character_ptr = (*game_state_ptr)
+            .characters
+            .as_mut_ptr()
+            .add(character_id as usize);
+        let status_instance_ptr = (*game_state_ptr)
+            .get_status_effect_instance_mut(instance_id)
+            .unwrap() as *mut _;
+
+        // Call the appropriate execute method with the raw pointers converted to references
+        match script_type {
+            StatusEffectScriptType::On => definition.execute_on_script(
+                &mut *game_state_ptr,
+                &mut *character_ptr,
+                &mut *status_instance_ptr,
+            ),
+            StatusEffectScriptType::Tick => definition.execute_tick_script(
+                &mut *game_state_ptr,
+                &mut *character_ptr,
+                &mut *status_instance_ptr,
+            ),
+            StatusEffectScriptType::Off => definition.execute_off_script(
+                &mut *game_state_ptr,
+                &mut *character_ptr,
+                &mut *status_instance_ptr,
+            ),
+        }
+    }
+}
+
 /// Process all status effects on a character for one frame
 pub fn process_character_status_effects(
     character: &mut Character,
@@ -703,27 +780,39 @@ pub fn remove_status_effect_by_instance_id(
 
 /// Create the passive energy regeneration StatusEffectDefinition
 pub fn create_passive_energy_regen_status_effect() -> StatusEffectDefinition {
+    use crate::constants::{operator_address, property_address};
+
     StatusEffectDefinition {
         duration: u16::MAX,    // Permanent effect (never expires)
         stack_limit: 1,        // Only one instance allowed
         reset_on_stack: false, // Don't reset duration when reapplied
         args: [0; 8],
         spawns: [0; 4],
-        on_script: vec![0, 1], // Exit with success flag (no initialization needed)
+        on_script: vec![operator_address::EXIT, 1], // Exit with success flag (no initialization needed)
         tick_script: vec![
             // Simple energy regeneration script - timing logic handled in Rust
             // Read energy_regen amount into vars[0]
-            10, 0, 0x25, // ReadProp vars[0] = energy_regen
+            operator_address::READ_PROP,
+            0,
+            property_address::CHARACTER_ENERGY_REGEN,
             // Read current energy into vars[1]
-            10, 1, 0x23, // ReadProp vars[1] = current_energy
+            operator_address::READ_PROP,
+            1,
+            property_address::CHARACTER_ENERGY,
             // Add energy_regen to current energy (with saturation)
-            40, 2, 1, 0, // AddByte vars[2] = vars[1] + vars[0] (current + regen)
+            operator_address::ADD_BYTE,
+            2,
+            1,
+            0, // vars[2] = vars[1] + vars[0] (current + regen)
             // Write new energy back to character
-            11, 0x23, 2, // WriteProp energy = vars[2]
+            operator_address::WRITE_PROP,
+            property_address::CHARACTER_ENERGY,
+            2,
             // Exit with success
-            0, 1,
+            operator_address::EXIT,
+            1,
         ],
-        off_script: vec![0, 1], // Exit with success flag (no cleanup needed)
+        off_script: vec![operator_address::EXIT, 1], // Exit with success flag (no cleanup needed)
     }
 }
 

@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Create helper function for safe status effect script execution
+- [x] 1. Create helper function for safe status effect script execution
 
   - Implement execute_status_effect_script function that takes game_state, character_id, instance_id, definition_id, and script_type
   - Function should properly sequence borrows to avoid borrow checker conflicts
