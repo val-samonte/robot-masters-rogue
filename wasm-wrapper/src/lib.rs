@@ -3,10 +3,13 @@ use robot_masters_engine::{
     core,
     state::GameState,
 };
-use serde::{Deserialize, Serialize};
+// Removed unused import
 use wasm_bindgen::prelude::*;
 
+mod error;
 mod types;
+
+use error::{ErrorContext, ErrorSeverity, ErrorType, WasmError};
 use types::{GameConfig, ValidationError};
 
 // Use `wee_alloc` as the global allocator for optimized WASM memory usage
@@ -14,99 +17,92 @@ use types::{GameConfig, ValidationError};
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // Set up panic hook for better error reporting in development
-#[cfg(not(test))]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();
 }
 
-// Error type for JavaScript-compatible error handling
-#[derive(Serialize, Deserialize)]
-pub struct WasmGameError {
-    pub error_type: String,
-    pub message: String,
-    pub context: Option<String>,
-}
-
 // Helper function to convert GameError to JsValue
 fn game_error_to_js_value(err: GameError) -> JsValue {
-    let wasm_error = WasmGameError {
-        error_type: format!("{:?}", err),
-        message: match err {
-            GameError::InvalidScript => "Invalid script provided".to_string(),
-            GameError::ScriptExecutionError => "Script execution failed".to_string(),
-            GameError::InvalidOperator => "Invalid operator in script".to_string(),
-            GameError::ScriptIndexOutOfBounds => "Script index out of bounds".to_string(),
-            GameError::InvalidGameState => "Invalid game state".to_string(),
-            GameError::InvalidCharacterData => "Invalid character data provided".to_string(),
-            GameError::InvalidSpawnData => "Invalid spawn data provided".to_string(),
-            GameError::InvalidTilemap => "Invalid tilemap data provided".to_string(),
-            GameError::EntityNotFound => "Entity not found".to_string(),
-            GameError::InvalidEntityId => "Invalid entity ID".to_string(),
-            GameError::InvalidPropertyAddress => "Invalid property address".to_string(),
-            GameError::InvalidActionId => "Invalid action ID".to_string(),
-            GameError::InvalidConditionId => "Invalid condition ID".to_string(),
-            GameError::InvalidStatusEffectId => "Invalid status effect ID".to_string(),
-            GameError::InvalidSpawnId => "Invalid spawn ID".to_string(),
-            GameError::CircularReference => {
-                "Circular reference detected in definitions".to_string()
-            }
-            GameError::MissingDefinition => "Missing required definition".to_string(),
-            GameError::ActionDefinitionNotFound => "Action definition not found".to_string(),
-            GameError::ConditionDefinitionNotFound => "Condition definition not found".to_string(),
-            GameError::StatusEffectDefinitionNotFound => {
-                "Status effect definition not found".to_string()
-            }
-            GameError::SpawnDefinitionNotFound => "Spawn definition not found".to_string(),
-            GameError::ActionInstanceNotFound => "Action instance not found".to_string(),
-            GameError::ConditionInstanceNotFound => "Condition instance not found".to_string(),
-            GameError::StatusEffectInstanceNotFound => {
-                "Status effect instance not found".to_string()
-            }
-            GameError::InvalidInstanceId => "Invalid instance ID".to_string(),
-            GameError::DivisionByZero => "Division by zero error".to_string(),
-            GameError::ArithmeticOverflow => "Arithmetic overflow error".to_string(),
-            GameError::OutOfBounds => "Index out of bounds".to_string(),
-            GameError::InvalidInput => "Invalid input provided".to_string(),
-        },
-        context: None,
-    };
-
-    JsValue::from_str(&serde_json::to_string(&wasm_error).unwrap_or_else(|_| {
-        r#"{"error_type":"SerializationError","message":"Failed to serialize error","context":null}"#.to_string()
-    }))
+    WasmError::from(err).to_js_value()
 }
 
 // Helper function to convert serde_json::Error to JsValue
 fn json_error_to_js_value(err: serde_json::Error) -> JsValue {
-    let wasm_error = WasmGameError {
-        error_type: "JsonError".to_string(),
-        message: format!("JSON parsing error: {}", err),
-        context: None,
-    };
-
-    JsValue::from_str(&serde_json::to_string(&wasm_error).unwrap_or_else(|_| {
-        r#"{"error_type":"SerializationError","message":"Failed to serialize JSON error","context":null}"#.to_string()
-    }))
+    WasmError::from(err).to_js_value()
 }
 
 // Helper function to convert validation errors to JsValue
 fn validation_errors_to_js_value(errors: Vec<ValidationError>) -> JsValue {
-    let wasm_error = WasmGameError {
-        error_type: "ValidationError".to_string(),
-        message: format!(
+    let error = WasmError::with_context(
+        ErrorType::ValidationError,
+        format!(
             "Configuration validation failed with {} errors",
             errors.len()
         ),
-        context: Some(
-            serde_json::to_string(&errors)
-                .unwrap_or_else(|_| "Failed to serialize validation errors".to_string()),
-        ),
-    };
+        ErrorContext {
+            source: Some("ConfigurationValidator".to_string()),
+            stack_trace: None,
+            data: Some(serde_json::json!({
+                "validation_errors": errors,
+                "error_count": errors.len()
+            })),
+            error_code: Some(1001),
+            debug_info: None,
+        },
+        ErrorSeverity::Error,
+    )
+    .with_suggestions(vec![
+        "Fix validation errors in configuration".to_string(),
+        "Check required fields and data types".to_string(),
+        "Verify all references are valid".to_string(),
+    ]);
 
-    JsValue::from_str(&serde_json::to_string(&wasm_error).unwrap_or_else(|_| {
-        r#"{"error_type":"SerializationError","message":"Failed to serialize validation error","context":null}"#.to_string()
-    }))
+    error.to_js_value()
+}
+
+// Helper function to create initialization errors
+fn initialization_error_to_js_value(message: &str) -> JsValue {
+    WasmError::with_context(
+        ErrorType::InitializationError,
+        message.to_string(),
+        ErrorContext {
+            source: Some("GameWrapper".to_string()),
+            stack_trace: None,
+            data: None,
+            error_code: Some(2001),
+            debug_info: None,
+        },
+        ErrorSeverity::Critical,
+    )
+    .with_suggestions(vec![
+        "Check game configuration".to_string(),
+        "Ensure proper initialization sequence".to_string(),
+        "Verify all dependencies are available".to_string(),
+    ])
+    .to_js_value()
+}
+
+// Helper function to create execution errors
+fn execution_error_to_js_value(message: &str) -> JsValue {
+    WasmError::with_context(
+        ErrorType::ExecutionError,
+        message.to_string(),
+        ErrorContext {
+            source: Some("GameWrapper".to_string()),
+            stack_trace: None,
+            data: None,
+            error_code: Some(3001),
+            debug_info: None,
+        },
+        ErrorSeverity::Error,
+    )
+    .with_suggestions(vec![
+        "Check game state".to_string(),
+        "Verify operation is valid".to_string(),
+        "Ensure game is properly initialized".to_string(),
+    ])
+    .to_js_value()
 }
 
 // GameConfig is now imported from types module
@@ -151,9 +147,7 @@ impl GameWrapper {
     pub fn get_config_json(&self) -> Result<String, JsValue> {
         match &self.config {
             Some(config) => serde_json::to_string(config).map_err(json_error_to_js_value),
-            None => Err(JsValue::from_str(
-                r#"{"error_type":"NoConfig","message":"No configuration available","context":null}"#,
-            )),
+            None => Err(execution_error_to_js_value("No configuration available")),
         }
     }
 }
@@ -207,6 +201,17 @@ impl GameWrapper {
         // Clear cache when game state changes
         self.clear_cache();
 
+        // Validate the newly initialized state
+        if let Err(validation_error) = self.validate_game_state() {
+            if validation_error.severity == ErrorSeverity::Critical
+                || validation_error.severity == ErrorSeverity::Fatal
+            {
+                // Clear the invalid state
+                self.state = None;
+                return Err(validation_error.to_js_value());
+            }
+        }
+
         Ok(())
     }
 
@@ -232,8 +237,8 @@ impl GameWrapper {
 
                 result
             }
-            None => Err(JsValue::from_str(
-                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized before stepping frames","context":null}"#,
+            None => Err(execution_error_to_js_value(
+                "Game must be initialized before stepping frames",
             )),
         }
     }
@@ -267,8 +272,8 @@ impl GameWrapper {
 
                 serde_json::to_string(&frame_info).map_err(json_error_to_js_value)
             }
-            None => Err(JsValue::from_str(
-                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get frame info","context":null}"#,
+            None => Err(execution_error_to_js_value(
+                "Game must be initialized to get frame info",
             )),
         }
     }
@@ -313,9 +318,10 @@ impl GameWrapper {
         ),
         JsValue,
     > {
-        let config = self.config.as_ref().ok_or_else(|| {
-            JsValue::from_str(r#"{"error_type":"NoConfig","message":"No configuration available","context":null}"#)
-        })?;
+        let config = self
+            .config
+            .as_ref()
+            .ok_or_else(|| execution_error_to_js_value("No configuration available"))?;
 
         // Convert tilemap
         let tilemap = types::convert_tilemap(&config.tilemap)
@@ -391,8 +397,8 @@ impl GameWrapper {
                 // for the common case where the same frame is requested multiple times
                 Ok(json_string)
             }
-            None => Err(JsValue::from_str(
-                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get state","context":null}"#,
+            None => Err(execution_error_to_js_value(
+                "Game must be initialized to get state",
             )),
         }
     }
@@ -420,8 +426,8 @@ impl GameWrapper {
                     .collect();
                 serde_json::to_string(&characters_json).map_err(json_error_to_js_value)
             }
-            None => Err(JsValue::from_str(
-                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get characters","context":null}"#,
+            None => Err(execution_error_to_js_value(
+                "Game must be initialized to get characters",
             )),
         }
     }
@@ -449,8 +455,8 @@ impl GameWrapper {
                     .collect();
                 serde_json::to_string(&spawns_json).map_err(json_error_to_js_value)
             }
-            None => Err(JsValue::from_str(
-                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get spawns","context":null}"#,
+            None => Err(execution_error_to_js_value(
+                "Game must be initialized to get spawns",
             )),
         }
     }
@@ -484,8 +490,8 @@ impl GameWrapper {
                     .collect();
                 serde_json::to_string(&status_effects_json).map_err(json_error_to_js_value)
             }
-            None => Err(JsValue::from_str(
-                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get status effects","context":null}"#,
+            None => Err(execution_error_to_js_value(
+                "Game must be initialized to get status effects",
             )),
         }
     }
@@ -498,5 +504,151 @@ impl GameWrapper {
         self.cached_characters_json = None;
         self.cached_spawns_json = None;
         self.cached_status_effects_json = None;
+    }
+
+    /// Validate game state integrity
+    fn validate_game_state(&self) -> Result<(), WasmError> {
+        match &self.state {
+            Some(game_state) => {
+                // Basic integrity checks
+                if game_state.characters.is_empty() {
+                    return Err(WasmError::with_context(
+                        ErrorType::StateError,
+                        "Game state has no characters".to_string(),
+                        ErrorContext {
+                            source: Some("GameWrapper::validate_game_state".to_string()),
+                            stack_trace: None,
+                            data: Some(serde_json::json!({
+                                "frame": game_state.frame,
+                                "character_count": game_state.characters.len()
+                            })),
+                            error_code: Some(4001),
+                            debug_info: None,
+                        },
+                        ErrorSeverity::Critical,
+                    )
+                    .with_suggestions(vec![
+                        "Reinitialize game with valid character data".to_string(),
+                        "Check character configuration".to_string(),
+                    ]));
+                }
+
+                // Check for reasonable frame count
+                if game_state.frame > core::MAX_FRAMES + 100 {
+                    return Err(WasmError::with_context(
+                        ErrorType::StateError,
+                        "Game frame count is beyond expected limits".to_string(),
+                        ErrorContext {
+                            source: Some("GameWrapper::validate_game_state".to_string()),
+                            stack_trace: None,
+                            data: Some(serde_json::json!({
+                                "current_frame": game_state.frame,
+                                "max_frames": core::MAX_FRAMES
+                            })),
+                            error_code: Some(4002),
+                            debug_info: None,
+                        },
+                        ErrorSeverity::Warning,
+                    )
+                    .with_suggestions(vec![
+                        "Check for infinite loops in game logic".to_string(),
+                        "Verify frame stepping is working correctly".to_string(),
+                    ]));
+                }
+
+                Ok(())
+            }
+            None => Err(WasmError::new(
+                ErrorType::StateError,
+                "No game state available for validation".to_string(),
+            )),
+        }
+    }
+
+    /// Attempt to recover from errors
+    fn attempt_recovery(&mut self, error: &WasmError) -> bool {
+        match error.error_type {
+            ErrorType::StateError => {
+                // Clear cache and try to continue
+                self.clear_cache();
+                true
+            }
+            ErrorType::ExecutionError => {
+                // Clear cache and try to continue
+                self.clear_cache();
+                true
+            }
+            ErrorType::MemoryError => {
+                // Clear cache to free memory
+                self.clear_cache();
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+#[wasm_bindgen]
+impl GameWrapper {
+    /// Get detailed error information for the last operation
+    /// This can be called after any method that returns an error
+    #[wasm_bindgen]
+    pub fn get_last_error_details(&self) -> String {
+        // In a more sophisticated implementation, we would store the last error
+        // For now, return a generic message
+        serde_json::json!({
+            "message": "No error details available",
+            "suggestion": "Check the error returned by the failed operation"
+        })
+        .to_string()
+    }
+
+    /// Check if the wrapper is in a stable state
+    #[wasm_bindgen]
+    pub fn is_stable(&self) -> bool {
+        match self.validate_game_state() {
+            Ok(()) => true,
+            Err(error) => {
+                error.severity != ErrorSeverity::Critical && error.severity != ErrorSeverity::Fatal
+            }
+        }
+    }
+
+    /// Attempt to recover from errors and stabilize the wrapper
+    #[wasm_bindgen]
+    pub fn attempt_stabilization(&mut self) -> Result<String, JsValue> {
+        match self.validate_game_state() {
+            Ok(()) => Ok("System is already stable".to_string()),
+            Err(error) => {
+                if self.attempt_recovery(&error) {
+                    Ok("Recovery attempt completed".to_string())
+                } else {
+                    Err(error.to_js_value())
+                }
+            }
+        }
+    }
+
+    /// Get system health information
+    #[wasm_bindgen]
+    pub fn get_health_info(&self) -> Result<String, JsValue> {
+        let health_info = serde_json::json!({
+            "is_initialized": self.config.is_some(),
+            "game_initialized": self.state.is_some(),
+            "is_stable": self.is_stable(),
+            "frame": self.state.as_ref().map(|s| s.frame).unwrap_or(0),
+            "character_count": self.state.as_ref().map(|s| s.characters.len()).unwrap_or(0),
+            "spawn_count": self.state.as_ref().map(|s| s.spawn_instances.len()).unwrap_or(0),
+            "status_effect_count": self.state.as_ref().map(|s| s.status_effect_instances.len()).unwrap_or(0),
+            "cache_status": {
+                "has_cached_frame": self.cached_frame.is_some(),
+                "has_cached_state": self.cached_state_json.is_some(),
+                "has_cached_characters": self.cached_characters_json.is_some(),
+                "has_cached_spawns": self.cached_spawns_json.is_some(),
+                "has_cached_status_effects": self.cached_status_effects_json.is_some(),
+            }
+        });
+
+        serde_json::to_string(&health_info).map_err(json_error_to_js_value)
     }
 }
