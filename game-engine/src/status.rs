@@ -84,8 +84,22 @@ impl StatusEffectDefinition {
             character.status_effects.push(instance_id);
 
             // Execute on_script for the new instance
-            // Note: Script execution is temporarily disabled to avoid borrow checker issues
-            // This will be implemented in a future iteration
+            let character_id = character.core.id;
+            match execute_status_effect_script(
+                game_state,
+                character_id,
+                instance_id,
+                effect_id,
+                StatusEffectScriptType::On,
+            ) {
+                Ok(_) => {
+                    // Script executed successfully, continue
+                }
+                Err(_script_error) => {
+                    // Handle script execution error gracefully - don't break status effect application
+                    // Log the error if logging is available, but continue with status effect application
+                }
+            }
 
             return Ok(true);
         }

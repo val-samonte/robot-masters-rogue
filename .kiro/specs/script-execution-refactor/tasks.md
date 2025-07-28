@@ -9,7 +9,7 @@
   - Return script execution result or appropriate error
   - _Requirements: 1.1, 2.1, 3.1_
 
-- [ ] 2. Fix status effect on_script execution in apply_to_character
+- [x] 2. Fix status effect on_script execution in apply_to_character
 
   - Remove "temporarily disabled" comments from apply_to_character method
   - Replace disabled code with call to execute_status_effect_script for on_script
