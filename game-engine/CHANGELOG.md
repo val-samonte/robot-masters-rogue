@@ -11,10 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Script execution refactor spec for proper borrow checker conflict resolution
 - Comprehensive requirements, design, and implementation plan for script execution system
+- Fully functional status effect script execution system with proper borrow sequencing
 
 ### Changed
 
 - Reverted unsafe script execution implementation in favor of proper architectural solution
+- Refactored status effect script execution to use safe borrow sequencing patterns
+- Improved script execution error handling with graceful degradation
+
+### Fixed
+
+- Resolved borrow checker conflicts in status effect script execution
+- Fixed disabled script execution in status effect on/tick/off lifecycle methods
+- Cleaned up temporary disabled code comments and placeholder documentation
 
 ## [0.2.0] - 2025-07-27
 

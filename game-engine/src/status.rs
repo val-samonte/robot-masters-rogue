@@ -580,7 +580,7 @@ impl ScriptContext for StatusEffectContext<'_> {
     }
 
     fn log_debug(&self, _message: &str) {
-        // TODO: Implement logging when available
+        // Logging not implemented - status effects execute silently
     }
 
     fn read_action_cooldown(&self, _engine: &mut ScriptEngine, _var_index: usize) {

@@ -45,7 +45,7 @@
   - Test that script execution errors don't crash the game
   - _Requirements: 1.1, 2.1, 3.1, 4.1_
 
-- [ ] 6. Clean up disabled code comments and documentation
+- [x] 6. Clean up disabled code comments and documentation
   - Remove all "temporarily disabled" comments from status.rs
   - Remove any placeholder comments about future implementation
   - Update any documentation that references disabled script execution
