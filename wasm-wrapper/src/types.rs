@@ -1,0 +1,302 @@
+//! JSON-compatible types for game configuration and serialization
+
+use robot_masters_engine::{
+    entity::{
+        ActionDefinition, Character, ConditionDefinition, SpawnDefinition, StatusEffectDefinition,
+    },
+    math::Fixed,
+};
+use serde::{Deserialize, Serialize};
+
+/// Complete game configuration structure for JSON input
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct GameConfig {
+    pub seed: u16,
+    pub tilemap: Vec<Vec<u8>>, // 15x16 tilemap as nested arrays
+    pub characters: Vec<CharacterDefinitionJson>,
+    pub actions: Vec<ActionDefinitionJson>,
+    pub conditions: Vec<ConditionDefinitionJson>,
+    pub spawns: Vec<SpawnDefinitionJson>,
+    pub status_effects: Vec<StatusEffectDefinitionJson>,
+}
+
+/// JSON-compatible character definition
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct CharacterDefinitionJson {
+    pub id: u8,
+    pub group: u8,
+    pub position: [f64; 2], // [x, y] position as floats
+    pub health: u8,
+    pub energy: u8,
+    pub armor: [u8; 9], // Armor values for all 9 elements
+    pub energy_regen: u8,
+    pub energy_regen_rate: u8,
+    pub energy_charge: u8,
+    pub energy_charge_rate: u8,
+    pub behaviors: Vec<[usize; 2]>, // [condition_id, action_id] pairs
+}
+
+/// JSON-compatible action definition
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ActionDefinitionJson {
+    pub energy_cost: u8,
+    pub interval: u16,
+    pub duration: u16,
+    pub cooldown: u16,
+    pub args: [u8; 8],
+    pub spawns: [u8; 4],
+    pub script: Vec<u8>,
+}
+
+/// JSON-compatible condition definition
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ConditionDefinitionJson {
+    pub energy_mul: f64, // Fixed-point value as float for JSON
+    pub args: [u8; 8],
+    pub script: Vec<u8>,
+}
+
+/// JSON-compatible spawn definition
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct SpawnDefinitionJson {
+    pub damage_base: u8,
+    pub health_cap: u8,
+    pub duration: u16,
+    pub element: Option<u8>, // Element as u8 value (0-8)
+    pub args: [u8; 8],
+    pub spawns: [u8; 4],
+    pub behavior_script: Vec<u8>,
+    pub collision_script: Vec<u8>,
+    pub despawn_script: Vec<u8>,
+}
+
+/// JSON-compatible status effect definition
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct StatusEffectDefinitionJson {
+    pub duration: u16,
+    pub stack_limit: u8,
+    pub reset_on_stack: bool,
+    pub args: [u8; 8],
+    pub spawns: [u8; 4],
+    pub on_script: Vec<u8>,
+    pub tick_script: Vec<u8>,
+    pub off_script: Vec<u8>,
+}
+
+/// Validation error for game configuration
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ValidationError {
+    pub field: String,
+    pub message: String,
+    pub context: Option<String>,
+}
+
+impl GameConfig {
+    /// Validate the complete game configuration
+    pub fn validate(&self) -> Result<(), Vec<ValidationError>> {
+        let mut errors = Vec::new();
+
+        // Validate tilemap dimensions
+        if self.tilemap.len() != 15 {
+            errors.push(ValidationError {
+                field: "tilemap".to_string(),
+                message: "Tilemap must have exactly 15 rows".to_string(),
+                context: Some(format!("Found {} rows", self.tilemap.len())),
+            });
+        } else {
+            for (row_idx, row) in self.tilemap.iter().enumerate() {
+                if row.len() != 16 {
+                    errors.push(ValidationError {
+                        field: "tilemap".to_string(),
+                        message: format!("Row {} must have exactly 16 columns", row_idx),
+                        context: Some(format!("Found {} columns", row.len())),
+                    });
+                }
+            }
+        }
+
+        // Validate character behavior references
+        for (char_idx, character) in self.characters.iter().enumerate() {
+            for (behavior_idx, &[condition_id, action_id]) in character.behaviors.iter().enumerate()
+            {
+                if condition_id >= self.conditions.len() {
+                    errors.push(ValidationError {
+                        field: format!("characters[{}].behaviors[{}]", char_idx, behavior_idx),
+                        message: "Condition ID references non-existent condition".to_string(),
+                        context: Some(format!("Condition ID {} not found", condition_id)),
+                    });
+                }
+                if action_id >= self.actions.len() {
+                    errors.push(ValidationError {
+                        field: format!("characters[{}].behaviors[{}]", char_idx, behavior_idx),
+                        message: "Action ID references non-existent action".to_string(),
+                        context: Some(format!("Action ID {} not found", action_id)),
+                    });
+                }
+            }
+        }
+
+        // Validate spawn references in actions
+        for (action_idx, action) in self.actions.iter().enumerate() {
+            for (spawn_idx, &spawn_id) in action.spawns.iter().enumerate() {
+                if spawn_id != 0 && (spawn_id as usize) >= self.spawns.len() {
+                    errors.push(ValidationError {
+                        field: format!("actions[{}].spawns[{}]", action_idx, spawn_idx),
+                        message: "Spawn ID references non-existent spawn".to_string(),
+                        context: Some(format!("Spawn ID {} not found", spawn_id)),
+                    });
+                }
+            }
+        }
+
+        // Validate spawn references in status effects
+        for (status_idx, status_effect) in self.status_effects.iter().enumerate() {
+            for (spawn_idx, &spawn_id) in status_effect.spawns.iter().enumerate() {
+                if spawn_id != 0 && (spawn_id as usize) >= self.spawns.len() {
+                    errors.push(ValidationError {
+                        field: format!("status_effects[{}].spawns[{}]", status_idx, spawn_idx),
+                        message: "Spawn ID references non-existent spawn".to_string(),
+                        context: Some(format!("Spawn ID {} not found", spawn_id)),
+                    });
+                }
+            }
+        }
+
+        // Validate element values in spawns
+        for (spawn_idx, spawn) in self.spawns.iter().enumerate() {
+            if let Some(element) = spawn.element {
+                if element > 8 {
+                    errors.push(ValidationError {
+                        field: format!("spawns[{}].element", spawn_idx),
+                        message: "Element value must be between 0 and 8".to_string(),
+                        context: Some(format!("Found element value {}", element)),
+                    });
+                }
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+}
+
+/// Helper functions for converting JSON types to game engine types
+impl From<CharacterDefinitionJson> for Character {
+    fn from(json: CharacterDefinitionJson) -> Self {
+        let mut character = Character::new(json.id, json.group);
+
+        // Set position using Fixed-point conversion
+        character.core.pos = (
+            Fixed::from_int(json.position[0] as i16), // Convert float to fixed-point
+            Fixed::from_int(json.position[1] as i16),
+        );
+
+        character.health = json.health;
+        character.energy = json.energy;
+        character.armor = json.armor;
+        character.energy_regen = json.energy_regen;
+        character.energy_regen_rate = json.energy_regen_rate;
+        character.energy_charge = json.energy_charge;
+        character.energy_charge_rate = json.energy_charge_rate;
+
+        // Convert behavior pairs
+        character.behaviors = json
+            .behaviors
+            .into_iter()
+            .map(|[condition_id, action_id]| (condition_id, action_id))
+            .collect();
+
+        character
+    }
+}
+
+impl From<ActionDefinitionJson> for ActionDefinition {
+    fn from(json: ActionDefinitionJson) -> Self {
+        ActionDefinition {
+            energy_cost: json.energy_cost,
+            interval: json.interval,
+            duration: json.duration,
+            cooldown: json.cooldown,
+            args: json.args,
+            spawns: json.spawns,
+            script: json.script,
+        }
+    }
+}
+
+impl From<ConditionDefinitionJson> for ConditionDefinition {
+    fn from(json: ConditionDefinitionJson) -> Self {
+        ConditionDefinition {
+            energy_mul: Fixed::from_int(json.energy_mul as i16), // Convert float to fixed-point
+            args: json.args,
+            script: json.script,
+        }
+    }
+}
+
+impl From<SpawnDefinitionJson> for SpawnDefinition {
+    fn from(json: SpawnDefinitionJson) -> Self {
+        use robot_masters_engine::entity::Element;
+
+        let element = json.element.and_then(Element::from_u8);
+
+        SpawnDefinition {
+            damage_base: json.damage_base,
+            health_cap: json.health_cap,
+            duration: json.duration,
+            element,
+            args: json.args,
+            spawns: json.spawns,
+            behavior_script: json.behavior_script,
+            collision_script: json.collision_script,
+            despawn_script: json.despawn_script,
+        }
+    }
+}
+
+impl From<StatusEffectDefinitionJson> for StatusEffectDefinition {
+    fn from(json: StatusEffectDefinitionJson) -> Self {
+        StatusEffectDefinition {
+            duration: json.duration,
+            stack_limit: json.stack_limit,
+            reset_on_stack: json.reset_on_stack,
+            args: json.args,
+            spawns: json.spawns,
+            on_script: json.on_script,
+            tick_script: json.tick_script,
+            off_script: json.off_script,
+        }
+    }
+}
+
+/// Helper function to convert tilemap from JSON format to game engine format
+pub fn convert_tilemap(json_tilemap: &[Vec<u8>]) -> Result<[[u8; 16]; 15], ValidationError> {
+    if json_tilemap.len() != 15 {
+        return Err(ValidationError {
+            field: "tilemap".to_string(),
+            message: "Tilemap must have exactly 15 rows".to_string(),
+            context: Some(format!("Found {} rows", json_tilemap.len())),
+        });
+    }
+
+    let mut tilemap = [[0u8; 16]; 15];
+
+    for (row_idx, row) in json_tilemap.iter().enumerate() {
+        if row.len() != 16 {
+            return Err(ValidationError {
+                field: "tilemap".to_string(),
+                message: format!("Row {} must have exactly 16 columns", row_idx),
+                context: Some(format!("Found {} columns", row.len())),
+            });
+        }
+
+        for (col_idx, &value) in row.iter().enumerate() {
+            tilemap[row_idx][col_idx] = value;
+        }
+    }
+
+    Ok(tilemap)
+}

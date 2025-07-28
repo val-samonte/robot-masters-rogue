@@ -38,7 +38,7 @@
   - Place all test files under a `/[PROJECT DIRECTORY]/tests/` directory in the project root
   - This ensures test files can be deleted without dependency problems
   - Keep test files completely separate from main source code
-  - Example structure: `/game-engine/src/tests/`, `/wasm-wrapper/pkg/tests/`, etc.
+  - Example structure: `/game-engine/src/tests/`, `/wasm-wrapper/tests/`, etc.
 - This separation allows easy cleanup when transitioning to production testing
 
 ## Remember

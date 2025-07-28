@@ -2,6 +2,9 @@ use robot_masters_engine::{api::GameError, state::GameState};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
+mod types;
+use types::{GameConfig, ValidationError};
+
 // Use `wee_alloc` as the global allocator for optimized WASM memory usage
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -82,13 +85,26 @@ fn json_error_to_js_value(err: serde_json::Error) -> JsValue {
     }))
 }
 
-// Temporary configuration structure for JSON input
-// This will be expanded in task 3 with proper game configuration types
-#[derive(Deserialize, Serialize)]
-struct GameConfig {
-    seed: u16,
-    // Additional fields will be added in task 3
+// Helper function to convert validation errors to JsValue
+fn validation_errors_to_js_value(errors: Vec<ValidationError>) -> JsValue {
+    let wasm_error = WasmGameError {
+        error_type: "ValidationError".to_string(),
+        message: format!(
+            "Configuration validation failed with {} errors",
+            errors.len()
+        ),
+        context: Some(
+            serde_json::to_string(&errors)
+                .unwrap_or_else(|_| "Failed to serialize validation errors".to_string()),
+        ),
+    };
+
+    JsValue::from_str(&serde_json::to_string(&wasm_error).unwrap_or_else(|_| {
+        r#"{"error_type":"SerializationError","message":"Failed to serialize validation error","context":null}"#.to_string()
+    }))
 }
+
+// GameConfig is now imported from types module
 
 // Core GameWrapper struct that holds the game state
 #[wasm_bindgen]
@@ -112,8 +128,11 @@ impl GameWrapper {
         let config: GameConfig =
             serde_json::from_str(config_json).map_err(json_error_to_js_value)?;
 
-        // For now, we just store the config and will initialize the game state in task 4
-        // This allows the constructor to work with basic JSON input validation
+        // Validate the configuration
+        config.validate().map_err(validation_errors_to_js_value)?;
+
+        // Store the validated configuration
+        // Game state initialization will happen in task 4
         Ok(GameWrapper {
             state: None,
             config: Some(config),
@@ -136,5 +155,90 @@ impl GameWrapper {
     #[wasm_bindgen]
     pub fn is_initialized(&self) -> bool {
         self.config.is_some()
+    }
+
+    /// Validate a JSON configuration string without creating a GameWrapper instance
+    /// This is useful for pre-validation before initialization
+    #[wasm_bindgen]
+    pub fn validate_config(config_json: &str) -> Result<String, JsValue> {
+        // Parse the JSON configuration
+        let config: GameConfig =
+            serde_json::from_str(config_json).map_err(json_error_to_js_value)?;
+
+        // Validate the configuration
+        config.validate().map_err(validation_errors_to_js_value)?;
+
+        // Return success message
+        Ok("Configuration is valid".to_string())
+    }
+}
+
+impl GameWrapper {
+    /// Convert JSON configuration to game engine types
+    /// This will be used in task 4 for game initialization
+    fn convert_config_to_engine_types(
+        &self,
+    ) -> Result<
+        (
+            u16,            // seed
+            [[u8; 16]; 15], // tilemap
+            Vec<robot_masters_engine::entity::Character>,
+            Vec<robot_masters_engine::entity::ActionDefinition>,
+            Vec<robot_masters_engine::entity::ConditionDefinition>,
+            Vec<robot_masters_engine::entity::SpawnDefinition>,
+            Vec<robot_masters_engine::entity::StatusEffectDefinition>,
+        ),
+        JsValue,
+    > {
+        let config = self.config.as_ref().ok_or_else(|| {
+            JsValue::from_str(r#"{"error_type":"NoConfig","message":"No configuration available","context":null}"#)
+        })?;
+
+        // Convert tilemap
+        let tilemap = types::convert_tilemap(&config.tilemap)
+            .map_err(|err| validation_errors_to_js_value(vec![err]))?;
+
+        // Convert characters
+        let characters: Vec<robot_masters_engine::entity::Character> = config
+            .characters
+            .iter()
+            .cloned()
+            .map(|json_char| {
+                let mut character: robot_masters_engine::entity::Character = json_char.into();
+                // Initialize action cooldowns - will be properly sized during game initialization
+                character.init_action_cooldowns(config.actions.len());
+                character
+            })
+            .collect();
+
+        // Convert action definitions
+        let actions: Vec<robot_masters_engine::entity::ActionDefinition> =
+            config.actions.iter().cloned().map(Into::into).collect();
+
+        // Convert condition definitions
+        let conditions: Vec<robot_masters_engine::entity::ConditionDefinition> =
+            config.conditions.iter().cloned().map(Into::into).collect();
+
+        // Convert spawn definitions
+        let spawns: Vec<robot_masters_engine::entity::SpawnDefinition> =
+            config.spawns.iter().cloned().map(Into::into).collect();
+
+        // Convert status effect definitions
+        let status_effects: Vec<robot_masters_engine::entity::StatusEffectDefinition> = config
+            .status_effects
+            .iter()
+            .cloned()
+            .map(Into::into)
+            .collect();
+
+        Ok((
+            config.seed,
+            tilemap,
+            characters,
+            actions,
+            conditions,
+            spawns,
+            status_effects,
+        ))
     }
 }
