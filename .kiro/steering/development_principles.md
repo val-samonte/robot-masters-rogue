@@ -35,10 +35,10 @@
 ### 5. Test File Organization
 
 - **IF you really need to create test files** to test functionality during development:
-  - Place all test files under a `/[PROJECT DIRECTORY]/src/tests/` directory in the project root
+  - Place all test files under a `/[PROJECT DIRECTORY]/tests/` directory in the project root
   - This ensures test files can be deleted without dependency problems
   - Keep test files completely separate from main source code
-  - Example structure: `/game-engine/src/tests/`, `/wasm-wrapper/src/tests/`, etc.
+  - Example structure: `/game-engine/src/tests/`, `/wasm-wrapper/pkg/tests/`, etc.
 - This separation allows easy cleanup when transitioning to production testing
 
 ## Remember
