@@ -16,6 +16,9 @@ console_error_panic_hook = "0.1"
 wee_alloc = "0.4"
 robot-masters-engine = { path = "../game-engine" }
 
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
 # Rust analyzer configuration
 [package.metadata.rust-analyzer]
 # Enable proc-macro support

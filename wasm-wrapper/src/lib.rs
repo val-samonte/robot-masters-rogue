@@ -1,5 +1,6 @@
 use robot_masters_engine::{
     api::{GameError, new_game},
+    core,
     state::GameState,
 };
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,7 @@ use types::{GameConfig, ValidationError};
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // Set up panic hook for better error reporting in development
+#[cfg(not(test))]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();
@@ -198,6 +200,76 @@ impl GameWrapper {
     #[wasm_bindgen]
     pub fn is_game_initialized(&self) -> bool {
         self.state.is_some()
+    }
+
+    /// Advance the game state by exactly one frame (1/60th second)
+    /// Maintains deterministic behavior across WASM boundary
+    #[wasm_bindgen]
+    pub fn step_frame(&mut self) -> Result<(), JsValue> {
+        match &mut self.state {
+            Some(game_state) => {
+                robot_masters_engine::api::game_loop(game_state).map_err(game_error_to_js_value)
+            }
+            None => Err(JsValue::from_str(
+                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized before stepping frames","context":null}"#,
+            )),
+        }
+    }
+
+    /// Get the current frame number for timing synchronization
+    #[wasm_bindgen]
+    pub fn get_frame(&self) -> u16 {
+        match &self.state {
+            Some(game_state) => game_state.frame,
+            None => 0,
+        }
+    }
+
+    /// Get frame timing information as JSON string
+    /// Returns frame count, game status, and timing data for synchronization
+    #[wasm_bindgen]
+    pub fn get_frame_info_json(&self) -> Result<String, JsValue> {
+        match &self.state {
+            Some(game_state) => {
+                let frame_info = serde_json::json!({
+                    "frame": game_state.frame,
+                    "status": match game_state.status {
+                        robot_masters_engine::state::GameStatus::Playing => "playing",
+                        robot_masters_engine::state::GameStatus::Ended => "ended",
+                    },
+                    "max_frames": core::MAX_FRAMES,
+                    "fps": 60,
+                    "elapsed_seconds": game_state.frame as f64 / 60.0,
+                    "remaining_seconds": (core::MAX_FRAMES.saturating_sub(game_state.frame)) as f64 / 60.0
+                });
+
+                serde_json::to_string(&frame_info).map_err(json_error_to_js_value)
+            }
+            None => Err(JsValue::from_str(
+                r#"{"error_type":"GameNotInitialized","message":"Game must be initialized to get frame info","context":null}"#,
+            )),
+        }
+    }
+
+    /// Check if the game has ended (reached maximum frames or other end condition)
+    #[wasm_bindgen]
+    pub fn is_game_ended(&self) -> bool {
+        match &self.state {
+            Some(game_state) => game_state.status == robot_masters_engine::state::GameStatus::Ended,
+            None => false,
+        }
+    }
+
+    /// Get the current game status as a string
+    #[wasm_bindgen]
+    pub fn get_game_status(&self) -> String {
+        match &self.state {
+            Some(game_state) => match game_state.status {
+                robot_masters_engine::state::GameStatus::Playing => "playing".to_string(),
+                robot_masters_engine::state::GameStatus::Ended => "ended".to_string(),
+            },
+            None => "not_initialized".to_string(),
+        }
     }
 }
 

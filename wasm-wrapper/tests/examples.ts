@@ -171,6 +171,31 @@ export function createFireProjectileScript(): number[] {
 }
 
 /**
+ * Example 6: Test frame execution and timing functionality
+ */
+export function testFrameExecution() {
+  // This would be used in a test environment to verify frame stepping
+  console.log('Testing frame execution functionality...')
+
+  // Example usage:
+  // const wrapper = new GameWrapper(JSON.stringify(createExampleGameConfig()))
+  // wrapper.new_game()
+  //
+  // console.log('Initial frame:', wrapper.get_frame()) // Should be 0
+  // console.log('Game status:', wrapper.get_game_status()) // Should be "playing"
+  // console.log('Frame info:', wrapper.get_frame_info_json())
+  //
+  // // Step a few frames
+  // for (let i = 0; i < 10; i++) {
+  //   wrapper.step_frame()
+  //   console.log(`Frame ${i + 1}:`, wrapper.get_frame())
+  // }
+  //
+  // console.log('Final frame info:', wrapper.get_frame_info_json())
+  // console.log('Game ended:', wrapper.is_game_ended())
+}
+
+/**
  * Helper function to create a basic game configuration with example scripts
  */
 export function createExampleGameConfig() {
