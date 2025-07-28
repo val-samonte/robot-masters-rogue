@@ -116,31 +116,21 @@ pub struct GameWrapper {
 #[wasm_bindgen]
 impl GameWrapper {
     /// Create a new GameWrapper instance with JSON configuration
-    ///
-    /// # Arguments
-    /// * `config_json` - JSON string containing game configuration
-    ///
-    /// # Returns
-    /// * Result containing GameWrapper instance or JsValue error
     #[wasm_bindgen(constructor)]
     pub fn new(config_json: &str) -> Result<GameWrapper, JsValue> {
-        // Parse the JSON configuration
         let config: GameConfig =
             serde_json::from_str(config_json).map_err(json_error_to_js_value)?;
-
-        // Validate the configuration
         config.validate().map_err(validation_errors_to_js_value)?;
-
-        // Store the validated configuration
-        // Game state initialization will happen in task 4
         Ok(GameWrapper {
             state: None,
             config: Some(config),
         })
     }
+}
 
+#[wasm_bindgen]
+impl GameWrapper {
     /// Get the current configuration as JSON string
-    /// This is a helper method for debugging and validation
     #[wasm_bindgen]
     pub fn get_config_json(&self) -> Result<String, JsValue> {
         match &self.config {
@@ -150,25 +140,25 @@ impl GameWrapper {
             )),
         }
     }
+}
 
+#[wasm_bindgen]
+impl GameWrapper {
     /// Check if the game wrapper has been properly initialized
     #[wasm_bindgen]
     pub fn is_initialized(&self) -> bool {
         self.config.is_some()
     }
+}
 
+#[wasm_bindgen]
+impl GameWrapper {
     /// Validate a JSON configuration string without creating a GameWrapper instance
-    /// This is useful for pre-validation before initialization
     #[wasm_bindgen]
     pub fn validate_config(config_json: &str) -> Result<String, JsValue> {
-        // Parse the JSON configuration
         let config: GameConfig =
             serde_json::from_str(config_json).map_err(json_error_to_js_value)?;
-
-        // Validate the configuration
         config.validate().map_err(validation_errors_to_js_value)?;
-
-        // Return success message
         Ok("Configuration is valid".to_string())
     }
 }
