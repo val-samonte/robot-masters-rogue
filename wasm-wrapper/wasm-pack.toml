@@ -1,0 +1,29 @@
+# wasm-pack configuration for Robot Masters WASM wrapper
+
+[package]
+name = "robot-masters-wasm"
+description = "WebAssembly bindings for the Robot Masters Game Engine"
+license = "MIT"
+repository = "https://github.com/val-samonte/robot-masters-rogue"
+
+[package.metadata]
+# Additional metadata for npm package
+keywords = ["wasm", "webassembly", "game-engine", "rust", "typescript"]
+categories = ["wasm", "game-development"]
+
+# Build configuration
+[build]
+# Target directory for builds
+target = "wasm32-unknown-unknown"
+
+# Profile-specific settings
+[build.release]
+# Enable additional optimizations
+debug-info = true
+# Use wasm-opt for size optimization
+wasm-opt = true
+
+[build.dev]
+# Faster builds for development
+debug-info = true
+wasm-opt = false

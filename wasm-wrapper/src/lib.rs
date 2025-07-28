@@ -298,6 +298,7 @@ impl GameWrapper {
 impl GameWrapper {
     /// Convert JSON configuration to game engine types
     /// This will be used in task 4 for game initialization
+    #[allow(clippy::type_complexity)]
     fn convert_config_to_engine_types(
         &self,
     ) -> Result<

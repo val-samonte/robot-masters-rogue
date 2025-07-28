@@ -19,6 +19,32 @@ robot-masters-engine = { path = "../game-engine" }
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 
+# Optimization profiles
+[profile.release]
+# Enable link-time optimization for smaller binary size
+lto = true
+# Optimize for size
+opt-level = "s"
+# Enable debug info for better error messages
+debug = true
+# Panic strategy for WASM
+panic = "abort"
+
+[profile.dev]
+# Faster compilation for development
+opt-level = 0
+debug = true
+panic = "abort"
+
+# WASM-specific optimizations
+[package.metadata.wasm-pack.profile.release]
+# Additional wasm-opt optimizations
+wasm-opt = ["-Os", "--enable-mutable-globals"]
+
+[package.metadata.wasm-pack.profile.dev]
+# Skip wasm-opt for faster dev builds
+wasm-opt = false
+
 # Rust analyzer configuration
 [package.metadata.rust-analyzer]
 # Enable proc-macro support
