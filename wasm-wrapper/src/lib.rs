@@ -1,4 +1,7 @@
-use robot_masters_engine::{api::GameError, state::GameState};
+use robot_masters_engine::{
+    api::{GameError, new_game},
+    state::GameState,
+};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -160,6 +163,41 @@ impl GameWrapper {
             serde_json::from_str(config_json).map_err(json_error_to_js_value)?;
         config.validate().map_err(validation_errors_to_js_value)?;
         Ok("Configuration is valid".to_string())
+    }
+}
+
+#[wasm_bindgen]
+impl GameWrapper {
+    /// Initialize a new game from the JSON configuration
+    /// This creates a new game state using the game engine's new_game API
+    #[wasm_bindgen]
+    pub fn new_game(&mut self) -> Result<(), JsValue> {
+        // Convert configuration to game engine types
+        let (seed, tilemap, characters, actions, conditions, spawns, status_effects) =
+            self.convert_config_to_engine_types()?;
+
+        // Initialize the game using the game engine API
+        let game_state = new_game(
+            seed,
+            tilemap,
+            characters,
+            actions,
+            conditions,
+            spawns,
+            status_effects,
+        )
+        .map_err(game_error_to_js_value)?;
+
+        // Store the initialized game state
+        self.state = Some(game_state);
+
+        Ok(())
+    }
+
+    /// Check if the game has been initialized and is ready for frame execution
+    #[wasm_bindgen]
+    pub fn is_game_initialized(&self) -> bool {
+        self.state.is_some()
     }
 }
 

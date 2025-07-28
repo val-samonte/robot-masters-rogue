@@ -24,7 +24,7 @@
   - Create helper functions for converting JSON to game engine types
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 4. Implement game initialization from JSON
+- [x] 4. Implement game initialization from JSON
 
   - Create new_game wrapper that accepts JSON configuration string
   - Handle tilemap parsing and validation
