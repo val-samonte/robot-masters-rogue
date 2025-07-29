@@ -7,7 +7,10 @@ use robot_masters_engine::{
 use wasm_bindgen::prelude::*;
 
 mod error;
-mod types;
+pub mod types;
+
+#[cfg(test)]
+mod tests;
 
 use error::{ErrorContext, ErrorSeverity, ErrorType, WasmError};
 use types::{GameConfig, ValidationError};
@@ -17,6 +20,7 @@ use types::{GameConfig, ValidationError};
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // Set up panic hook for better error reporting in development
+#[cfg(not(test))]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();

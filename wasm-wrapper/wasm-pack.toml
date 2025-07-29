@@ -1,29 +1,19 @@
-# wasm-pack configuration for Robot Masters WASM wrapper
-
 [package]
 name = "robot-masters-wasm"
-description = "WebAssembly bindings for the Robot Masters Game Engine"
+description = "WebAssembly bindings for Robot Masters Game Engine"
+version = "0.1.0"
+authors = ["Robot Masters Team"]
 license = "MIT"
-repository = "https://github.com/val-samonte/robot-masters-rogue"
+repository = "https://github.com/robotmasters/game-engine"
 
-[package.metadata]
-# Additional metadata for npm package
-keywords = ["wasm", "webassembly", "game-engine", "rust", "typescript"]
-categories = ["wasm", "game-development"]
+[package.metadata.wasm-pack.profile.release]
+# Optimize for size in release builds
+wasm-opt = ["-Os", "--enable-mutable-globals"]
 
-# Build configuration
-[build]
-# Target directory for builds
-target = "wasm32-unknown-unknown"
+[package.metadata.wasm-pack.profile.dev]
+# Skip optimization for faster dev builds
+wasm-opt = false
 
-# Profile-specific settings
-[build.release]
-# Enable additional optimizations
-debug-info = true
-# Use wasm-opt for size optimization
-wasm-opt = true
-
-[build.dev]
-# Faster builds for development
-debug-info = true
+[package.metadata.wasm-pack.profile.test]
+# Enable debug info for better test error messages
 wasm-opt = false
