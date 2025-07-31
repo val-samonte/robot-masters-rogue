@@ -1,0 +1,16 @@
+[cargo]
+buildScripts.enable = true
+loadOutDirsFromCheck = true
+
+[procMacro]
+enable = true
+
+[checkOnSave]
+command = "check"
+allTargets = false
+
+[diagnostics]
+disabled = ["macro-error"]
+
+[completion]
+autoimport.enable = true

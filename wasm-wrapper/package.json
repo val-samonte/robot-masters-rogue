@@ -1,0 +1,40 @@
+{
+  "name": "robot-masters-wasm",
+  "version": "0.1.0",
+  "description": "WebAssembly bindings for the Robot Masters Game Engine",
+  "main": "pkg/wasm_wrapper.js",
+  "types": "pkg/wasm_wrapper.d.ts",
+  "files": [
+    "pkg/"
+  ],
+  "scripts": {
+    "build": "./build.sh",
+    "build:dev": "./build.sh --dev",
+    "build:release": "./build.sh --release",
+    "build:node": "./build.sh --target nodejs",
+    "build:bundler": "./build.sh --target bundler",
+    "clean": "rm -rf pkg/",
+    "check": "cargo check",
+    "clippy": "cargo clippy -- -D warnings",
+    "fmt": "cargo fmt"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/val-samonte/robot-masters-rogue.git"
+  },
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "game-engine",
+    "rust",
+    "typescript"
+  ],
+  "author": "Robot Masters Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "name": "Steering Document Review",
+  "description": "Triggers after task completion to remind the agent to review the steering document and correct any mistakes or rule violations",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "game-engine/src/**/*.rs",
+      "wasm-wrapper/src/**/*.rs",
+      "onchain-logic/**/*.rs",
+      "frontend-app/**/*",
+      "web-viewer/**/*",
+      "wasm-wrapper/tests/**/*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You have just completed modifications to the codebase. Before finalizing, please review the steering document (development_principles.md) and check if your recent changes violate any of the established rules, particularly:\n\n1. Did you maintain backward compatibility when you shouldn't have?\n2. Did you create test files when explicitly told not to during development?\n3. Did you add unnecessary abstractions or compatibility layers?\n4. Did you follow the clean implementation principles?\n\nIf you find any violations, please correct them immediately. Review your recent changes against each principle in the steering document and make necessary adjustments."
+  }
+}

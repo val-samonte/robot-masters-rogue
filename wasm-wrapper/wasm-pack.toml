@@ -1,0 +1,19 @@
+[package]
+name = "robot-masters-wasm"
+description = "WebAssembly bindings for Robot Masters Game Engine"
+version = "0.1.0"
+authors = ["Robot Masters Team"]
+license = "MIT"
+repository = "https://github.com/robotmasters/game-engine"
+
+[package.metadata.wasm-pack.profile.release]
+# Optimize for size in release builds
+wasm-opt = ["-Os", "--enable-mutable-globals"]
+
+[package.metadata.wasm-pack.profile.dev]
+# Skip optimization for faster dev builds
+wasm-opt = false
+
+[package.metadata.wasm-pack.profile.test]
+# Enable debug info for better test error messages
+wasm-opt = false
