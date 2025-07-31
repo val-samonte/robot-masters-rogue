@@ -1,7 +1,10 @@
 [package]
 name = "wasm-wrapper"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "WebAssembly bindings for Robot Masters Game Engine"
+repository = "https://github.com/robotmasters/game-engine"
+license = "MIT"
 
 [lib]
 name = "wasm_wrapper"

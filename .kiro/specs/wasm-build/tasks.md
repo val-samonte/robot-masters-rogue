@@ -73,7 +73,7 @@
   - Document error handling patterns and recovery strategies
   - _Requirements: 6.2, 5.2_
 
-- [ ] 10. Set up testing infrastructure
+- [x] 10. Set up testing infrastructure
 
   - Create unit tests for JSON serialization/deserialization
   - Add integration tests for complete game scenarios
@@ -81,7 +81,7 @@
   - Validate deterministic behavior across multiple runs
   - _Requirements: 1.5, 3.4, 5.5_
 
-- [ ] 11. Optimize and finalize WASM build
+- [x] 11. Optimize and finalize WASM build
   - Configure release build optimizations
   - Minimize WASM binary size
   - Test performance with realistic game data

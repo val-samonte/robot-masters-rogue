@@ -112,12 +112,23 @@ fn test_game_wrapper_creation() {
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
-            script: vec![82, 83, 0, 0],
+            script: vec![
+                operator_address::APPLY_ENERGY_COST,
+                operator_address::APPLY_DURATION,
+                operator_address::EXIT,
+                0,
+            ],
         }],
         conditions: vec![ConditionDefinitionJson {
             energy_mul: 1.0,
             args: [0; 8],
-            script: vec![20, 0, 1, 0, 0],
+            script: vec![
+                operator_address::ASSIGN_BYTE,
+                0,
+                1, // always true
+                operator_address::EXIT,
+                0,
+            ],
         }],
         spawns: vec![],
         status_effects: vec![],
@@ -299,12 +310,23 @@ fn test_state_serialization() {
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
-            script: vec![82, 83, 0, 0],
+            script: vec![
+                operator_address::APPLY_ENERGY_COST,
+                operator_address::APPLY_DURATION,
+                operator_address::EXIT,
+                0,
+            ],
         }],
         conditions: vec![ConditionDefinitionJson {
             energy_mul: 1.0,
             args: [0; 8],
-            script: vec![20, 0, 1, 0, 0],
+            script: vec![
+                operator_address::ASSIGN_BYTE,
+                0,
+                1, // always true
+                operator_address::EXIT,
+                0,
+            ],
         }],
         spawns: vec![],
         status_effects: vec![],
@@ -368,12 +390,23 @@ fn test_deterministic_behavior() {
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
-            script: vec![82, 83, 0, 0],
+            script: vec![
+                operator_address::APPLY_ENERGY_COST,
+                operator_address::APPLY_DURATION,
+                operator_address::EXIT,
+                0,
+            ],
         }],
         conditions: vec![ConditionDefinitionJson {
             energy_mul: 1.0,
             args: [0; 8],
-            script: vec![20, 0, 1, 0, 0],
+            script: vec![
+                operator_address::ASSIGN_BYTE,
+                0,
+                1, // always true
+                operator_address::EXIT,
+                0,
+            ],
         }],
         spawns: vec![],
         status_effects: vec![],
@@ -465,12 +498,18 @@ fn test_error_handling() {
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
-            script: vec![0, 0],
+            script: vec![operator_address::EXIT, 0],
         }],
         conditions: vec![ConditionDefinitionJson {
             energy_mul: 1.0,
             args: [0; 8],
-            script: vec![20, 0, 1, 0, 0],
+            script: vec![
+                operator_address::ASSIGN_BYTE,
+                0,
+                1, // always true
+                operator_address::EXIT,
+                0,
+            ],
         }],
         spawns: vec![],
         status_effects: vec![],
