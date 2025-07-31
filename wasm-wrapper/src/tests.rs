@@ -2,11 +2,11 @@
 //!
 //! These tests verify JSON serialization, game initialization, and basic functionality
 
-use crate::GameWrapper;
 use crate::types::{
-    ActionDefinitionJson, CharacterDefinitionJson, ConditionDefinitionJson, GameConfig,
-    convert_tilemap,
+    convert_tilemap, ActionDefinitionJson, CharacterDefinitionJson, ConditionDefinitionJson,
+    GameConfig,
 };
+use crate::GameWrapper;
 use robot_masters_engine::constants::operator_address;
 use robot_masters_engine::{entity::Character, math::Fixed};
 use wasm_bindgen_test::*;
