@@ -172,8 +172,28 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
 
             // Spawn definition properties (read from definition)
             property_address::SPAWN_DEF_DAMAGE_BASE => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.spawn_def.damage_base as i16);
+                }
+            }
+            property_address::SPAWN_DEF_DAMAGE_RANGE => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.spawn_def.damage_range as i16);
+                }
+            }
+            property_address::SPAWN_DEF_CRIT_CHANCE => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = (self.spawn_def.damage_base & 0xFF) as u8;
+                    engine.vars[var_index] = self.spawn_def.crit_chance;
+                }
+            }
+            property_address::SPAWN_DEF_CRIT_MULTIPLIER => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.spawn_def.crit_multiplier;
+                }
+            }
+            property_address::SPAWN_DEF_CHANCE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.spawn_def.chance;
                 }
             }
             property_address::SPAWN_DEF_HEALTH_CAP => {

@@ -31,7 +31,7 @@
   - _Requirements: 4.1, 4.2_
   - ✅ **COMPLETED**: EntityCore updated with consolidated dir property, enmity, target_id, and target_type properties
 
-- [ ] 5. Update SpawnDefinition structure with enhanced combat properties
+- [x] 5. Update SpawnDefinition structure with enhanced combat properties
 
   - Update damage_base property from u8 to u16
   - Add damage_range property as u16 type
