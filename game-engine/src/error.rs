@@ -49,7 +49,7 @@ impl ErrorRecovery {
         // Validate spawn instances
         spawn_instances.retain(|spawn| {
             // Remove spawns with invalid lifespans
-            spawn.lifespan > 0 && spawn.lifespan <= 3840 // Max game duration
+            spawn.life_span > 0 && spawn.life_span <= 3840 // Max game duration
         });
 
         Ok(())

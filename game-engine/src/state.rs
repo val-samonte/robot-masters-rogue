@@ -1,11 +1,13 @@
 //! Game state management
 
 use crate::api::GameResult;
+use crate::constants::property_address;
 use crate::entity::{
     ActionDefinition, ActionId, ActionInstance, ActionInstanceId, Character, ConditionDefinition,
     ConditionId, ConditionInstance, SpawnDefinition, SpawnInstance, StatusEffectDefinition,
     StatusEffectId, StatusEffectInstance, StatusEffectInstanceId,
 };
+use crate::math::Fixed;
 use crate::physics::Tilemap;
 use crate::random::SeededRng;
 use crate::script::ScriptError;
@@ -640,7 +642,7 @@ impl GameState {
 
     fn cleanup_entities(&mut self) -> GameResult<()> {
         // Remove expired spawn instances
-        self.spawn_instances.retain(|spawn| spawn.lifespan > 0);
+        self.spawn_instances.retain(|spawn| spawn.life_span > 0);
         Ok(())
     }
 }
@@ -689,7 +691,7 @@ impl<'a> ConditionContext<'a> {
             .condition_instances
             .get_mut(self.instance_id)
         {
-            instance.runtime_vars = engine.vars;
+            instance.runtime_vars.copy_from_slice(&engine.vars[..4]);
             instance.runtime_fixed = engine.fixed;
         }
     }
@@ -705,17 +707,74 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
         // For now, implement basic property reading
         // This would need to be expanded based on the PropertyAddress enum
         if let Some(character) = self.game_state.characters.get(self.character_idx) {
-            let value = match prop_address {
-                0 => character.health,
-                1 => character.energy,
-                2 => character.core.pos.0.to_int() as u8,
-                3 => character.core.pos.1.to_int() as u8,
-                4 => character.core.facing,
-                _ => 0,
-            };
-
-            if var_index < engine.vars.len() {
-                engine.vars[var_index] = value;
+            match prop_address {
+                property_address::CHARACTER_HEALTH => {
+                    // Health (u16) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = Fixed::from_int(character.health as i16);
+                    }
+                }
+                property_address::CHARACTER_ENERGY => {
+                    // Energy (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.energy;
+                    }
+                }
+                property_address::CHARACTER_POS_X => {
+                    // Position X (Fixed) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = character.core.pos.0;
+                    }
+                }
+                property_address::CHARACTER_POS_Y => {
+                    // Position Y (Fixed) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = character.core.pos.1;
+                    }
+                }
+                property_address::ENTITY_FACING => {
+                    // Facing (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.core.dir.0;
+                    }
+                }
+                property_address::CHARACTER_HEALTH_CAP => {
+                    // Health Cap (u16) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = Fixed::from_int(character.health_cap as i16);
+                    }
+                }
+                property_address::CHARACTER_ENERGY_CAP => {
+                    // Energy Cap (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.energy_cap;
+                    }
+                }
+                property_address::CHARACTER_POWER => {
+                    // Power (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.power;
+                    }
+                }
+                property_address::CHARACTER_WEIGHT => {
+                    // Weight (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.weight;
+                    }
+                }
+                property_address::CHARACTER_JUMP_FORCE => {
+                    // Jump Force (Fixed) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = character.jump_force;
+                    }
+                }
+                property_address::CHARACTER_MOVE_SPEED => {
+                    // Move Speed (Fixed) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = character.move_speed;
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -727,16 +786,74 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
         var_index: usize,
     ) {
         // For now, implement basic property writing
-        if var_index >= engine.vars.len() {
-            return;
-        }
-
         if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
-            let value = engine.vars[var_index];
             match prop_address {
-                0 => character.health = value,
-                1 => character.energy = value,
-                4 => character.core.facing = value,
+                property_address::CHARACTER_HEALTH => {
+                    // Health (u16) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.health = engine.fixed[var_index].to_int().max(0) as u16;
+                    }
+                }
+                property_address::CHARACTER_ENERGY => {
+                    // Energy (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.energy = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_POS_X => {
+                    // Position X (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.core.pos.0 = engine.fixed[var_index];
+                    }
+                }
+                property_address::CHARACTER_POS_Y => {
+                    // Position Y (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.core.pos.1 = engine.fixed[var_index];
+                    }
+                }
+                property_address::ENTITY_FACING => {
+                    // Facing (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.core.dir.0 = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_HEALTH_CAP => {
+                    // Health Cap (u16) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                    }
+                }
+                property_address::CHARACTER_ENERGY_CAP => {
+                    // Energy Cap (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.energy_cap = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_POWER => {
+                    // Power (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.power = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_WEIGHT => {
+                    // Weight (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.weight = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_JUMP_FORCE => {
+                    // Jump Force (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.jump_force = engine.fixed[var_index];
+                    }
+                }
+                property_address::CHARACTER_MOVE_SPEED => {
+                    // Move Speed (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.move_speed = engine.fixed[var_index];
+                    }
+                }
                 _ => {}
             }
         }
@@ -865,7 +982,7 @@ impl<'a> ActionContext<'a> {
 
     pub fn update_instance_from_engine(&mut self, engine: &crate::script::ScriptEngine) {
         if let Some(instance) = self.game_state.action_instances.get_mut(self.instance_id) {
-            instance.runtime_vars = engine.vars;
+            instance.runtime_vars.copy_from_slice(&engine.vars[..4]);
             instance.runtime_fixed = engine.fixed;
         }
     }
@@ -880,17 +997,74 @@ impl crate::script::ScriptContext for ActionContext<'_> {
     ) {
         // For now, implement basic property reading
         if let Some(character) = self.game_state.characters.get(self.character_idx) {
-            let value = match prop_address {
-                0 => character.health,
-                1 => character.energy,
-                2 => character.core.pos.0.to_int() as u8,
-                3 => character.core.pos.1.to_int() as u8,
-                4 => character.core.facing,
-                _ => 0,
-            };
-
-            if var_index < engine.vars.len() {
-                engine.vars[var_index] = value;
+            match prop_address {
+                property_address::CHARACTER_HEALTH => {
+                    // Health (u16) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = Fixed::from_int(character.health as i16);
+                    }
+                }
+                property_address::CHARACTER_ENERGY => {
+                    // Energy (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.energy;
+                    }
+                }
+                property_address::CHARACTER_POS_X => {
+                    // Position X (Fixed) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = character.core.pos.0;
+                    }
+                }
+                property_address::CHARACTER_POS_Y => {
+                    // Position Y (Fixed) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = character.core.pos.1;
+                    }
+                }
+                property_address::ENTITY_FACING => {
+                    // Facing (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.core.dir.0;
+                    }
+                }
+                property_address::CHARACTER_HEALTH_CAP => {
+                    // Health Cap (u16) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = Fixed::from_int(character.health_cap as i16);
+                    }
+                }
+                property_address::CHARACTER_ENERGY_CAP => {
+                    // Energy Cap (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.energy_cap;
+                    }
+                }
+                property_address::CHARACTER_POWER => {
+                    // Power (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.power;
+                    }
+                }
+                property_address::CHARACTER_WEIGHT => {
+                    // Weight (u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = character.weight;
+                    }
+                }
+                property_address::CHARACTER_JUMP_FORCE => {
+                    // Jump Force (Fixed) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = character.jump_force;
+                    }
+                }
+                property_address::CHARACTER_MOVE_SPEED => {
+                    // Move Speed (Fixed) - store in fixed array
+                    if var_index < engine.fixed.len() {
+                        engine.fixed[var_index] = character.move_speed;
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -902,16 +1076,74 @@ impl crate::script::ScriptContext for ActionContext<'_> {
         var_index: usize,
     ) {
         // For now, implement basic property writing
-        if var_index >= engine.vars.len() {
-            return;
-        }
-
         if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
-            let value = engine.vars[var_index];
             match prop_address {
-                0 => character.health = value,
-                1 => character.energy = value,
-                4 => character.core.facing = value,
+                property_address::CHARACTER_HEALTH => {
+                    // Health (u16) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.health = engine.fixed[var_index].to_int().max(0) as u16;
+                    }
+                }
+                property_address::CHARACTER_ENERGY => {
+                    // Energy (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.energy = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_POS_X => {
+                    // Position X (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.core.pos.0 = engine.fixed[var_index];
+                    }
+                }
+                property_address::CHARACTER_POS_Y => {
+                    // Position Y (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.core.pos.1 = engine.fixed[var_index];
+                    }
+                }
+                property_address::ENTITY_FACING => {
+                    // Facing (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.core.dir.0 = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_HEALTH_CAP => {
+                    // Health Cap (u16) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                    }
+                }
+                property_address::CHARACTER_ENERGY_CAP => {
+                    // Energy Cap (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.energy_cap = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_POWER => {
+                    // Power (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.power = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_WEIGHT => {
+                    // Weight (u8) - read from vars array
+                    if var_index < engine.vars.len() {
+                        character.weight = engine.vars[var_index];
+                    }
+                }
+                property_address::CHARACTER_JUMP_FORCE => {
+                    // Jump Force (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.jump_force = engine.fixed[var_index];
+                    }
+                }
+                property_address::CHARACTER_MOVE_SPEED => {
+                    // Move Speed (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.move_speed = engine.fixed[var_index];
+                    }
+                }
                 _ => {}
             }
         }
@@ -964,7 +1196,7 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                     if let Some(instance_mut) =
                         self.game_state.action_instances.get_mut(self.instance_id)
                     {
-                        instance_mut.remaining_duration = action_def.duration;
+                        instance_mut.cooldown = action_def.cooldown;
                     }
                 }
             }
@@ -988,7 +1220,7 @@ impl crate::script::ScriptContext for ActionContext<'_> {
     fn apply_duration(&mut self) {
         if let Some(action_def) = self.game_state.action_definitions.get(self.action_id) {
             if let Some(instance) = self.game_state.action_instances.get_mut(self.instance_id) {
-                instance.remaining_duration = action_def.duration;
+                instance.cooldown = action_def.cooldown;
             }
         }
     }
@@ -1014,14 +1246,14 @@ impl crate::script::ScriptContext for ActionContext<'_> {
 
             // Set spawn variables if provided
             if let Some(spawn_vars) = vars {
-                spawn.vars = spawn_vars;
+                spawn.runtime_vars = spawn_vars;
             }
 
             // Assign unique ID
             spawn.core.id = self.game_state.spawn_instances.len() as u8;
 
             // Set properties from spawn definition
-            spawn.lifespan = spawn_def.duration;
+            spawn.life_span = spawn_def.duration;
             spawn.element = spawn_def.element.unwrap_or(crate::entity::Element::Punct);
 
             self.game_state.spawn_instances.push(spawn);

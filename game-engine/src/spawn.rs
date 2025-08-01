@@ -24,9 +24,13 @@ impl SpawnDefinition {
         if props.len() < 4 {
             return Self {
                 damage_base: 0,
+                damage_range: 0,
+                crit_chance: 0,
+                crit_multiplier: 100,
                 health_cap: 1,
                 duration: 60,
                 element: None,
+                chance: 100,
                 args: [0; 8],
                 spawns: [0; 4],
                 behavior_script: Vec::new(),
@@ -35,7 +39,7 @@ impl SpawnDefinition {
             };
         }
 
-        let damage_base = props[0] as u8;
+        let damage_base = props[0];
         let health_cap = props[1] as u8;
         let duration = props[2];
         let element = if props[3] < 8 {
@@ -46,9 +50,13 @@ impl SpawnDefinition {
 
         Self {
             damage_base,
+            damage_range: 0,
+            crit_chance: 0,
+            crit_multiplier: 100,
             health_cap,
             duration,
             element,
+            chance: 100,
             args: [0; 8],
             spawns: [0; 4],
             behavior_script: Vec::new(),
@@ -71,12 +79,12 @@ impl SpawnDefinition {
             SpawnInstance::new(spawn_id, owner_id, pos)
         };
 
-        instance.lifespan = self.duration;
+        instance.life_span = self.duration;
         if let Some(vars) = vars {
-            instance.vars = vars;
+            instance.runtime_vars = vars;
         }
         // Initialize fixed array independently (not from definition)
-        instance.fixed = [Fixed::ZERO; 4];
+        instance.runtime_fixed = [Fixed::ZERO; 4];
 
         instance
     }
@@ -165,7 +173,7 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             // Spawn definition properties (read from definition)
             property_address::SPAWN_DEF_DAMAGE_BASE => {
                 if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.spawn_def.damage_base;
+                    engine.vars[var_index] = (self.spawn_def.damage_base & 0xFF) as u8;
                 }
             }
             property_address::SPAWN_DEF_HEALTH_CAP => {
@@ -202,8 +210,8 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             | property_address::SPAWN_INST_VAR3 => {
                 if var_index < engine.vars.len() {
                     let var_idx = (prop_address - property_address::SPAWN_INST_VAR0) as usize;
-                    if var_idx < self.spawn_instance.vars.len() {
-                        engine.vars[var_index] = self.spawn_instance.vars[var_idx];
+                    if var_idx < self.spawn_instance.runtime_vars.len() {
+                        engine.vars[var_index] = self.spawn_instance.runtime_vars[var_idx];
                     }
                 }
             }
@@ -213,14 +221,14 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             | property_address::SPAWN_INST_FIXED3 => {
                 if var_index < engine.fixed.len() {
                     let fixed_idx = (prop_address - property_address::SPAWN_INST_FIXED0) as usize;
-                    if fixed_idx < self.spawn_instance.fixed.len() {
-                        engine.fixed[var_index] = self.spawn_instance.fixed[fixed_idx];
+                    if fixed_idx < self.spawn_instance.runtime_fixed.len() {
+                        engine.fixed[var_index] = self.spawn_instance.runtime_fixed[fixed_idx];
                     }
                 }
             }
             property_address::SPAWN_INST_LIFESPAN => {
                 if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = Fixed::from_int(self.spawn_instance.lifespan as i16);
+                    engine.fixed[var_index] = Fixed::from_int(self.spawn_instance.life_span as i16);
                 }
             }
             property_address::SPAWN_INST_ELEMENT => {
@@ -290,8 +298,8 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             | property_address::SPAWN_INST_VAR3 => {
                 if var_index < engine.vars.len() {
                     let var_idx = (prop_address - property_address::SPAWN_INST_VAR0) as usize;
-                    if var_idx < self.spawn_instance.vars.len() {
-                        self.spawn_instance.vars[var_idx] = engine.vars[var_index];
+                    if var_idx < self.spawn_instance.runtime_vars.len() {
+                        self.spawn_instance.runtime_vars[var_idx] = engine.vars[var_index];
                     }
                 }
             }
@@ -301,14 +309,14 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             | property_address::SPAWN_INST_FIXED3 => {
                 if var_index < engine.fixed.len() {
                     let fixed_idx = (prop_address - property_address::SPAWN_INST_FIXED0) as usize;
-                    if fixed_idx < self.spawn_instance.fixed.len() {
-                        self.spawn_instance.fixed[fixed_idx] = engine.fixed[var_index];
+                    if fixed_idx < self.spawn_instance.runtime_fixed.len() {
+                        self.spawn_instance.runtime_fixed[fixed_idx] = engine.fixed[var_index];
                     }
                 }
             }
             property_address::SPAWN_INST_LIFESPAN => {
                 if var_index < engine.fixed.len() {
-                    self.spawn_instance.lifespan = engine.fixed[var_index].to_int() as u16;
+                    self.spawn_instance.life_span = engine.fixed[var_index].to_int() as u16;
                 }
             }
             property_address::SPAWN_INST_ELEMENT => {
@@ -397,11 +405,11 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
 
         // Set spawn variables if provided
         if let Some(spawn_vars) = vars {
-            new_spawn.vars = spawn_vars;
+            new_spawn.runtime_vars = spawn_vars;
         }
 
         // Set properties from spawn definition
-        new_spawn.lifespan = spawn_def.duration;
+        new_spawn.life_span = spawn_def.duration;
         new_spawn.element = spawn_def.element.unwrap_or(crate::entity::Element::Punct);
 
         self.to_spawn.push(new_spawn);
@@ -435,11 +443,11 @@ pub fn process_spawn_instances(
         if let Some(spawn_def) = spawn_definitions.get(spawn_instance.spawn_id as usize) {
             spawn_def.execute_behavior_script(game_state, spawn_instance, &mut to_spawn)?;
 
-            if spawn_instance.lifespan > 0 {
-                spawn_instance.lifespan -= 1;
+            if spawn_instance.life_span > 0 {
+                spawn_instance.life_span -= 1;
             }
 
-            if spawn_instance.lifespan == 0 {
+            if spawn_instance.life_span == 0 {
                 spawns_to_remove.push(index);
             }
         }
@@ -465,8 +473,8 @@ pub fn handle_spawn_collision(
 ) -> Result<(u8, Vec<SpawnInstance>), ScriptError> {
     let mut to_spawn = Vec::new();
 
-    let element_damage = if spawn_def.damage_base > target_armor {
-        spawn_def.damage_base - target_armor
+    let element_damage = if spawn_def.damage_base > target_armor.into() {
+        (spawn_def.damage_base - target_armor as u16) as u8
     } else {
         0
     };

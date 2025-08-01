@@ -37,11 +37,12 @@ impl StatusEffectDefinition {
             duration: props[0],
             stack_limit: props[1] as u8,
             reset_on_stack: props[2] != 0,
+            chance: 100, // Default chance
             args: [0; 8],
             spawns: [0; 4],
-            on_script: extract_script(&props, 3, props.len()),
-            tick_script: extract_script(&props, 3, props.len()),
-            off_script: extract_script(&props, 3, props.len()),
+            on_script: Vec::new(),
+            tick_script: Vec::new(),
+            off_script: Vec::new(),
         }
     }
 
@@ -223,13 +224,43 @@ impl ScriptContext for StatusEffectContext<'_> {
                 }
             }
             property_address::CHARACTER_HEALTH => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.health;
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.character.health as i16);
                 }
             }
             property_address::CHARACTER_ENERGY => {
                 if var_index < engine.vars.len() {
                     engine.vars[var_index] = self.character.energy;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CAP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_cap;
+                }
+            }
+            property_address::CHARACTER_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.character.health_cap as i16);
+                }
+            }
+            property_address::CHARACTER_POWER => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.power;
+                }
+            }
+            property_address::CHARACTER_WEIGHT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.weight;
+                }
+            }
+            property_address::CHARACTER_JUMP_FORCE => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.jump_force;
+                }
+            }
+            property_address::CHARACTER_MOVE_SPEED => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.move_speed;
                 }
             }
             property_address::CHARACTER_ENERGY_REGEN => {
@@ -402,13 +433,43 @@ impl ScriptContext for StatusEffectContext<'_> {
                 }
             }
             property_address::CHARACTER_HEALTH => {
-                if var_index < engine.vars.len() {
-                    self.character.health = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    self.character.health = engine.fixed[var_index].to_int().max(0) as u16;
                 }
             }
             property_address::CHARACTER_ENERGY => {
                 if var_index < engine.vars.len() {
                     self.character.energy = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CAP => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_cap = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    self.character.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::CHARACTER_POWER => {
+                if var_index < engine.vars.len() {
+                    self.character.power = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_WEIGHT => {
+                if var_index < engine.vars.len() {
+                    self.character.weight = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_JUMP_FORCE => {
+                if var_index < engine.fixed.len() {
+                    self.character.jump_force = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_MOVE_SPEED => {
+                if var_index < engine.fixed.len() {
+                    self.character.move_speed = engine.fixed[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_REGEN => {
@@ -566,14 +627,14 @@ impl ScriptContext for StatusEffectContext<'_> {
 
         // Set spawn variables if provided
         if let Some(spawn_vars) = vars {
-            spawn.vars = spawn_vars;
+            spawn.runtime_vars = spawn_vars;
         }
 
         // Assign unique ID
         spawn.core.id = self.game_state.spawn_instances.len() as u8;
 
         // Set properties from spawn definition
-        spawn.lifespan = spawn_def.duration;
+        spawn.life_span = spawn_def.duration;
         spawn.element = spawn_def.element.unwrap_or(crate::entity::Element::Punct);
 
         self.game_state.spawn_instances.push(spawn);
@@ -838,6 +899,7 @@ pub fn create_passive_energy_regen_status_effect() -> StatusEffectDefinition {
         duration: u16::MAX,    // Permanent effect (never expires)
         stack_limit: 1,        // Only one instance allowed
         reset_on_stack: false, // Don't reset duration when reapplied
+        chance: 100,           // Always applies
         args: [0; 8],
         spawns: [0; 4],
         on_script: vec![operator_address::EXIT, 1], // Exit with success flag (no initialization needed)
@@ -914,11 +976,4 @@ pub fn character_has_status_effect(
             false
         }
     })
-}
-
-/// Helper function to extract script bytes from definition
-fn extract_script(props: &[u16], from: usize, to: usize) -> Vec<u8> {
-    props
-        .get(from..to)
-        .map_or_else(Vec::new, |slice| slice.iter().map(|&x| x as u8).collect())
 }

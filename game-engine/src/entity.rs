@@ -22,8 +22,6 @@ pub type StatusEffectInstanceId = u8;
 #[derive(Debug, Clone)]
 pub struct ActionDefinition {
     pub energy_cost: u8,
-    pub interval: u16,
-    pub duration: u16,
     pub cooldown: u16,
     pub args: [u8; 8],
     pub spawns: [u8; 4],
@@ -34,9 +32,9 @@ pub struct ActionDefinition {
 #[derive(Debug, Clone)]
 pub struct ActionInstance {
     pub definition_id: ActionId,
-    pub remaining_duration: u16,
+    pub cooldown: u16,
     pub last_used_frame: u16,
-    pub runtime_vars: [u8; 8],
+    pub runtime_vars: [u8; 4],
     pub runtime_fixed: [Fixed; 4],
 }
 
@@ -44,8 +42,14 @@ pub struct ActionInstance {
 #[derive(Debug, Clone)]
 pub struct Character {
     pub core: EntityCore,
-    pub health: u8,
+    pub health: u16,
+    pub health_cap: u16,
     pub energy: u8,
+    pub energy_cap: u8,
+    pub power: u8,
+    pub weight: u8,
+    pub jump_force: Fixed,
+    pub move_speed: Fixed,
     pub armor: [u8; 9],         // Armor values for all 9 elements (baseline 100)
     pub energy_regen: u8,       // Passive energy recovery amount per rate
     pub energy_regen_rate: u8,  // Tick interval for passive energy recovery
@@ -69,7 +73,7 @@ pub struct ConditionDefinition {
 #[derive(Debug, Clone)]
 pub struct ConditionInstance {
     pub definition_id: ConditionId,
-    pub runtime_vars: [u8; 8],
+    pub runtime_vars: [u8; 4],
     pub runtime_fixed: [Fixed; 4],
 }
 
@@ -82,17 +86,23 @@ pub struct EntityCore {
     pub vel: (Fixed, Fixed),
     pub size: (u8, u8),
     pub collision: (bool, bool, bool, bool), // top, right, bottom, left
-    pub facing: u8,                          // 0 for left, 1 for right
-    pub gravity_dir: u8,                     // 0 for upward, 1 for downward
+    pub dir: (u8, u8), // (horizontal: 0=left/1=right, vertical: 0=upward/1=downward)
+    pub enmity: u8,    // Target ordering priority
+    pub target_id: Option<EntityId>, // Target entity ID (can be Character or Spawn)
+    pub target_type: u8, // Target entity type (1=Character, 2=Spawn)
 }
 
 /// Definition template for spawn objects
 #[derive(Debug, Clone)]
 pub struct SpawnDefinition {
-    pub damage_base: u8,
+    pub damage_base: u16,
+    pub damage_range: u16,
+    pub crit_chance: u8,
+    pub crit_multiplier: u8,
     pub health_cap: u8,
     pub duration: u16,
     pub element: Option<Element>,
+    pub chance: u8,
     pub args: [u8; 8],   // Passed when calling scripts (read-only)
     pub spawns: [u8; 4], // Spawn IDs
     pub behavior_script: Vec<u8>,
@@ -105,11 +115,15 @@ pub struct SpawnDefinition {
 pub struct SpawnInstance {
     pub core: EntityCore,
     pub spawn_id: SpawnLookupId,
-    pub owner_id: CharacterId,
-    pub lifespan: u16,
-    pub element: Element,  // Element type carried by this spawn
-    pub vars: [u8; 4],     // Script variables
-    pub fixed: [Fixed; 4], // Fixed-point variables
+    pub owner_id: EntityId,
+    pub owner_type: u8,
+    pub health: u16,
+    pub health_cap: u16,
+    pub rotation: Fixed,
+    pub life_span: u16,
+    pub element: Element,          // Element type carried by this spawn
+    pub runtime_vars: [u8; 4],     // Script variables
+    pub runtime_fixed: [Fixed; 4], // Fixed-point variables
 }
 
 /// Status effect definition - static configuration for status effects
@@ -118,6 +132,7 @@ pub struct StatusEffectDefinition {
     pub duration: u16,
     pub stack_limit: u8,
     pub reset_on_stack: bool,
+    pub chance: u8,
     pub args: [u8; 8],        // Passed when calling scripts (read-only)
     pub spawns: [u8; 4],      // Spawn IDs
     pub on_script: Vec<u8>,   // Runs when applied
@@ -137,17 +152,9 @@ pub struct StatusEffectInstance {
 
 impl ActionDefinition {
     /// Create a new action definition with basic validation
-    pub fn new(
-        energy_cost: u8,
-        interval: u16,
-        duration: u16,
-        cooldown: u16,
-        script: Vec<u8>,
-    ) -> Self {
+    pub fn new(energy_cost: u8, cooldown: u16, script: Vec<u8>) -> Self {
         Self {
             energy_cost,
-            interval,
-            duration,
             cooldown,
             args: [0; 8],
             spawns: [0; 4],
@@ -170,9 +177,9 @@ impl ActionDefinition {
     pub fn create_instance(&self, definition_id: ActionId) -> ActionInstance {
         ActionInstance {
             definition_id,
-            remaining_duration: 0,
+            cooldown: 0,
             last_used_frame: u16::MAX, // Never used
-            runtime_vars: [0; 8],
+            runtime_vars: [0; 4],
             runtime_fixed: [Fixed::ZERO; 4],
         }
     }
@@ -183,16 +190,16 @@ impl ActionInstance {
     pub fn new(definition_id: ActionId) -> Self {
         Self {
             definition_id,
-            remaining_duration: 0,
+            cooldown: 0,
             last_used_frame: u16::MAX,
-            runtime_vars: [0; 8],
+            runtime_vars: [0; 4],
             runtime_fixed: [Fixed::ZERO; 4],
         }
     }
 
     /// Check if this action is currently active
     pub fn is_active(&self) -> bool {
-        self.remaining_duration > 0
+        self.cooldown > 0
     }
 
     /// Check if this action is on cooldown
@@ -209,7 +216,13 @@ impl Character {
         Self {
             core: EntityCore::new(id, group),
             health: 100,
+            health_cap: 100,
             energy: 100,
+            energy_cap: 100,
+            power: 0,
+            weight: 100,
+            jump_force: Fixed::from_int(5),
+            move_speed: Fixed::from_int(3),
             armor: [100; 9], // Default armor values (baseline 100)
             energy_regen: 0, // Values will be set during new_game/game initialization
             energy_regen_rate: 0,
@@ -266,7 +279,7 @@ impl ConditionDefinition {
     pub fn create_instance(&self, definition_id: ConditionId) -> ConditionInstance {
         ConditionInstance {
             definition_id,
-            runtime_vars: [0; 8],
+            runtime_vars: [0; 4],
             runtime_fixed: [Fixed::ZERO; 4],
         }
     }
@@ -277,7 +290,7 @@ impl ConditionInstance {
     pub fn new(definition_id: ConditionId) -> Self {
         Self {
             definition_id,
-            runtime_vars: [0; 8],
+            runtime_vars: [0; 4],
             runtime_fixed: [Fixed::ZERO; 4],
         }
     }
@@ -292,14 +305,16 @@ impl EntityCore {
             vel: (Fixed::ZERO, Fixed::ZERO),
             size: (16, 16), // Default 16x16 pixel size
             collision: (true, true, true, true),
-            facing: 1,      // Default to right (1)
-            gravity_dir: 1, // Default to downward (1)
+            dir: (1, 1),     // Default to right (1) and downward (1)
+            enmity: 0,       // Default enmity
+            target_id: None, // No target initially
+            target_type: 0,  // No target type initially
         }
     }
 
     /// Get facing direction as Fixed value (-1.0 for left, 1.0 for right)
     pub fn get_facing(&self) -> Fixed {
-        if self.facing == 0 {
+        if self.dir.0 == 0 {
             Fixed::from_int(-1) // Left
         } else {
             Fixed::from_int(1) // Right
@@ -309,15 +324,15 @@ impl EntityCore {
     /// Set facing direction from Fixed value (-1.0 → left, 1.0 → right)
     pub fn set_facing(&mut self, value: Fixed) {
         if value < Fixed::ZERO {
-            self.facing = 0; // Left
+            self.dir.0 = 0; // Left
         } else {
-            self.facing = 1; // Right
+            self.dir.0 = 1; // Right
         }
     }
 
     /// Get gravity direction as Fixed value (-1.0 for upward, 1.0 for downward)
     pub fn get_gravity_dir(&self) -> Fixed {
-        if self.gravity_dir == 0 {
+        if self.dir.1 == 0 {
             Fixed::from_int(-1) // Upward
         } else {
             Fixed::from_int(1) // Downward
@@ -327,15 +342,15 @@ impl EntityCore {
     /// Set gravity direction from Fixed value (-1.0 → upward, 1.0 → downward)
     pub fn set_gravity_dir(&mut self, value: Fixed) {
         if value < Fixed::ZERO {
-            self.gravity_dir = 0; // Upward
+            self.dir.1 = 0; // Upward
         } else {
-            self.gravity_dir = 1; // Downward
+            self.dir.1 = 1; // Downward
         }
     }
 }
 
 impl SpawnInstance {
-    pub fn new(spawn_id: SpawnLookupId, owner_id: CharacterId, pos: (Fixed, Fixed)) -> Self {
+    pub fn new(spawn_id: SpawnLookupId, owner_id: EntityId, pos: (Fixed, Fixed)) -> Self {
         let mut core = EntityCore::new(0, 0); // ID will be assigned by game state
         core.pos = pos;
 
@@ -343,16 +358,20 @@ impl SpawnInstance {
             core,
             spawn_id,
             owner_id,
-            lifespan: 0,             // Will be set from spawn definition
+            owner_type: 1, // Default to Character owner
+            health: 1,
+            health_cap: 1,
+            rotation: Fixed::ZERO,
+            life_span: 0,            // Will be set from spawn definition
             element: Element::Punct, // Default element, will be set from spawn definition
-            vars: [0; 4],
-            fixed: [Fixed::ZERO; 4],
+            runtime_vars: [0; 4],
+            runtime_fixed: [Fixed::ZERO; 4],
         }
     }
 
     pub fn with_element(
         spawn_id: SpawnLookupId,
-        owner_id: CharacterId,
+        owner_id: EntityId,
         pos: (Fixed, Fixed),
         element: Element,
     ) -> Self {
@@ -363,10 +382,14 @@ impl SpawnInstance {
             core,
             spawn_id,
             owner_id,
-            lifespan: 0, // Will be set from spawn definition
+            owner_type: 1, // Default to Character owner
+            health: 1,
+            health_cap: 1,
+            rotation: Fixed::ZERO,
+            life_span: 0, // Will be set from spawn definition
             element,
-            vars: [0; 4],
-            fixed: [Fixed::ZERO; 4],
+            runtime_vars: [0; 4],
+            runtime_fixed: [Fixed::ZERO; 4],
         }
     }
 }
@@ -377,6 +400,7 @@ impl StatusEffectDefinition {
         duration: u16,
         stack_limit: u8,
         reset_on_stack: bool,
+        chance: u8,
         on_script: Vec<u8>,
         tick_script: Vec<u8>,
         off_script: Vec<u8>,
@@ -385,6 +409,7 @@ impl StatusEffectDefinition {
             duration,
             stack_limit,
             reset_on_stack,
+            chance,
             args: [0; 8],
             spawns: [0; 4],
             on_script,
