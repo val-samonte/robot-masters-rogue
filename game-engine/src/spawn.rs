@@ -270,14 +270,14 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             }
 
             // Entity direction properties
-            property_address::ENTITY_FACING => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.spawn_instance.core.get_facing();
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.spawn_instance.core.dir.0;
                 }
             }
-            property_address::ENTITY_GRAVITY_DIR => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.spawn_instance.core.get_gravity_dir();
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.spawn_instance.core.dir.1;
                 }
             }
 
@@ -350,16 +350,14 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             }
 
             // Entity direction properties (writable)
-            property_address::ENTITY_FACING => {
-                if var_index < engine.fixed.len() {
-                    self.spawn_instance.core.set_facing(engine.fixed[var_index]);
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    self.spawn_instance.core.dir.0 = engine.vars[var_index];
                 }
             }
-            property_address::ENTITY_GRAVITY_DIR => {
-                if var_index < engine.fixed.len() {
-                    self.spawn_instance
-                        .core
-                        .set_gravity_dir(engine.fixed[var_index]);
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    self.spawn_instance.core.dir.1 = engine.vars[var_index];
                 }
             }
 
@@ -427,6 +425,230 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
 
     fn write_action_last_used(&mut self, _engine: &mut ScriptEngine, _var_index: usize) {
         // Spawns can't modify action last used data
+    }
+
+    fn read_character_property(
+        &mut self,
+        engine: &mut ScriptEngine,
+        character_id: u8,
+        var_index: usize,
+        property_address: u8,
+    ) {
+        use crate::constants::property_address;
+
+        // Validate character ID and property address compatibility
+        if character_id as usize >= self.game_state.characters.len() {
+            return; // Invalid character ID - silent failure
+        }
+
+        // Check if property address is compatible with Character properties (0x20-0x48)
+        if !(0x20..=0x48).contains(&property_address) {
+            return; // Incompatible property address - silent failure
+        }
+
+        let character = &self.game_state.characters[character_id as usize];
+
+        match property_address {
+            property_address::CHARACTER_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(character.health as i16);
+                }
+            }
+            property_address::CHARACTER_ENERGY => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CAP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_cap;
+                }
+            }
+            property_address::CHARACTER_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(character.health_cap as i16);
+                }
+            }
+            property_address::CHARACTER_POWER => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.power;
+                }
+            }
+            property_address::CHARACTER_WEIGHT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.weight;
+                }
+            }
+            property_address::CHARACTER_JUMP_FORCE => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.jump_force;
+                }
+            }
+            property_address::CHARACTER_MOVE_SPEED => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.move_speed;
+                }
+            }
+            _ => {} // Other character properties handled similarly
+        }
+    }
+
+    fn write_character_property(
+        &mut self,
+        engine: &mut ScriptEngine,
+        character_id: u8,
+        property_address: u8,
+        var_index: usize,
+    ) {
+        use crate::constants::property_address;
+
+        // Validate character ID and property address compatibility
+        if character_id as usize >= self.game_state.characters.len() {
+            return; // Invalid character ID - silent failure
+        }
+
+        // Check if property address is compatible with Character properties (0x20-0x48)
+        if !(0x20..=0x48).contains(&property_address) {
+            return; // Incompatible property address - silent failure
+        }
+
+        let character = &mut self.game_state.characters[character_id as usize];
+
+        match property_address {
+            property_address::CHARACTER_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    character.health = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::CHARACTER_ENERGY => {
+                if var_index < engine.vars.len() {
+                    character.energy = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CAP => {
+                if var_index < engine.vars.len() {
+                    character.energy_cap = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    character.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::CHARACTER_POWER => {
+                if var_index < engine.vars.len() {
+                    character.power = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_WEIGHT => {
+                if var_index < engine.vars.len() {
+                    character.weight = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_JUMP_FORCE => {
+                if var_index < engine.fixed.len() {
+                    character.jump_force = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_MOVE_SPEED => {
+                if var_index < engine.fixed.len() {
+                    character.move_speed = engine.fixed[var_index];
+                }
+            }
+            _ => {} // Other character properties handled similarly
+        }
+    }
+
+    fn read_spawn_property(
+        &mut self,
+        engine: &mut ScriptEngine,
+        spawn_instance_id: u8,
+        var_index: usize,
+        property_address: u8,
+    ) {
+        use crate::constants::property_address;
+
+        // Validate spawn instance ID and property address compatibility
+        if spawn_instance_id as usize >= self.game_state.spawn_instances.len() {
+            return; // Invalid spawn instance ID - silent failure
+        }
+
+        // Check if property address is compatible with Spawn properties (0x52-0xBE)
+        if !(0x52..=0xBE).contains(&property_address) {
+            return; // Incompatible property address - silent failure
+        }
+
+        let spawn_instance = &self.game_state.spawn_instances[spawn_instance_id as usize];
+
+        match property_address {
+            property_address::SPAWN_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(spawn_instance.health as i16);
+                }
+            }
+            property_address::SPAWN_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(spawn_instance.health_cap as i16);
+                }
+            }
+            property_address::SPAWN_INST_LIFESPAN => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(spawn_instance.life_span as i16);
+                }
+            }
+            property_address::SPAWN_ROTATION => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.rotation;
+                }
+            }
+            _ => {} // Other spawn properties handled similarly
+        }
+    }
+
+    fn write_spawn_property(
+        &mut self,
+        engine: &mut ScriptEngine,
+        spawn_instance_id: u8,
+        property_address: u8,
+        var_index: usize,
+    ) {
+        use crate::constants::property_address;
+
+        // Validate spawn instance ID and property address compatibility
+        if spawn_instance_id as usize >= self.game_state.spawn_instances.len() {
+            return; // Invalid spawn instance ID - silent failure
+        }
+
+        // Check if property address is compatible with Spawn properties (0x52-0xBE)
+        if !(0x52..=0xBE).contains(&property_address) {
+            return; // Incompatible property address - silent failure
+        }
+
+        let spawn_instance = &mut self.game_state.spawn_instances[spawn_instance_id as usize];
+
+        match property_address {
+            property_address::SPAWN_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.health = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::SPAWN_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::SPAWN_INST_LIFESPAN => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.life_span = engine.fixed[var_index].to_int() as u16;
+                }
+            }
+            property_address::SPAWN_ROTATION => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.rotation = engine.fixed[var_index];
+                }
+            }
+            _ => {} // Other spawn properties handled similarly
+        }
     }
 }
 

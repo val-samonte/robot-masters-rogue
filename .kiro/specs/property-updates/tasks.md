@@ -7,7 +7,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
   - ✅ **COMPLETED**: Character struct updated with all new properties and constructor updated with appropriate defaults
 
-- [ ] 2. Update ActionDefinition and ActionInstance structures
+- [x] 2. Update ActionDefinition and ActionInstance structures
 
   - Remove interval and duration properties from ActionDefinition struct
   - Rename remaining_duration to cooldown in ActionInstance struct
@@ -31,7 +31,7 @@
   - _Requirements: 4.1, 4.2_
   - ✅ **COMPLETED**: EntityCore updated with consolidated dir property, enmity, target_id, and target_type properties
 
-- [x] 5. Update SpawnDefinition structure with enhanced combat properties
+- [ ] 5. Update SpawnDefinition structure with enhanced combat properties
 
   - Update damage_base property from u8 to u16
   - Add damage_range property as u16 type
@@ -41,7 +41,7 @@
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
   - ✅ **COMPLETED**: SpawnDefinition updated with enhanced combat properties including damage_base (u16), damage_range, crit_chance, crit_multiplier, and chance
 
-- [x] 6. Update SpawnInstance structure with comprehensive properties
+- [ ] 6. Update SpawnInstance structure with comprehensive properties
 
   - Add health and health_cap properties as u16 type
   - Add owner_type property as u8 type for entity type tracking
@@ -60,9 +60,9 @@
   - Rename vars to runtime_vars with [u8; 4] array in StatusEffectInstance
   - Rename fixed to runtime_fixed in StatusEffectInstance
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
-  - ✅ **COMPLETED**: StatusEffectDefinition updated with chance property, StatusEffectInstance field names remain as-is for now (remaining_duration, vars, fixed) to maintain compatibility
+  - ✅ **COMPLETED**: StatusEffectDefinition updated with chance property, StatusEffectInstance updated with life_span, runtime_vars, and runtime_fixed field names
 
-- [x] 8. Update property address constants
+- [ ] 8. Update property address constants
 
   - Add new Character property addresses (health_cap, power, weight, jump_force, move_speed)
   - Update EntityCore property addresses (dir, enmity, target_id, target_type)
@@ -72,7 +72,7 @@
   - _Requirements: 8.7_
   - ✅ **COMPLETED**: Property address constants updated with new EntityCore properties (dir, enmity, target_id, target_type), enhanced SpawnDefinition properties (damage_range, crit_chance, crit_multiplier, chance), new SpawnInstance properties (health, health_cap, owner_type, rotation, life_span), and reduced runtime variable arrays to [u8; 4]
 
-- [x] 9. Implement new entity property access operators
+- [ ] 9. Implement new entity property access operators
 
   - Add READ_CHARACTER_PROPERTY operator (address 104) to operator_address constants
   - Add WRITE_CHARACTER_PROPERTY operator (address 105) to operator_address constants
@@ -81,7 +81,7 @@
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
   - ✅ **COMPLETED**: New entity property access operators added to constants with addresses 104-107 for reading and writing character and spawn properties
 
-- [ ] 10. Implement entity property access operator logic in script engine
+- [x] 10. Implement entity property access operator logic in script engine
 
   - Add READ_CHARACTER_PROPERTY case to execute_instruction method with signature [character_id, var_index, property_address]
   - Add WRITE_CHARACTER_PROPERTY case to execute_instruction method with signature [character_id, property_address, var_index]
@@ -89,13 +89,15 @@
   - Add WRITE_SPAWN_PROPERTY case to execute_instruction method with signature [spawn_instance_id, property_address, var_index]
   - Implement entity ID validation and silent failure for invalid IDs
   - _Requirements: 8.5, 8.6_
+  - ✅ **COMPLETED**: Entity property access operators implemented in script engine with proper signature handling and validation
 
-- [ ] 11. Update ScriptContext trait for new property access
+- [x] 11. Update ScriptContext trait for new property access
 
   - Add methods to ScriptContext trait for character and spawn entity property access
   - Implement property address compatibility checking (Character properties 0x20-0x48, Spawn properties 0x52-0xBE, EntityCore properties 0x50-0x68)
   - Handle silent operation ignore for incompatible property addresses
   - _Requirements: 8.5, 8.6_
+  - ✅ **COMPLETED**: ScriptContext trait updated with new methods and all implementations (ActionContext, ConditionContext, StatusEffectContext, SpawnBehaviorContext) include property address compatibility checking and silent failure handling
 
 - [ ] 12. Create unit tests for updated entity structures
 

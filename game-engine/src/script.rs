@@ -382,6 +382,35 @@ impl ScriptEngine {
                 self.spawns[spawn_index] = self.vars[var_index];
             }
 
+            // Entity property access operators
+            operator_address::READ_CHARACTER_PROPERTY => {
+                let character_id = self.read_u8(script)?;
+                let var_index = self.read_u8(script)? as usize;
+                let property_address = self.read_u8(script)?;
+                context.read_character_property(self, character_id, var_index, property_address);
+            }
+
+            operator_address::WRITE_CHARACTER_PROPERTY => {
+                let character_id = self.read_u8(script)?;
+                let property_address = self.read_u8(script)?;
+                let var_index = self.read_u8(script)? as usize;
+                context.write_character_property(self, character_id, property_address, var_index);
+            }
+
+            operator_address::READ_SPAWN_PROPERTY => {
+                let spawn_instance_id = self.read_u8(script)?;
+                let var_index = self.read_u8(script)? as usize;
+                let property_address = self.read_u8(script)?;
+                context.read_spawn_property(self, spawn_instance_id, var_index, property_address);
+            }
+
+            operator_address::WRITE_SPAWN_PROPERTY => {
+                let spawn_instance_id = self.read_u8(script)?;
+                let property_address = self.read_u8(script)?;
+                let var_index = self.read_u8(script)? as usize;
+                context.write_spawn_property(self, spawn_instance_id, property_address, var_index);
+            }
+
             // Invalid operator
             _ => return Err(ScriptError::InvalidOperator),
         }
@@ -584,6 +613,38 @@ pub trait ScriptContext {
     fn read_action_last_used(&self, engine: &mut ScriptEngine, var_index: usize);
     /// Write action last used timestamp
     fn write_action_last_used(&mut self, engine: &mut ScriptEngine, var_index: usize);
+    /// Read character property by ID
+    fn read_character_property(
+        &mut self,
+        engine: &mut ScriptEngine,
+        character_id: u8,
+        var_index: usize,
+        property_address: u8,
+    );
+    /// Write character property by ID
+    fn write_character_property(
+        &mut self,
+        engine: &mut ScriptEngine,
+        character_id: u8,
+        property_address: u8,
+        var_index: usize,
+    );
+    /// Read spawn property by instance ID
+    fn read_spawn_property(
+        &mut self,
+        engine: &mut ScriptEngine,
+        spawn_instance_id: u8,
+        var_index: usize,
+        property_address: u8,
+    );
+    /// Write spawn property by instance ID
+    fn write_spawn_property(
+        &mut self,
+        engine: &mut ScriptEngine,
+        spawn_instance_id: u8,
+        property_address: u8,
+        var_index: usize,
+    );
 }
 
 /// Script execution errors

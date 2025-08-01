@@ -315,20 +315,16 @@ pub mod property_address {
     pub const CHARACTER_ARMOR_VIRUS: u8 = 0x48;
 
     // ===== ENTITY CORE PROPERTIES (0x50-0x68) =====
-    /// Entity facing direction (byte: 0=left, 1=right, converts to Fixed -1.0/1.0)
-    pub const ENTITY_FACING: u8 = 0x50;
-    /// Entity gravity direction (byte: 0=upward, 1=downward, converts to Fixed -1.0/1.0)
-    pub const ENTITY_GRAVITY_DIR: u8 = 0x51;
-    /// Entity direction tuple (dir.0, dir.1) - consolidated facing and gravity
-    pub const ENTITY_DIR_X: u8 = 0x60;
-    /// Entity direction tuple (dir.0, dir.1) - consolidated facing and gravity
-    pub const ENTITY_DIR_Y: u8 = 0x61;
+    /// Entity direction horizontal (byte: 0=left, 1=right)
+    pub const ENTITY_DIR_HORIZONTAL: u8 = 0x50;
+    /// Entity direction vertical (byte: 0=upward, 1=downward)
+    pub const ENTITY_DIR_VERTICAL: u8 = 0x51;
     /// Entity enmity level (byte)
-    pub const ENTITY_ENMITY: u8 = 0x62;
+    pub const ENTITY_ENMITY: u8 = 0x66;
     /// Entity target ID (byte) - Option<EntityId>
-    pub const ENTITY_TARGET_ID: u8 = 0x63;
+    pub const ENTITY_TARGET_ID: u8 = 0x67;
     /// Entity target type (byte)
-    pub const ENTITY_TARGET_TYPE: u8 = 0x64;
+    pub const ENTITY_TARGET_TYPE: u8 = 0x68;
 
     // ===== SPAWN INSTANCE CORE PROPERTIES (0x52-0x5E) =====
     /// Spawn core ID (byte)
@@ -411,8 +407,8 @@ pub mod property_address {
     pub const STATUS_EFFECT_INST_FIXED2: u8 = 0xA6;
     /// Status effect instance fixed[3] (fixed-point) - from instance
     pub const STATUS_EFFECT_INST_FIXED3: u8 = 0xA7;
-    /// Status effect instance remaining duration (fixed-point) - from instance
-    pub const STATUS_EFFECT_INST_REMAINING_DURATION: u8 = 0xA8;
+    /// Status effect instance life span (fixed-point) - from instance
+    pub const STATUS_EFFECT_INST_LIFE_SPAN: u8 = 0xA8;
     /// Status effect instance stack count (byte) - from instance
     pub const STATUS_EFFECT_INST_STACK_COUNT: u8 = 0xA9;
 

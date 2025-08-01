@@ -144,10 +144,10 @@ pub struct StatusEffectDefinition {
 #[derive(Debug, Clone)]
 pub struct StatusEffectInstance {
     pub definition_id: StatusEffectId,
-    pub remaining_duration: u16,
+    pub life_span: u16,
     pub stack_count: u8,
-    pub vars: [u8; 4],     // Script variables
-    pub fixed: [Fixed; 4], // Fixed-point variables
+    pub runtime_vars: [u8; 4],     // Script variables
+    pub runtime_fixed: [Fixed; 4], // Fixed-point variables
 }
 
 impl ActionDefinition {
@@ -439,10 +439,10 @@ impl StatusEffectDefinition {
     pub fn create_instance(&self, definition_id: StatusEffectId) -> StatusEffectInstance {
         StatusEffectInstance {
             definition_id,
-            remaining_duration: self.duration,
+            life_span: self.duration,
             stack_count: 1,
-            vars: [0; 4],
-            fixed: [Fixed::ZERO; 4],
+            runtime_vars: [0; 4],
+            runtime_fixed: [Fixed::ZERO; 4],
         }
     }
 }
@@ -452,16 +452,16 @@ impl StatusEffectInstance {
     pub fn new(definition_id: StatusEffectId) -> Self {
         Self {
             definition_id,
-            remaining_duration: 0, // Will be set from definition
+            life_span: 0, // Will be set from definition
             stack_count: 1,
-            vars: [0; 4],
-            fixed: [Fixed::ZERO; 4],
+            runtime_vars: [0; 4],
+            runtime_fixed: [Fixed::ZERO; 4],
         }
     }
 
     /// Check if this status effect has expired
     pub fn is_expired(&self) -> bool {
-        self.remaining_duration == 0
+        self.life_span == 0
     }
 }
 
