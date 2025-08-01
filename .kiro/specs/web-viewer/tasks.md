@@ -9,7 +9,7 @@
   - Configure TypeScript for WASM wrapper integration
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [x] 2. Create script constants library
+- [ ] 2. Create script constants library
 
   - Define ACTION_SCRIPTS constants with proper bytecode arrays
   - Define CONDITION_SCRIPTS constants with proper bytecode arrays
