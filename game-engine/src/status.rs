@@ -342,15 +342,23 @@ impl ScriptContext for StatusEffectContext<'_> {
                     engine.vars[var_index] = if self.status_def.reset_on_stack { 1 } else { 0 };
                 }
             }
-            property_address::STATUS_EFFECT_DEF_ARG0
-            | property_address::STATUS_EFFECT_DEF_ARG1
-            | property_address::STATUS_EFFECT_DEF_ARG2 => {
+            property_address::STATUS_EFFECT_DEF_CHANCE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.status_def.chance;
+                }
+            }
+            property_address::STATUS_EFFECT_DEF_ARG0 | property_address::STATUS_EFFECT_DEF_ARG1 => {
                 if var_index < engine.vars.len() {
                     let arg_index =
                         (prop_address - property_address::STATUS_EFFECT_DEF_ARG0) as usize;
                     if arg_index < self.status_def.args.len() {
                         engine.vars[var_index] = self.status_def.args[arg_index];
                     }
+                }
+            }
+            property_address::STATUS_EFFECT_DEF_ARG2 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.status_def.args[2];
                 }
             }
 

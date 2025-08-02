@@ -62,7 +62,7 @@
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
   - ✅ **COMPLETED**: StatusEffectDefinition updated with chance property, StatusEffectInstance updated with life_span, runtime_vars, and runtime_fixed field names
 
-- [ ] 8. Update property address constants
+- [x] 8. Update property address constants
 
   - Add new Character property addresses (health_cap, power, weight, jump_force, move_speed)
   - Update EntityCore property addresses (dir, enmity, target_id, target_type)

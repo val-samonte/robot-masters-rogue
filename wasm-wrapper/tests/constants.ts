@@ -210,7 +210,7 @@ export const PropertyAddress = {
   /** Status effect args[1] (byte) - from definition */
   STATUS_EFFECT_DEF_ARG1: 0x1e,
   /** Status effect args[2] (byte) - from definition */
-  STATUS_EFFECT_DEF_ARG2: 0x1f,
+  STATUS_EFFECT_DEF_ARG2: 0x49,
 
   // ===== SPAWN DEFINITION PROPERTIES (0x5A-0x61) =====
   /** Spawn definition damage base (byte) - from definition */
