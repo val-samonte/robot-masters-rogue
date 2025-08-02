@@ -72,7 +72,7 @@
   - _Requirements: 8.7_
   - ✅ **COMPLETED**: Property address constants updated with new EntityCore properties (dir, enmity, target_id, target_type), enhanced SpawnDefinition properties (damage_range, crit_chance, crit_multiplier, chance), new SpawnInstance properties (health, health_cap, owner_type, rotation, life_span), and reduced runtime variable arrays to [u8; 4]
 
-- [ ] 9. Implement new entity property access operators
+- [x] 9. Implement new entity property access operators
 
   - Add READ_CHARACTER_PROPERTY operator (address 104) to operator_address constants
   - Add WRITE_CHARACTER_PROPERTY operator (address 105) to operator_address constants
@@ -89,7 +89,6 @@
   - Add WRITE_SPAWN_PROPERTY case to execute_instruction method with signature [spawn_instance_id, property_address, var_index]
   - Implement entity ID validation and silent failure for invalid IDs
   - _Requirements: 8.5, 8.6_
-  - ✅ **COMPLETED**: Entity property access operators implemented in script engine with proper signature handling and validation
 
 - [x] 11. Update ScriptContext trait for new property access
 
@@ -97,9 +96,46 @@
   - Implement property address compatibility checking (Character properties 0x20-0x48, Spawn properties 0x52-0xBE, EntityCore properties 0x50-0x68)
   - Handle silent operation ignore for incompatible property addresses
   - _Requirements: 8.5, 8.6_
-  - ✅ **COMPLETED**: ScriptContext trait updated with new methods and all implementations (ActionContext, ConditionContext, StatusEffectContext, SpawnBehaviorContext) include property address compatibility checking and silent failure handling
 
-- [ ] 12. Create unit tests for updated entity structures
+- [ ] 12. Implement property access methods in concrete ScriptContext implementations
+
+  - Implement read_character_property_impl() in SpawnBehaviorContext, ConditionContext, ActionContext, and StatusEffectContext
+  - Implement write_character_property_impl() in all concrete ScriptContext implementations
+  - Implement read_spawn_property_impl() in all concrete ScriptContext implementations
+  - Implement write_spawn_property_impl() in all concrete ScriptContext implementations
+  - Add proper entity lookup logic with bounds checking and silent failure for invalid entity IDs
+  - Handle property address mapping to actual entity properties based on property address constants
+  - _Requirements: 8.5, 8.6_
+
+- [ ] 13. Update entity constructors and factory methods
+
+  - Update Character::new() to initialize new properties with appropriate default values
+  - Update EntityCore::new() to initialize dir tuple and new targeting properties
+  - Update SpawnInstance constructors to handle new properties and EntityId owner_id
+  - Update StatusEffectInstance constructors to use life_span instead of remaining_duration
+  - _Requirements: All structural requirements_
+
+- [ ] 14. Update existing code that references changed properties
+
+  - Find and update all references to removed ActionDefinition properties (interval, duration)
+  - Update all references to renamed ActionInstance.remaining_duration to cooldown
+  - Update all references to EntityCore.facing and gravity_dir to use dir tuple
+  - Update all references to SpawnInstance.vars/fixed to runtime_vars/runtime_fixed
+  - Update all references to StatusEffectInstance.remaining_duration to life_span
+  - _Requirements: All structural requirements_
+
+- [ ] 15. Defragment and reorganize property address constants (Final Cleanup)
+
+  - Analyze current property address allocation and identify gaps/fragmentation
+  - Reorganize property addresses into logical, sequential blocks by entity type
+  - Reserve contiguous address ranges for future expansion of each entity type
+  - Update all property address constants to use new sequential allocation
+  - Update all code references to use the new property addresses
+  - Verify no address conflicts exist and all addresses are within u8 range (0-255)
+  - _Requirements: 8.7_
+  - **FINAL CLEANUP**: This task serves as a final check to ensure clean, maintainable address space after all other changes are complete
+
+- [ ] 16. Create unit tests for updated entity structures
 
   - Write tests for Character struct with new properties and proper initialization
   - Write tests for ActionDefinition/ActionInstance with removed and renamed properties
@@ -110,7 +146,7 @@
   - Write tests for StatusEffectDefinition/Instance with updated properties
   - _Requirements: All structural requirements_
 
-- [ ] 13. Create unit tests for property address system
+- [ ] 17. Create unit tests for property address system
 
   - Write tests to verify all new property addresses are within u8 range (0-255)
   - Write tests to ensure no property address conflicts exist
@@ -118,7 +154,7 @@
   - Verify runtime variable array access with reduced sizes
   - _Requirements: 8.7_
 
-- [ ] 14. Create unit tests for new entity property access operators
+- [ ] 18. Create unit tests for new entity property access operators
 
   - Write tests for READ_CHARACTER_PROPERTY operator with valid and invalid character IDs
   - Write tests for WRITE_CHARACTER_PROPERTY operator with valid and invalid character IDs
@@ -127,31 +163,3 @@
   - Write tests for property address compatibility checking
   - Write tests for silent operation ignore behavior
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
-
-- [ ] 15. Update entity constructors and factory methods
-
-  - Update Character::new() to initialize new properties with appropriate default values
-  - Update EntityCore::new() to initialize dir tuple and new targeting properties
-  - Update SpawnInstance constructors to handle new properties and EntityId owner_id
-  - Update StatusEffectInstance constructors to use life_span instead of remaining_duration
-  - _Requirements: All structural requirements_
-
-- [ ] 16. Update existing code that references changed properties
-
-  - Find and update all references to removed ActionDefinition properties (interval, duration)
-  - Update all references to renamed ActionInstance.remaining_duration to cooldown
-  - Update all references to EntityCore.facing and gravity_dir to use dir tuple
-  - Update all references to SpawnInstance.vars/fixed to runtime_vars/runtime_fixed
-  - Update all references to StatusEffectInstance.remaining_duration to life_span
-  - _Requirements: All structural requirements_
-
-- [ ] 17. Defragment and reorganize property address constants (Final Cleanup)
-
-  - Analyze current property address allocation and identify gaps/fragmentation
-  - Reorganize property addresses into logical, sequential blocks by entity type
-  - Reserve contiguous address ranges for future expansion of each entity type
-  - Update all property address constants to use new sequential allocation
-  - Update all code references to use the new property addresses
-  - Verify no address conflicts exist and all addresses are within u8 range (0-255)
-  - _Requirements: 8.7_
-  - **FINAL CLEANUP**: This task serves as a final check to ensure clean, maintainable address space after all other changes are complete

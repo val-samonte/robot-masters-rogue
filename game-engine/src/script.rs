@@ -613,38 +613,142 @@ pub trait ScriptContext {
     fn read_action_last_used(&self, engine: &mut ScriptEngine, var_index: usize);
     /// Write action last used timestamp
     fn write_action_last_used(&mut self, engine: &mut ScriptEngine, var_index: usize);
-    /// Read character property by ID
+
+    /// Check if property address is compatible with character entity access
+    fn is_character_property_compatible(&self, property_address: u8) -> bool {
+        // Character properties: 0x20-0x48
+        // EntityCore properties: 0x50-0x68
+        (property_address >= 0x20 && property_address <= 0x48)
+            || (property_address >= 0x50 && property_address <= 0x68)
+    }
+
+    /// Check if property address is compatible with spawn entity access
+    fn is_spawn_property_compatible(&self, property_address: u8) -> bool {
+        // Spawn properties: 0x52-0xBE
+        // EntityCore properties: 0x50-0x68
+        (property_address >= 0x52 && property_address <= 0xBE)
+            || (property_address >= 0x50 && property_address <= 0x68)
+    }
+
+    /// Read character property by ID with compatibility checking
     fn read_character_property(
         &mut self,
         engine: &mut ScriptEngine,
         character_id: u8,
         var_index: usize,
         property_address: u8,
-    );
-    /// Write character property by ID
+    ) {
+        // Check property address compatibility
+        if !self.is_character_property_compatible(property_address) {
+            // Silent operation ignore for incompatible property addresses
+            return;
+        }
+
+        // Delegate to implementation-specific method
+        self.read_character_property_impl(engine, character_id, var_index, property_address);
+    }
+
+    /// Write character property by ID with compatibility checking
     fn write_character_property(
         &mut self,
         engine: &mut ScriptEngine,
         character_id: u8,
         property_address: u8,
         var_index: usize,
-    );
-    /// Read spawn property by instance ID
+    ) {
+        // Check property address compatibility
+        if !self.is_character_property_compatible(property_address) {
+            // Silent operation ignore for incompatible property addresses
+            return;
+        }
+
+        // Delegate to implementation-specific method
+        self.write_character_property_impl(engine, character_id, property_address, var_index);
+    }
+
+    /// Read spawn property by instance ID with compatibility checking
     fn read_spawn_property(
         &mut self,
         engine: &mut ScriptEngine,
         spawn_instance_id: u8,
         var_index: usize,
         property_address: u8,
-    );
-    /// Write spawn property by instance ID
+    ) {
+        // Check property address compatibility
+        if !self.is_spawn_property_compatible(property_address) {
+            // Silent operation ignore for incompatible property addresses
+            return;
+        }
+
+        // Delegate to implementation-specific method
+        self.read_spawn_property_impl(engine, spawn_instance_id, var_index, property_address);
+    }
+
+    /// Write spawn property by instance ID with compatibility checking
     fn write_spawn_property(
         &mut self,
         engine: &mut ScriptEngine,
         spawn_instance_id: u8,
         property_address: u8,
         var_index: usize,
-    );
+    ) {
+        // Check property address compatibility
+        if !self.is_spawn_property_compatible(property_address) {
+            // Silent operation ignore for incompatible property addresses
+            return;
+        }
+
+        // Delegate to implementation-specific method
+        self.write_spawn_property_impl(engine, spawn_instance_id, property_address, var_index);
+    }
+
+    /// Implementation-specific character property read (to be implemented by concrete types)
+    fn read_character_property_impl(
+        &mut self,
+        _engine: &mut ScriptEngine,
+        _character_id: u8,
+        _var_index: usize,
+        _property_address: u8,
+    ) {
+        // Default implementation: silently ignore invalid entity ID
+        // Concrete implementations should override this method
+    }
+
+    /// Implementation-specific character property write (to be implemented by concrete types)
+    fn write_character_property_impl(
+        &mut self,
+        _engine: &mut ScriptEngine,
+        _character_id: u8,
+        _property_address: u8,
+        _var_index: usize,
+    ) {
+        // Default implementation: silently ignore invalid entity ID
+        // Concrete implementations should override this method
+    }
+
+    /// Implementation-specific spawn property read (to be implemented by concrete types)
+    fn read_spawn_property_impl(
+        &mut self,
+        _engine: &mut ScriptEngine,
+        _spawn_instance_id: u8,
+        _var_index: usize,
+        _property_address: u8,
+    ) {
+        // Default implementation: silently ignore invalid entity ID
+        // Concrete implementations should override this method
+    }
+
+    /// Implementation-specific spawn property write (to be implemented by concrete types)
+    fn write_spawn_property_impl(
+        &mut self,
+        _engine: &mut ScriptEngine,
+        _spawn_instance_id: u8,
+        _property_address: u8,
+        _var_index: usize,
+    ) {
+        // Default implementation: silently ignore invalid entity ID
+        // Concrete implementations should override this method
+    }
 }
 
 /// Script execution errors
