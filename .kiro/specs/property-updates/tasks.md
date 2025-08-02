@@ -41,7 +41,7 @@
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
   - ✅ **COMPLETED**: SpawnDefinition updated with enhanced combat properties including damage_base (u16), damage_range, crit_chance, crit_multiplier, and chance
 
-- [ ] 6. Update SpawnInstance structure with comprehensive properties
+- [x] 6. Update SpawnInstance structure with comprehensive properties
 
   - Add health and health_cap properties as u16 type
   - Add owner_type property as u8 type for entity type tracking
@@ -137,9 +137,21 @@
   - _Requirements: All structural requirements_
 
 - [ ] 16. Update existing code that references changed properties
+
   - Find and update all references to removed ActionDefinition properties (interval, duration)
   - Update all references to renamed ActionInstance.remaining_duration to cooldown
   - Update all references to EntityCore.facing and gravity_dir to use dir tuple
   - Update all references to SpawnInstance.vars/fixed to runtime_vars/runtime_fixed
   - Update all references to StatusEffectInstance.remaining_duration to life_span
   - _Requirements: All structural requirements_
+
+- [ ] 17. Defragment and reorganize property address constants (Final Cleanup)
+
+  - Analyze current property address allocation and identify gaps/fragmentation
+  - Reorganize property addresses into logical, sequential blocks by entity type
+  - Reserve contiguous address ranges for future expansion of each entity type
+  - Update all property address constants to use new sequential allocation
+  - Update all code references to use the new property addresses
+  - Verify no address conflicts exist and all addresses are within u8 range (0-255)
+  - _Requirements: 8.7_
+  - **FINAL CLEANUP**: This task serves as a final check to ensure clean, maintainable address space after all other changes are complete

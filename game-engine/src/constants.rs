@@ -326,7 +326,7 @@ pub mod property_address {
     /// Entity target type (byte)
     pub const ENTITY_TARGET_TYPE: u8 = 0x68;
 
-    // ===== SPAWN INSTANCE CORE PROPERTIES (0x52-0x5E) =====
+    // ===== SPAWN INSTANCE CORE PROPERTIES (0x52-0x59) =====
     /// Spawn core ID (byte)
     pub const SPAWN_CORE_ID: u8 = 0x52;
     /// Spawn owner ID (EntityId) - from instance
@@ -341,14 +341,16 @@ pub mod property_address {
     pub const SPAWN_VEL_X: u8 = 0x57;
     /// Spawn velocity Y (fixed-point)
     pub const SPAWN_VEL_Y: u8 = 0x58;
+
+    // ===== SPAWN INSTANCE PROPERTIES (0xBA-0xBE) =====
     /// Spawn health (u16) - from instance
-    pub const SPAWN_HEALTH: u8 = 0x70;
+    pub const SPAWN_INST_HEALTH: u8 = 0xBA;
     /// Spawn health cap (u16) - from instance
-    pub const SPAWN_HEALTH_CAP: u8 = 0x71;
+    pub const SPAWN_INST_HEALTH_CAP: u8 = 0xBB;
     /// Spawn rotation (fixed-point) - from instance
-    pub const SPAWN_ROTATION: u8 = 0x72;
+    pub const SPAWN_INST_ROTATION: u8 = 0xBD;
     /// Spawn life span (u16) - from instance
-    pub const SPAWN_LIFE_SPAN: u8 = 0x73;
+    pub const SPAWN_INST_LIFE_SPAN: u8 = 0xBE;
 
     // ===== ACTION INSTANCE PROPERTIES (0x80-0x8B) =====
     /// Action instance runtime_vars[0] (byte) - from instance
@@ -429,8 +431,7 @@ pub mod property_address {
     pub const SPAWN_INST_FIXED2: u8 = 0xB6;
     /// Spawn instance runtime_fixed[3] (fixed-point) - from instance
     pub const SPAWN_INST_FIXED3: u8 = 0xB7;
-    /// Spawn instance lifespan (fixed-point) - from instance
-    pub const SPAWN_INST_LIFESPAN: u8 = 0xB8;
+
     /// Spawn instance element (byte) - from instance
     pub const SPAWN_INST_ELEMENT: u8 = 0xB9;
 }

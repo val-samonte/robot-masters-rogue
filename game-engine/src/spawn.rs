@@ -246,9 +246,25 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
                     }
                 }
             }
-            property_address::SPAWN_INST_LIFESPAN => {
+            property_address::SPAWN_INST_LIFE_SPAN => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = Fixed::from_int(self.spawn_instance.life_span as i16);
+                }
+            }
+            property_address::SPAWN_INST_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.spawn_instance.health as i16);
+                }
+            }
+            property_address::SPAWN_INST_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] =
+                        Fixed::from_int(self.spawn_instance.health_cap as i16);
+                }
+            }
+            property_address::SPAWN_INST_ROTATION => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.spawn_instance.rotation;
                 }
             }
             property_address::SPAWN_INST_ELEMENT => {
@@ -266,6 +282,11 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             property_address::SPAWN_OWNER_ID => {
                 if var_index < engine.vars.len() {
                     engine.vars[var_index] = self.spawn_instance.owner_id;
+                }
+            }
+            property_address::SPAWN_OWNER_TYPE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.spawn_instance.owner_type;
                 }
             }
             property_address::SPAWN_POS_X => {
@@ -334,9 +355,24 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
                     }
                 }
             }
-            property_address::SPAWN_INST_LIFESPAN => {
+            property_address::SPAWN_INST_LIFE_SPAN => {
                 if var_index < engine.fixed.len() {
                     self.spawn_instance.life_span = engine.fixed[var_index].to_int() as u16;
+                }
+            }
+            property_address::SPAWN_INST_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    self.spawn_instance.health = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::SPAWN_INST_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    self.spawn_instance.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::SPAWN_INST_ROTATION => {
+                if var_index < engine.fixed.len() {
+                    self.spawn_instance.rotation = engine.fixed[var_index];
                 }
             }
             property_address::SPAWN_INST_ELEMENT => {
@@ -601,22 +637,22 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
         let spawn_instance = &self.game_state.spawn_instances[spawn_instance_id as usize];
 
         match property_address {
-            property_address::SPAWN_HEALTH => {
+            property_address::SPAWN_INST_HEALTH => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = Fixed::from_int(spawn_instance.health as i16);
                 }
             }
-            property_address::SPAWN_HEALTH_CAP => {
+            property_address::SPAWN_INST_HEALTH_CAP => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = Fixed::from_int(spawn_instance.health_cap as i16);
                 }
             }
-            property_address::SPAWN_INST_LIFESPAN => {
+            property_address::SPAWN_INST_LIFE_SPAN => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = Fixed::from_int(spawn_instance.life_span as i16);
                 }
             }
-            property_address::SPAWN_ROTATION => {
+            property_address::SPAWN_INST_ROTATION => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = spawn_instance.rotation;
                 }
@@ -647,22 +683,22 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
         let spawn_instance = &mut self.game_state.spawn_instances[spawn_instance_id as usize];
 
         match property_address {
-            property_address::SPAWN_HEALTH => {
+            property_address::SPAWN_INST_HEALTH => {
                 if var_index < engine.fixed.len() {
                     spawn_instance.health = engine.fixed[var_index].to_int().max(0) as u16;
                 }
             }
-            property_address::SPAWN_HEALTH_CAP => {
+            property_address::SPAWN_INST_HEALTH_CAP => {
                 if var_index < engine.fixed.len() {
                     spawn_instance.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
                 }
             }
-            property_address::SPAWN_INST_LIFESPAN => {
+            property_address::SPAWN_INST_LIFE_SPAN => {
                 if var_index < engine.fixed.len() {
                     spawn_instance.life_span = engine.fixed[var_index].to_int() as u16;
                 }
             }
-            property_address::SPAWN_ROTATION => {
+            property_address::SPAWN_INST_ROTATION => {
                 if var_index < engine.fixed.len() {
                     spawn_instance.rotation = engine.fixed[var_index];
                 }
