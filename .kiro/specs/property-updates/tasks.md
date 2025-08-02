@@ -97,7 +97,7 @@
   - Handle silent operation ignore for incompatible property addresses
   - _Requirements: 8.5, 8.6_
 
-- [ ] 12. Implement property access methods in concrete ScriptContext implementations
+- [x] 12. Implement property access methods in concrete ScriptContext implementations
 
   - Implement read_character_property_impl() in SpawnBehaviorContext, ConditionContext, ActionContext, and StatusEffectContext
   - Implement write_character_property_impl() in all concrete ScriptContext implementations

@@ -483,7 +483,7 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
         // Spawns can't modify action last used data
     }
 
-    fn read_character_property(
+    fn read_character_property_impl(
         &mut self,
         engine: &mut ScriptEngine,
         character_id: u8,
@@ -492,19 +492,55 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
     ) {
         use crate::constants::property_address;
 
-        // Validate character ID and property address compatibility
+        // Validate character ID
         if character_id as usize >= self.game_state.characters.len() {
             return; // Invalid character ID - silent failure
-        }
-
-        // Check if property address is compatible with Character properties (0x20-0x48)
-        if !(0x20..=0x48).contains(&property_address) {
-            return; // Incompatible property address - silent failure
         }
 
         let character = &self.game_state.characters[character_id as usize];
 
         match property_address {
+            // Character core properties
+            property_address::CHARACTER_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.id;
+                }
+            }
+            property_address::CHARACTER_GROUP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.group;
+                }
+            }
+            property_address::CHARACTER_POS_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.core.pos.0;
+                }
+            }
+            property_address::CHARACTER_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.core.pos.1;
+                }
+            }
+            property_address::CHARACTER_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.core.vel.0;
+                }
+            }
+            property_address::CHARACTER_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.core.vel.1;
+                }
+            }
+            property_address::CHARACTER_SIZE_W => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(character.core.size.0 as i16);
+                }
+            }
+            property_address::CHARACTER_SIZE_H => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(character.core.size.1 as i16);
+                }
+            }
             property_address::CHARACTER_HEALTH => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = Fixed::from_int(character.health as i16);
@@ -545,11 +581,135 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
                     engine.fixed[var_index] = character.move_speed;
                 }
             }
-            _ => {} // Other character properties handled similarly
+            property_address::CHARACTER_ENERGY_REGEN => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_regen;
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN_RATE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_regen_rate;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_charge;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE_RATE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_charge_rate;
+                }
+            }
+            property_address::CHARACTER_LOCKED_ACTION_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.locked_action.unwrap_or(255);
+                }
+            }
+            // Character collision flags
+            property_address::CHARACTER_COLLISION_TOP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if character.core.collision.0 { 1 } else { 0 };
+                }
+            }
+            property_address::CHARACTER_COLLISION_RIGHT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if character.core.collision.1 { 1 } else { 0 };
+                }
+            }
+            property_address::CHARACTER_COLLISION_BOTTOM => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if character.core.collision.2 { 1 } else { 0 };
+                }
+            }
+            property_address::CHARACTER_COLLISION_LEFT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if character.core.collision.3 { 1 } else { 0 };
+                }
+            }
+            // Character status effects count
+            property_address::CHARACTER_STATUS_EFFECT_COUNT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.status_effects.len().min(255) as u8;
+                }
+            }
+            // Character armor values
+            property_address::CHARACTER_ARMOR_PUNCT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[0];
+                }
+            }
+            property_address::CHARACTER_ARMOR_BLAST => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[1];
+                }
+            }
+            property_address::CHARACTER_ARMOR_FORCE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[2];
+                }
+            }
+            property_address::CHARACTER_ARMOR_SEVER => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[3];
+                }
+            }
+            property_address::CHARACTER_ARMOR_HEAT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[4];
+                }
+            }
+            property_address::CHARACTER_ARMOR_CRYO => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[5];
+                }
+            }
+            property_address::CHARACTER_ARMOR_JOLT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[6];
+                }
+            }
+            property_address::CHARACTER_ARMOR_ACID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[7];
+                }
+            }
+            property_address::CHARACTER_ARMOR_VIRUS => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[8];
+                }
+            }
+            // EntityCore properties
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.dir.0;
+                }
+            }
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.dir.1;
+                }
+            }
+            property_address::ENTITY_ENMITY => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.enmity;
+                }
+            }
+            property_address::ENTITY_TARGET_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.target_id.unwrap_or(255);
+                }
+            }
+            property_address::ENTITY_TARGET_TYPE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.target_type;
+                }
+            }
+            _ => {} // Property not supported or invalid
         }
     }
 
-    fn write_character_property(
+    fn write_character_property_impl(
         &mut self,
         engine: &mut ScriptEngine,
         character_id: u8,
@@ -558,19 +718,35 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
     ) {
         use crate::constants::property_address;
 
-        // Validate character ID and property address compatibility
+        // Validate character ID
         if character_id as usize >= self.game_state.characters.len() {
             return; // Invalid character ID - silent failure
-        }
-
-        // Check if property address is compatible with Character properties (0x20-0x48)
-        if !(0x20..=0x48).contains(&property_address) {
-            return; // Incompatible property address - silent failure
         }
 
         let character = &mut self.game_state.characters[character_id as usize];
 
         match property_address {
+            // Character core properties (writable)
+            property_address::CHARACTER_POS_X => {
+                if var_index < engine.fixed.len() {
+                    character.core.pos.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    character.core.pos.1 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    character.core.vel.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    character.core.vel.1 = engine.fixed[var_index];
+                }
+            }
             property_address::CHARACTER_HEALTH => {
                 if var_index < engine.fixed.len() {
                     character.health = engine.fixed[var_index].to_int().max(0) as u16;
@@ -611,11 +787,107 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
                     character.move_speed = engine.fixed[var_index];
                 }
             }
-            _ => {} // Other character properties handled similarly
+            property_address::CHARACTER_ENERGY_REGEN => {
+                if var_index < engine.vars.len() {
+                    character.energy_regen = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN_RATE => {
+                if var_index < engine.vars.len() {
+                    character.energy_regen_rate = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE => {
+                if var_index < engine.vars.len() {
+                    character.energy_charge = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE_RATE => {
+                if var_index < engine.vars.len() {
+                    character.energy_charge_rate = engine.vars[var_index];
+                }
+            }
+            // Character armor values (writable)
+            property_address::CHARACTER_ARMOR_PUNCT => {
+                if var_index < engine.vars.len() {
+                    character.armor[0] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_BLAST => {
+                if var_index < engine.vars.len() {
+                    character.armor[1] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_FORCE => {
+                if var_index < engine.vars.len() {
+                    character.armor[2] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_SEVER => {
+                if var_index < engine.vars.len() {
+                    character.armor[3] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_HEAT => {
+                if var_index < engine.vars.len() {
+                    character.armor[4] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_CRYO => {
+                if var_index < engine.vars.len() {
+                    character.armor[5] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_JOLT => {
+                if var_index < engine.vars.len() {
+                    character.armor[6] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_ACID => {
+                if var_index < engine.vars.len() {
+                    character.armor[7] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_VIRUS => {
+                if var_index < engine.vars.len() {
+                    character.armor[8] = engine.vars[var_index];
+                }
+            }
+            // EntityCore properties (writable)
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    character.core.dir.0 = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    character.core.dir.1 = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_ENMITY => {
+                if var_index < engine.vars.len() {
+                    character.core.enmity = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_TARGET_ID => {
+                if var_index < engine.vars.len() {
+                    character.core.target_id = if engine.vars[var_index] == 255 {
+                        None
+                    } else {
+                        Some(engine.vars[var_index])
+                    };
+                }
+            }
+            property_address::ENTITY_TARGET_TYPE => {
+                if var_index < engine.vars.len() {
+                    character.core.target_type = engine.vars[var_index];
+                }
+            }
+            _ => {} // Property not writable or not supported
         }
     }
 
-    fn read_spawn_property(
+    fn read_spawn_property_impl(
         &mut self,
         engine: &mut ScriptEngine,
         spawn_instance_id: u8,
@@ -624,19 +896,77 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
     ) {
         use crate::constants::property_address;
 
-        // Validate spawn instance ID and property address compatibility
+        // Validate spawn instance ID
         if spawn_instance_id as usize >= self.game_state.spawn_instances.len() {
             return; // Invalid spawn instance ID - silent failure
-        }
-
-        // Check if property address is compatible with Spawn properties (0x52-0xBE)
-        if !(0x52..=0xBE).contains(&property_address) {
-            return; // Incompatible property address - silent failure
         }
 
         let spawn_instance = &self.game_state.spawn_instances[spawn_instance_id as usize];
 
         match property_address {
+            // EntityCore properties
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.dir.0;
+                }
+            }
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.dir.1;
+                }
+            }
+            property_address::ENTITY_ENMITY => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.enmity;
+                }
+            }
+            property_address::ENTITY_TARGET_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.target_id.unwrap_or(255);
+                }
+            }
+            property_address::ENTITY_TARGET_TYPE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.target_type;
+                }
+            }
+            // Spawn core properties
+            property_address::SPAWN_CORE_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.id;
+                }
+            }
+            property_address::SPAWN_OWNER_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.owner_id;
+                }
+            }
+            property_address::SPAWN_OWNER_TYPE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.owner_type;
+                }
+            }
+            property_address::SPAWN_POS_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.core.pos.0;
+                }
+            }
+            property_address::SPAWN_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.core.pos.1;
+                }
+            }
+            property_address::SPAWN_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.core.vel.0;
+                }
+            }
+            property_address::SPAWN_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.core.vel.1;
+                }
+            }
+            // Spawn instance properties
             property_address::SPAWN_INST_HEALTH => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = Fixed::from_int(spawn_instance.health as i16);
@@ -647,21 +977,50 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
                     engine.fixed[var_index] = Fixed::from_int(spawn_instance.health_cap as i16);
                 }
             }
-            property_address::SPAWN_INST_LIFE_SPAN => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = Fixed::from_int(spawn_instance.life_span as i16);
-                }
-            }
             property_address::SPAWN_INST_ROTATION => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] = spawn_instance.rotation;
                 }
             }
-            _ => {} // Other spawn properties handled similarly
+            property_address::SPAWN_INST_LIFE_SPAN => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(spawn_instance.life_span as i16);
+                }
+            }
+            property_address::SPAWN_INST_ELEMENT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.element as u8;
+                }
+            }
+            // Spawn instance runtime variables
+            property_address::SPAWN_INST_VAR0
+            | property_address::SPAWN_INST_VAR1
+            | property_address::SPAWN_INST_VAR2
+            | property_address::SPAWN_INST_VAR3 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = (property_address - property_address::SPAWN_INST_VAR0) as usize;
+                    if var_idx < spawn_instance.runtime_vars.len() {
+                        engine.vars[var_index] = spawn_instance.runtime_vars[var_idx];
+                    }
+                }
+            }
+            property_address::SPAWN_INST_FIXED0
+            | property_address::SPAWN_INST_FIXED1
+            | property_address::SPAWN_INST_FIXED2
+            | property_address::SPAWN_INST_FIXED3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx =
+                        (property_address - property_address::SPAWN_INST_FIXED0) as usize;
+                    if fixed_idx < spawn_instance.runtime_fixed.len() {
+                        engine.fixed[var_index] = spawn_instance.runtime_fixed[fixed_idx];
+                    }
+                }
+            }
+            _ => {} // Property not supported or invalid
         }
     }
 
-    fn write_spawn_property(
+    fn write_spawn_property_impl(
         &mut self,
         engine: &mut ScriptEngine,
         spawn_instance_id: u8,
@@ -670,19 +1029,66 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
     ) {
         use crate::constants::property_address;
 
-        // Validate spawn instance ID and property address compatibility
+        // Validate spawn instance ID
         if spawn_instance_id as usize >= self.game_state.spawn_instances.len() {
             return; // Invalid spawn instance ID - silent failure
-        }
-
-        // Check if property address is compatible with Spawn properties (0x52-0xBE)
-        if !(0x52..=0xBE).contains(&property_address) {
-            return; // Incompatible property address - silent failure
         }
 
         let spawn_instance = &mut self.game_state.spawn_instances[spawn_instance_id as usize];
 
         match property_address {
+            // EntityCore properties (writable)
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.dir.0 = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.dir.1 = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_ENMITY => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.enmity = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_TARGET_ID => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.target_id = if engine.vars[var_index] == 255 {
+                        None
+                    } else {
+                        Some(engine.vars[var_index])
+                    };
+                }
+            }
+            property_address::ENTITY_TARGET_TYPE => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.target_type = engine.vars[var_index];
+                }
+            }
+            // Spawn core properties (writable)
+            property_address::SPAWN_POS_X => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.pos.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::SPAWN_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.pos.1 = engine.fixed[var_index];
+                }
+            }
+            property_address::SPAWN_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.vel.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::SPAWN_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.vel.1 = engine.fixed[var_index];
+                }
+            }
+            // Spawn instance properties (writable)
             property_address::SPAWN_INST_HEALTH => {
                 if var_index < engine.fixed.len() {
                     spawn_instance.health = engine.fixed[var_index].to_int().max(0) as u16;
@@ -693,17 +1099,48 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
                     spawn_instance.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
                 }
             }
-            property_address::SPAWN_INST_LIFE_SPAN => {
-                if var_index < engine.fixed.len() {
-                    spawn_instance.life_span = engine.fixed[var_index].to_int() as u16;
-                }
-            }
             property_address::SPAWN_INST_ROTATION => {
                 if var_index < engine.fixed.len() {
                     spawn_instance.rotation = engine.fixed[var_index];
                 }
             }
-            _ => {} // Other spawn properties handled similarly
+            property_address::SPAWN_INST_LIFE_SPAN => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.life_span = engine.fixed[var_index].to_int() as u16;
+                }
+            }
+            property_address::SPAWN_INST_ELEMENT => {
+                if var_index < engine.vars.len() {
+                    if let Some(element) = crate::entity::Element::from_u8(engine.vars[var_index]) {
+                        spawn_instance.element = element;
+                    }
+                }
+            }
+            // Spawn instance runtime variables (writable)
+            property_address::SPAWN_INST_VAR0
+            | property_address::SPAWN_INST_VAR1
+            | property_address::SPAWN_INST_VAR2
+            | property_address::SPAWN_INST_VAR3 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = (property_address - property_address::SPAWN_INST_VAR0) as usize;
+                    if var_idx < spawn_instance.runtime_vars.len() {
+                        spawn_instance.runtime_vars[var_idx] = engine.vars[var_index];
+                    }
+                }
+            }
+            property_address::SPAWN_INST_FIXED0
+            | property_address::SPAWN_INST_FIXED1
+            | property_address::SPAWN_INST_FIXED2
+            | property_address::SPAWN_INST_FIXED3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx =
+                        (property_address - property_address::SPAWN_INST_FIXED0) as usize;
+                    if fixed_idx < spawn_instance.runtime_fixed.len() {
+                        spawn_instance.runtime_fixed[fixed_idx] = engine.fixed[var_index];
+                    }
+                }
+            }
+            _ => {} // Property not writable or not supported
         }
     }
 }
