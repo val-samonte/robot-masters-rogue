@@ -151,10 +151,7 @@ pub mod property_address {
     // ===== ACTION DEFINITION PROPERTIES (0x04-0x0F) =====
     /// Action energy cost (byte) - from definition
     pub const ACTION_DEF_ENERGY_COST: u8 = 0x04;
-    /// Action interval (fixed-point) - from definition
-    pub const ACTION_DEF_INTERVAL: u8 = 0x05;
-    /// Action duration (fixed-point) - from definition
-    pub const ACTION_DEF_DURATION: u8 = 0x06;
+    // ACTION_DEF_INTERVAL (0x05) and ACTION_DEF_DURATION (0x06) removed - properties no longer exist
     /// Action cooldown (fixed-point) - from definition
     pub const ACTION_DEF_COOLDOWN: u8 = 0x07;
     /// Action args[0] (byte) - from definition

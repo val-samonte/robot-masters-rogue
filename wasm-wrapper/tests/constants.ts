@@ -153,10 +153,7 @@ export const PropertyAddress = {
   // ===== ACTION DEFINITION PROPERTIES (0x04-0x0F) =====
   /** Action energy cost (byte) - from definition */
   ACTION_DEF_ENERGY_COST: 0x04,
-  /** Action interval (fixed-point) - from definition */
-  ACTION_DEF_INTERVAL: 0x05,
-  /** Action duration (fixed-point) - from definition */
-  ACTION_DEF_DURATION: 0x06,
+  // ACTION_DEF_INTERVAL (0x05) and ACTION_DEF_DURATION (0x06) removed - properties no longer exist
   /** Action cooldown (fixed-point) - from definition */
   ACTION_DEF_COOLDOWN: 0x07,
   /** Action args[0] (byte) - from definition */

@@ -1427,7 +1427,7 @@ pub fn process_character_status_effects(
                     }
                 }
 
-                // Decrease remaining duration
+                // Decrease life span
                 if let Some(instance_mut) =
                     game_state.get_status_effect_instance_mut(effect_instance_id)
                 {
@@ -1567,7 +1567,7 @@ pub fn create_passive_energy_regen_status_effect() -> StatusEffectDefinition {
     StatusEffectDefinition {
         duration: u16::MAX,    // Permanent effect (never expires)
         stack_limit: 1,        // Only one instance allowed
-        reset_on_stack: false, // Don't reset duration when reapplied
+        reset_on_stack: false, // Don't reset life span when reapplied
         chance: 100,           // Always applies
         args: [0; 8],
         spawns: [0; 4],

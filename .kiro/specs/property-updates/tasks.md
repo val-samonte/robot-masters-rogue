@@ -107,7 +107,7 @@
   - Handle property address mapping to actual entity properties based on property address constants
   - _Requirements: 8.5, 8.6_
 
-- [ ] 13. Update entity constructors and factory methods
+- [x] 13. Update entity constructors and factory methods
 
   - Update Character::new() to initialize new properties with appropriate default values
   - Update EntityCore::new() to initialize dir tuple and new targeting properties
@@ -115,7 +115,7 @@
   - Update StatusEffectInstance constructors to use life_span instead of remaining_duration
   - _Requirements: All structural requirements_
 
-- [ ] 14. Update existing code that references changed properties
+- [x] 14. Update existing code that references changed properties
 
   - Find and update all references to removed ActionDefinition properties (interval, duration)
   - Update all references to renamed ActionInstance.remaining_duration to cooldown

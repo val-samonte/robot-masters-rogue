@@ -563,7 +563,7 @@ impl GameState {
                         // Execute tick script - we need to be careful with borrowing here
                         // We'll process the script execution in a separate step to avoid borrow conflicts
 
-                        // Decrease remaining duration first
+                        // Decrease life span first
                         if let Some(instance_mut) = self
                             .status_effect_instances
                             .get_mut(effect_instance_id as usize)
@@ -1415,7 +1415,7 @@ impl crate::script::ScriptContext for ActionContext<'_> {
             if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
                 character.locked_action = Some(self.instance_id as ActionInstanceId);
 
-                // Set duration from definition
+                // Set cooldown from definition
                 if let Some(action_def) = self.game_state.action_definitions.get(self.action_id) {
                     if let Some(instance_mut) =
                         self.game_state.action_instances.get_mut(self.instance_id)
