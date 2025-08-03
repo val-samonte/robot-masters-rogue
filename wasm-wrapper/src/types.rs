@@ -379,17 +379,23 @@ pub struct CharacterStateJson {
 pub struct SpawnStateJson {
     pub id: u8,
     pub spawn_id: u8,
-    pub owner_id: u8,
-    pub position: [i16; 2], // [x, y] as integers
-    pub velocity: [i16; 2], // [vx, vy] as integers
-    pub lifespan: u16,
-    pub element: Option<u8>, // Element as u8 value (0-8)
-    pub facing: u8,
-    pub gravity_dir: u8,
+    pub owner_id: u8,            // Now supports EntityId type
+    pub owner_type: u8,          // New property (1=Character, 2=Spawn)
+    pub position: [[i16; 2]; 2], // [[x_num, x_den], [y_num, y_den]]
+    pub velocity: [[i16; 2]; 2], // [[vx_num, vx_den], [vy_num, vy_den]]
+    pub health: u16,             // New property
+    pub health_cap: u16,         // New property
+    pub rotation: [i16; 2],      // New property [numerator, denominator]
+    pub life_span: u16,          // Renamed from lifespan
+    pub element: Option<u8>,     // Element as u8 value (0-8)
+    pub dir: [u8; 2],            // Replaces facing and gravity_dir
+    pub enmity: u8,              // New property
+    pub target_id: Option<u8>,   // New property
+    pub target_type: u8,         // New property
     pub size: [u8; 2],
-    pub collision: [bool; 4], // [top, right, bottom, left]
-    pub vars: [u8; 4],
-    pub fixed: [i16; 4], // Fixed-point values converted to integers
+    pub collision: [bool; 4],         // [top, right, bottom, left]
+    pub runtime_vars: [u8; 4],        // Renamed from vars
+    pub runtime_fixed: [[i16; 2]; 4], // Renamed from fixed, [numerator, denominator] pairs
 }
 
 /// JSON-compatible status effect instance state representation
@@ -506,16 +512,32 @@ impl CharacterStateJson {
 impl SpawnStateJson {
     /// Convert from game engine SpawnInstance to JSON-compatible representation
     pub fn from_spawn_instance(spawn: &robot_masters_engine::entity::SpawnInstance) -> Self {
+        // For Fixed-point values, we represent them as [raw_value, scale] pairs
+        // where scale is the fractional bits scale (32 for 5-bit precision)
+        const FIXED_SCALE: i16 = 1 << Fixed::FRACTIONAL_BITS; // 32
+
         Self {
             id: spawn.core.id,
             spawn_id: spawn.spawn_id,
             owner_id: spawn.owner_id,
-            position: [spawn.core.pos.0.raw(), spawn.core.pos.1.raw()],
-            velocity: [spawn.core.vel.0.raw(), spawn.core.vel.1.raw()],
-            lifespan: spawn.life_span,
+            owner_type: spawn.owner_type,
+            position: [
+                [spawn.core.pos.0.raw(), FIXED_SCALE],
+                [spawn.core.pos.1.raw(), FIXED_SCALE],
+            ],
+            velocity: [
+                [spawn.core.vel.0.raw(), FIXED_SCALE],
+                [spawn.core.vel.1.raw(), FIXED_SCALE],
+            ],
+            health: spawn.health,
+            health_cap: spawn.health_cap,
+            rotation: [spawn.rotation.raw(), FIXED_SCALE],
+            life_span: spawn.life_span,
             element: Some(spawn.element as u8),
-            facing: spawn.core.dir.0,
-            gravity_dir: spawn.core.dir.1,
+            dir: [spawn.core.dir.0, spawn.core.dir.1],
+            enmity: spawn.core.enmity,
+            target_id: spawn.core.target_id,
+            target_type: spawn.core.target_type,
             size: [spawn.core.size.0, spawn.core.size.1],
             collision: [
                 spawn.core.collision.0,
@@ -523,12 +545,12 @@ impl SpawnStateJson {
                 spawn.core.collision.2,
                 spawn.core.collision.3,
             ],
-            vars: spawn.runtime_vars,
-            fixed: [
-                spawn.runtime_fixed[0].raw(),
-                spawn.runtime_fixed[1].raw(),
-                spawn.runtime_fixed[2].raw(),
-                spawn.runtime_fixed[3].raw(),
+            runtime_vars: spawn.runtime_vars,
+            runtime_fixed: [
+                [spawn.runtime_fixed[0].raw(), FIXED_SCALE],
+                [spawn.runtime_fixed[1].raw(), FIXED_SCALE],
+                [spawn.runtime_fixed[2].raw(), FIXED_SCALE],
+                [spawn.runtime_fixed[3].raw(), FIXED_SCALE],
             ],
         }
     }

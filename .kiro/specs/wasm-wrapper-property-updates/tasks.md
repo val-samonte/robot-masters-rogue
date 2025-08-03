@@ -51,7 +51,7 @@
   - Add target_type property as u8 type to CharacterStateJson struct
   - _Requirements: 1.7, 1.8, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15_
 
-- [ ] 6. Update SpawnStateJson structure with comprehensive property updates
+- [x] 6. Update SpawnStateJson structure with comprehensive property updates
 
   - Add health property as u16 type to SpawnStateJson struct
   - Add health_cap property as u16 type to SpawnStateJson struct
