@@ -135,7 +135,7 @@
   - _Requirements: 8.7_
   - **FINAL CLEANUP**: This task serves as a final check to ensure clean, maintainable address space after all other changes are complete
 
-- [ ] 16. Create unit tests for updated entity structures
+- [x] 16. Create unit tests for updated entity structures
 
   - Write tests for Character struct with new properties and proper initialization
   - Write tests for ActionDefinition/ActionInstance with removed and renamed properties
