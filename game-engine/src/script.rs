@@ -616,18 +616,18 @@ pub trait ScriptContext {
 
     /// Check if property address is compatible with character entity access
     fn is_character_property_compatible(&self, property_address: u8) -> bool {
-        // Character properties: 0x20-0x48
-        // EntityCore properties: 0x50-0x68
-        (property_address >= 0x20 && property_address <= 0x48)
-            || (property_address >= 0x50 && property_address <= 0x68)
+        // Character properties: 0x10-0x3F
+        // EntityCore properties: 0x40-0x4F
+        (property_address >= 0x10 && property_address <= 0x3F)
+            || (property_address >= 0x40 && property_address <= 0x4F)
     }
 
     /// Check if property address is compatible with spawn entity access
     fn is_spawn_property_compatible(&self, property_address: u8) -> bool {
-        // Spawn properties: 0x52-0xBE
-        // EntityCore properties: 0x50-0x68
-        (property_address >= 0x52 && property_address <= 0xBE)
-            || (property_address >= 0x50 && property_address <= 0x68)
+        // Spawn properties: 0x50-0x7F
+        // EntityCore properties: 0x40-0x4F
+        (property_address >= 0x50 && property_address <= 0x7F)
+            || (property_address >= 0x40 && property_address <= 0x4F)
     }
 
     /// Read character property by ID with compatibility checking

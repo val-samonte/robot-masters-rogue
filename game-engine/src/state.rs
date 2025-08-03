@@ -946,8 +946,8 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
             return; // Invalid character ID - silent failure
         }
 
-        // Check if property address is compatible with Character properties (0x20-0x48)
-        if !(0x20..=0x48).contains(&property_address) {
+        // Check if property address is compatible with Character properties (0x10-0x3F)
+        if !(0x10..=0x3F).contains(&property_address) {
             return; // Incompatible property address - silent failure
         }
 
@@ -1012,8 +1012,8 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
             return; // Invalid character ID - silent failure
         }
 
-        // Check if property address is compatible with Character properties (0x20-0x48)
-        if !(0x20..=0x48).contains(&property_address) {
+        // Check if property address is compatible with Character properties (0x10-0x3F)
+        if !(0x10..=0x3F).contains(&property_address) {
             return; // Incompatible property address - silent failure
         }
 
@@ -1078,8 +1078,8 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
             return; // Invalid spawn instance ID - silent failure
         }
 
-        // Check if property address is compatible with Spawn properties (0x52-0xBE)
-        if !(0x52..=0xBE).contains(&property_address) {
+        // Check if property address is compatible with Spawn properties (0x50-0x7F)
+        if !(0x50..=0x7F).contains(&property_address) {
             return; // Incompatible property address - silent failure
         }
 
@@ -1124,8 +1124,8 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
             return; // Invalid spawn instance ID - silent failure
         }
 
-        // Check if property address is compatible with Spawn properties (0x52-0xBE)
-        if !(0x52..=0xBE).contains(&property_address) {
+        // Check if property address is compatible with Spawn properties (0x50-0x7F)
+        if !(0x50..=0x7F).contains(&property_address) {
             return; // Incompatible property address - silent failure
         }
 
@@ -1538,8 +1538,8 @@ impl crate::script::ScriptContext for ActionContext<'_> {
             return; // Invalid character ID - silent failure
         }
 
-        // Check if property address is compatible with Character properties (0x20-0x48)
-        if !(0x20..=0x48).contains(&property_address) {
+        // Check if property address is compatible with Character properties (0x10-0x3F)
+        if !(0x10..=0x3F).contains(&property_address) {
             return; // Incompatible property address - silent failure
         }
 
@@ -1604,8 +1604,8 @@ impl crate::script::ScriptContext for ActionContext<'_> {
             return; // Invalid character ID - silent failure
         }
 
-        // Check if property address is compatible with Character properties (0x20-0x48)
-        if !(0x20..=0x48).contains(&property_address) {
+        // Check if property address is compatible with Character properties (0x10-0x3F)
+        if !(0x10..=0x3F).contains(&property_address) {
             return; // Incompatible property address - silent failure
         }
 
@@ -1670,8 +1670,8 @@ impl crate::script::ScriptContext for ActionContext<'_> {
             return; // Invalid spawn instance ID - silent failure
         }
 
-        // Check if property address is compatible with Spawn properties (0x52-0xBE)
-        if !(0x52..=0xBE).contains(&property_address) {
+        // Check if property address is compatible with Spawn properties (0x50-0x7F)
+        if !(0x50..=0x7F).contains(&property_address) {
             return; // Incompatible property address - silent failure
         }
 
@@ -1716,8 +1716,8 @@ impl crate::script::ScriptContext for ActionContext<'_> {
             return; // Invalid spawn instance ID - silent failure
         }
 
-        // Check if property address is compatible with Spawn properties (0x52-0xBE)
-        if !(0x52..=0xBE).contains(&property_address) {
+        // Check if property address is compatible with Spawn properties (0x50-0x7F)
+        if !(0x50..=0x7F).contains(&property_address) {
             return; // Incompatible property address - silent failure
         }
 

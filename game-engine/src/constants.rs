@@ -137,302 +137,331 @@ pub mod operator_address {
 /// Property address constants for script property access
 ///
 /// These constants define the property addresses used in ReadProp and WriteProp operations.
-/// They are organized by category and data type for easier maintenance.
-/// Properties are divided into definition properties (static, shared) and instance properties (runtime, per-instance).
+/// They are organized into logical, sequential blocks by entity type with reserved ranges for future expansion.
+/// All addresses are within u8 range (0-255) with no conflicts or fragmentation.
 pub mod property_address {
-    // ===== GAME STATE PROPERTIES (0x01-0x03) =====
+    // ===== GAME STATE PROPERTIES (0x01-0x0F) =====
+    // Reserved range: 0x01-0x0F (15 addresses)
     /// Game seed value
     pub const GAME_SEED: u8 = 0x01;
     /// Current game frame
     pub const GAME_FRAME: u8 = 0x02;
     /// Game gravity value
     pub const GAME_GRAVITY: u8 = 0x03;
+    // Reserved for future game state properties: 0x04-0x0F
 
-    // ===== ACTION DEFINITION PROPERTIES (0x04-0x0F) =====
-    /// Action energy cost (byte) - from definition
-    pub const ACTION_DEF_ENERGY_COST: u8 = 0x04;
-    // ACTION_DEF_INTERVAL (0x05) and ACTION_DEF_DURATION (0x06) removed - properties no longer exist
-    /// Action cooldown (fixed-point) - from definition
-    pub const ACTION_DEF_COOLDOWN: u8 = 0x07;
-    /// Action args[0] (byte) - from definition
-    pub const ACTION_DEF_ARG0: u8 = 0x08;
-    /// Action args[1] (byte) - from definition
-    pub const ACTION_DEF_ARG1: u8 = 0x09;
-    /// Action args[2] (byte) - from definition
-    pub const ACTION_DEF_ARG2: u8 = 0x0A;
-    /// Action args[3] (byte) - from definition
-    pub const ACTION_DEF_ARG3: u8 = 0x0B;
-    /// Action args[4] (byte) - from definition
-    pub const ACTION_DEF_ARG4: u8 = 0x0C;
-    /// Action args[5] (byte) - from definition
-    pub const ACTION_DEF_ARG5: u8 = 0x0D;
-    /// Action args[6] (byte) - from definition
-    pub const ACTION_DEF_ARG6: u8 = 0x0E;
-    /// Action args[7] (byte) - from definition
-    pub const ACTION_DEF_ARG7: u8 = 0x0F;
+    // ===== CHARACTER PROPERTIES (0x10-0x3F) =====
+    // Reserved range: 0x10-0x3F (48 addresses)
 
-    // ===== CONDITION DEFINITION PROPERTIES (0x10-0x1B) =====
-    /// Condition ID (byte) - from definition
-    pub const CONDITION_DEF_ID: u8 = 0x10;
-    /// Condition energy multiplier (fixed-point) - from definition
-    pub const CONDITION_DEF_ENERGY_MUL: u8 = 0x11;
-    /// Condition args[0] (byte) - from definition
-    pub const CONDITION_DEF_ARG0: u8 = 0x12;
-    /// Condition args[1] (byte) - from definition
-    pub const CONDITION_DEF_ARG1: u8 = 0x13;
-    /// Condition args[2] (byte) - from definition
-    pub const CONDITION_DEF_ARG2: u8 = 0x14;
-    /// Condition args[3] (byte) - from definition
-    pub const CONDITION_DEF_ARG3: u8 = 0x15;
-    /// Condition args[4] (byte) - from definition
-    pub const CONDITION_DEF_ARG4: u8 = 0x16;
-    /// Condition args[5] (byte) - from definition
-    pub const CONDITION_DEF_ARG5: u8 = 0x17;
-    /// Condition args[6] (byte) - from definition
-    pub const CONDITION_DEF_ARG6: u8 = 0x18;
-    /// Condition args[7] (byte) - from definition
-    pub const CONDITION_DEF_ARG7: u8 = 0x19;
-
-    // ===== STATUS EFFECT DEFINITION PROPERTIES (0x1A-0x20) =====
-    /// Status effect duration (fixed-point) - from definition
-    pub const STATUS_EFFECT_DEF_DURATION: u8 = 0x1A;
-    /// Status effect stack limit (byte) - from definition
-    pub const STATUS_EFFECT_DEF_STACK_LIMIT: u8 = 0x1B;
-    /// Status effect reset on stack flag (byte) - from definition
-    pub const STATUS_EFFECT_DEF_RESET_ON_STACK: u8 = 0x1C;
-    /// Status effect chance (byte) - from definition
-    pub const STATUS_EFFECT_DEF_CHANCE: u8 = 0x1D;
-    /// Status effect args[0] (byte) - from definition
-    pub const STATUS_EFFECT_DEF_ARG0: u8 = 0x1E;
-    /// Status effect args[1] (byte) - from definition
-    pub const STATUS_EFFECT_DEF_ARG1: u8 = 0x1F;
-
-    // ===== SPAWN DEFINITION PROPERTIES (0x60-0x6F) =====
-    /// Spawn definition damage base (u16) - from definition
-    pub const SPAWN_DEF_DAMAGE_BASE: u8 = 0x60;
-    /// Spawn definition damage range (u16) - from definition
-    pub const SPAWN_DEF_DAMAGE_RANGE: u8 = 0x61;
-    /// Spawn definition crit chance (byte) - from definition
-    pub const SPAWN_DEF_CRIT_CHANCE: u8 = 0x62;
-    /// Spawn definition crit multiplier (byte) - from definition
-    pub const SPAWN_DEF_CRIT_MULTIPLIER: u8 = 0x63;
-    /// Spawn definition chance (byte) - from definition
-    pub const SPAWN_DEF_CHANCE: u8 = 0x64;
-    /// Spawn definition health cap (byte) - from definition
-    pub const SPAWN_DEF_HEALTH_CAP: u8 = 0x65;
-    /// Spawn definition duration (fixed-point) - from definition
-    pub const SPAWN_DEF_DURATION: u8 = 0x66;
-    /// Spawn definition element (byte) - from definition
-    pub const SPAWN_DEF_ELEMENT: u8 = 0x67;
-    /// Spawn definition args[0] (byte) - from definition
-    pub const SPAWN_DEF_ARG0: u8 = 0x68;
-    /// Spawn definition args[1] (byte) - from definition
-    pub const SPAWN_DEF_ARG1: u8 = 0x69;
-    /// Spawn definition args[2] (byte) - from definition
-    pub const SPAWN_DEF_ARG2: u8 = 0x6A;
-    /// Spawn definition args[3] (byte) - from definition
-    pub const SPAWN_DEF_ARG3: u8 = 0x6B;
-
-    // ===== CHARACTER CORE PROPERTIES (0x20-0x2F) =====
+    // Character Core Properties (0x10-0x1F)
     /// Character ID (byte)
-    pub const CHARACTER_ID: u8 = 0x20;
+    pub const CHARACTER_ID: u8 = 0x10;
     /// Character group (byte)
-    pub const CHARACTER_GROUP: u8 = 0x21;
+    pub const CHARACTER_GROUP: u8 = 0x11;
     /// Character position X (fixed-point)
-    pub const CHARACTER_POS_X: u8 = 0x22;
+    pub const CHARACTER_POS_X: u8 = 0x12;
     /// Character position Y (fixed-point)
-    pub const CHARACTER_POS_Y: u8 = 0x23;
+    pub const CHARACTER_POS_Y: u8 = 0x13;
     /// Character velocity X (fixed-point)
-    pub const CHARACTER_VEL_X: u8 = 0x24;
+    pub const CHARACTER_VEL_X: u8 = 0x14;
     /// Character velocity Y (fixed-point)
-    pub const CHARACTER_VEL_Y: u8 = 0x25;
+    pub const CHARACTER_VEL_Y: u8 = 0x15;
     /// Character size width (fixed-point)
-    pub const CHARACTER_SIZE_W: u8 = 0x26;
+    pub const CHARACTER_SIZE_W: u8 = 0x16;
     /// Character size height (fixed-point)
-    pub const CHARACTER_SIZE_H: u8 = 0x27;
-    /// Character health (fixed-point, u16)
-    pub const CHARACTER_HEALTH: u8 = 0x28;
+    pub const CHARACTER_SIZE_H: u8 = 0x17;
+    /// Character health (u16)
+    pub const CHARACTER_HEALTH: u8 = 0x18;
+    /// Character health cap (u16)
+    pub const CHARACTER_HEALTH_CAP: u8 = 0x19;
     /// Character energy (byte)
-    pub const CHARACTER_ENERGY: u8 = 0x29;
+    pub const CHARACTER_ENERGY: u8 = 0x1A;
     /// Character energy cap (byte)
-    pub const CHARACTER_ENERGY_CAP: u8 = 0x2A;
-    /// Character health cap (fixed-point, u16)
-    pub const CHARACTER_HEALTH_CAP: u8 = 0x2B;
+    pub const CHARACTER_ENERGY_CAP: u8 = 0x1B;
     /// Character power (byte)
-    pub const CHARACTER_POWER: u8 = 0x2C;
+    pub const CHARACTER_POWER: u8 = 0x1C;
     /// Character weight (byte)
-    pub const CHARACTER_WEIGHT: u8 = 0x2D;
+    pub const CHARACTER_WEIGHT: u8 = 0x1D;
     /// Character jump force (fixed-point)
-    pub const CHARACTER_JUMP_FORCE: u8 = 0x2E;
+    pub const CHARACTER_JUMP_FORCE: u8 = 0x1E;
     /// Character move speed (fixed-point)
-    pub const CHARACTER_MOVE_SPEED: u8 = 0x2F;
+    pub const CHARACTER_MOVE_SPEED: u8 = 0x1F;
+
+    // Character Energy System (0x20-0x23)
     /// Passive energy recovery amount per rate (byte)
-    pub const CHARACTER_ENERGY_REGEN: u8 = 0x30;
+    pub const CHARACTER_ENERGY_REGEN: u8 = 0x20;
     /// Tick interval for passive energy recovery (byte)
-    pub const CHARACTER_ENERGY_REGEN_RATE: u8 = 0x31;
+    pub const CHARACTER_ENERGY_REGEN_RATE: u8 = 0x21;
     /// Active energy recovery amount per rate during Charge action (byte)
-    pub const CHARACTER_ENERGY_CHARGE: u8 = 0x32;
+    pub const CHARACTER_ENERGY_CHARGE: u8 = 0x22;
     /// Tick interval for active energy recovery during Charge action (byte)
-    pub const CHARACTER_ENERGY_CHARGE_RATE: u8 = 0x33;
+    pub const CHARACTER_ENERGY_CHARGE_RATE: u8 = 0x23;
+
+    // Character Action System (0x24-0x25)
     /// Locked action instance ID (byte)
-    pub const CHARACTER_LOCKED_ACTION_ID: u8 = 0x34;
-
-    // ===== CHARACTER COLLISION FLAGS (0x35-0x38) =====
-    /// Top collision flag (byte: 0 or 1)
-    pub const CHARACTER_COLLISION_TOP: u8 = 0x35;
-    /// Right collision flag (byte: 0 or 1)
-    pub const CHARACTER_COLLISION_RIGHT: u8 = 0x36;
-    /// Bottom collision flag (byte: 0 or 1)
-    pub const CHARACTER_COLLISION_BOTTOM: u8 = 0x37;
-    /// Left collision flag (byte: 0 or 1)
-    pub const CHARACTER_COLLISION_LEFT: u8 = 0x38;
-
-    // ===== CHARACTER STATUS EFFECTS (0x39-0x39) =====
+    pub const CHARACTER_LOCKED_ACTION_ID: u8 = 0x24;
     /// Number of active status effects (byte)
-    pub const CHARACTER_STATUS_EFFECT_COUNT: u8 = 0x39;
+    pub const CHARACTER_STATUS_EFFECT_COUNT: u8 = 0x25;
 
-    // ===== CHARACTER ARMOR VALUES (0x40-0x48) =====
+    // Character Collision Flags (0x26-0x29)
+    /// Top collision flag (byte: 0 or 1)
+    pub const CHARACTER_COLLISION_TOP: u8 = 0x26;
+    /// Right collision flag (byte: 0 or 1)
+    pub const CHARACTER_COLLISION_RIGHT: u8 = 0x27;
+    /// Bottom collision flag (byte: 0 or 1)
+    pub const CHARACTER_COLLISION_BOTTOM: u8 = 0x28;
+    /// Left collision flag (byte: 0 or 1)
+    pub const CHARACTER_COLLISION_LEFT: u8 = 0x29;
+
+    // Character Armor Values (0x2A-0x32)
     /// Armor value for Punct element (byte)
-    pub const CHARACTER_ARMOR_PUNCT: u8 = 0x40;
+    pub const CHARACTER_ARMOR_PUNCT: u8 = 0x2A;
     /// Armor value for Blast element (byte)
-    pub const CHARACTER_ARMOR_BLAST: u8 = 0x41;
+    pub const CHARACTER_ARMOR_BLAST: u8 = 0x2B;
     /// Armor value for Force element (byte)
-    pub const CHARACTER_ARMOR_FORCE: u8 = 0x42;
+    pub const CHARACTER_ARMOR_FORCE: u8 = 0x2C;
     /// Armor value for Sever element (byte)
-    pub const CHARACTER_ARMOR_SEVER: u8 = 0x43;
+    pub const CHARACTER_ARMOR_SEVER: u8 = 0x2D;
     /// Armor value for Heat element (byte)
-    pub const CHARACTER_ARMOR_HEAT: u8 = 0x44;
+    pub const CHARACTER_ARMOR_HEAT: u8 = 0x2E;
     /// Armor value for Cryo element (byte)
-    pub const CHARACTER_ARMOR_CRYO: u8 = 0x45;
+    pub const CHARACTER_ARMOR_CRYO: u8 = 0x2F;
     /// Armor value for Jolt element (byte)
-    pub const CHARACTER_ARMOR_JOLT: u8 = 0x46;
+    pub const CHARACTER_ARMOR_JOLT: u8 = 0x30;
     /// Armor value for Acid element (byte)
-    pub const CHARACTER_ARMOR_ACID: u8 = 0x47;
+    pub const CHARACTER_ARMOR_ACID: u8 = 0x31;
     /// Armor value for Virus element (byte)
-    pub const CHARACTER_ARMOR_VIRUS: u8 = 0x48;
+    pub const CHARACTER_ARMOR_VIRUS: u8 = 0x32;
+    // Reserved for future character properties: 0x33-0x3F
 
-    // ===== STATUS EFFECT DEFINITION PROPERTIES (CONTINUED) (0x49) =====
-    /// Status effect args[2] (byte) - from definition
-    pub const STATUS_EFFECT_DEF_ARG2: u8 = 0x49;
-
-    // ===== ENTITY CORE PROPERTIES (0x50-0x54) =====
+    // ===== ENTITY CORE PROPERTIES (0x40-0x4F) =====
+    // Reserved range: 0x40-0x4F (16 addresses)
     /// Entity direction horizontal (byte: 0=left, 1=right)
-    pub const ENTITY_DIR_HORIZONTAL: u8 = 0x50;
+    pub const ENTITY_DIR_HORIZONTAL: u8 = 0x40;
     /// Entity direction vertical (byte: 0=upward, 1=downward)
-    pub const ENTITY_DIR_VERTICAL: u8 = 0x51;
+    pub const ENTITY_DIR_VERTICAL: u8 = 0x41;
     /// Entity enmity level (byte)
-    pub const ENTITY_ENMITY: u8 = 0x52;
+    pub const ENTITY_ENMITY: u8 = 0x42;
     /// Entity target ID (byte) - Option<EntityId>
-    pub const ENTITY_TARGET_ID: u8 = 0x53;
+    pub const ENTITY_TARGET_ID: u8 = 0x43;
     /// Entity target type (byte)
-    pub const ENTITY_TARGET_TYPE: u8 = 0x54;
+    pub const ENTITY_TARGET_TYPE: u8 = 0x44;
+    // Reserved for future entity core properties: 0x45-0x4F
 
-    // ===== SPAWN INSTANCE CORE PROPERTIES (0x55-0x5B) =====
+    // ===== SPAWN PROPERTIES (0x50-0x7F) =====
+    // Reserved range: 0x50-0x7F (48 addresses)
+
+    // Spawn Definition Properties (0x50-0x5F)
+    /// Spawn definition damage base (u16) - from definition
+    pub const SPAWN_DEF_DAMAGE_BASE: u8 = 0x50;
+    /// Spawn definition damage range (u16) - from definition
+    pub const SPAWN_DEF_DAMAGE_RANGE: u8 = 0x51;
+    /// Spawn definition crit chance (byte) - from definition
+    pub const SPAWN_DEF_CRIT_CHANCE: u8 = 0x52;
+    /// Spawn definition crit multiplier (byte) - from definition
+    pub const SPAWN_DEF_CRIT_MULTIPLIER: u8 = 0x53;
+    /// Spawn definition chance (byte) - from definition
+    pub const SPAWN_DEF_CHANCE: u8 = 0x54;
+    /// Spawn definition health cap (byte) - from definition
+    pub const SPAWN_DEF_HEALTH_CAP: u8 = 0x55;
+    /// Spawn definition duration (fixed-point) - from definition
+    pub const SPAWN_DEF_DURATION: u8 = 0x56;
+    /// Spawn definition element (byte) - from definition
+    pub const SPAWN_DEF_ELEMENT: u8 = 0x57;
+    /// Spawn definition args[0] (byte) - from definition
+    pub const SPAWN_DEF_ARG0: u8 = 0x58;
+    /// Spawn definition args[1] (byte) - from definition
+    pub const SPAWN_DEF_ARG1: u8 = 0x59;
+    /// Spawn definition args[2] (byte) - from definition
+    pub const SPAWN_DEF_ARG2: u8 = 0x5A;
+    /// Spawn definition args[3] (byte) - from definition
+    pub const SPAWN_DEF_ARG3: u8 = 0x5B;
+    // Reserved for future spawn definition properties: 0x5C-0x5F
+
+    // Spawn Instance Core Properties (0x60-0x6F)
     /// Spawn core ID (byte)
-    pub const SPAWN_CORE_ID: u8 = 0x55;
+    pub const SPAWN_CORE_ID: u8 = 0x60;
     /// Spawn owner ID (EntityId) - from instance
-    pub const SPAWN_OWNER_ID: u8 = 0x56;
+    pub const SPAWN_OWNER_ID: u8 = 0x61;
     /// Spawn owner type (byte) - from instance
-    pub const SPAWN_OWNER_TYPE: u8 = 0x57;
+    pub const SPAWN_OWNER_TYPE: u8 = 0x62;
     /// Spawn position X (fixed-point)
-    pub const SPAWN_POS_X: u8 = 0x58;
+    pub const SPAWN_POS_X: u8 = 0x63;
     /// Spawn position Y (fixed-point)
-    pub const SPAWN_POS_Y: u8 = 0x59;
+    pub const SPAWN_POS_Y: u8 = 0x64;
     /// Spawn velocity X (fixed-point)
-    pub const SPAWN_VEL_X: u8 = 0x5A;
+    pub const SPAWN_VEL_X: u8 = 0x65;
     /// Spawn velocity Y (fixed-point)
-    pub const SPAWN_VEL_Y: u8 = 0x5B;
-
-    // ===== SPAWN INSTANCE PROPERTIES (0xBA-0xBE) =====
+    pub const SPAWN_VEL_Y: u8 = 0x66;
     /// Spawn health (u16) - from instance
-    pub const SPAWN_INST_HEALTH: u8 = 0xBA;
+    pub const SPAWN_INST_HEALTH: u8 = 0x67;
     /// Spawn health cap (u16) - from instance
-    pub const SPAWN_INST_HEALTH_CAP: u8 = 0xBB;
+    pub const SPAWN_INST_HEALTH_CAP: u8 = 0x68;
     /// Spawn rotation (fixed-point) - from instance
-    pub const SPAWN_INST_ROTATION: u8 = 0xBC;
+    pub const SPAWN_INST_ROTATION: u8 = 0x69;
     /// Spawn life span (u16) - from instance
-    pub const SPAWN_INST_LIFE_SPAN: u8 = 0xBD;
-
-    // ===== ACTION INSTANCE PROPERTIES (0x80-0x8B) =====
-    /// Action instance runtime_vars[0] (byte) - from instance
-    pub const ACTION_INST_VAR0: u8 = 0x80;
-    /// Action instance runtime_vars[1] (byte) - from instance
-    pub const ACTION_INST_VAR1: u8 = 0x81;
-    /// Action instance runtime_vars[2] (byte) - from instance
-    pub const ACTION_INST_VAR2: u8 = 0x82;
-    /// Action instance runtime_vars[3] (byte) - from instance
-    pub const ACTION_INST_VAR3: u8 = 0x83;
-    /// Action instance runtime_fixed[0] (fixed-point) - from instance
-    pub const ACTION_INST_FIXED0: u8 = 0x84;
-    /// Action instance runtime_fixed[1] (fixed-point) - from instance
-    pub const ACTION_INST_FIXED1: u8 = 0x85;
-    /// Action instance runtime_fixed[2] (fixed-point) - from instance
-    pub const ACTION_INST_FIXED2: u8 = 0x86;
-    /// Action instance runtime_fixed[3] (fixed-point) - from instance
-    pub const ACTION_INST_FIXED3: u8 = 0x87;
-    /// Action instance cooldown (fixed-point) - from instance
-    pub const ACTION_INST_COOLDOWN: u8 = 0x88;
-    /// Action instance last used frame (fixed-point) - from instance
-    pub const ACTION_INST_LAST_USED_FRAME: u8 = 0x89;
-
-    // ===== CONDITION INSTANCE PROPERTIES (0x90-0x97) =====
-    /// Condition instance runtime_vars[0] (byte) - from instance
-    pub const CONDITION_INST_VAR0: u8 = 0x90;
-    /// Condition instance runtime_vars[1] (byte) - from instance
-    pub const CONDITION_INST_VAR1: u8 = 0x91;
-    /// Condition instance runtime_vars[2] (byte) - from instance
-    pub const CONDITION_INST_VAR2: u8 = 0x92;
-    /// Condition instance runtime_vars[3] (byte) - from instance
-    pub const CONDITION_INST_VAR3: u8 = 0x93;
-    /// Condition instance runtime_fixed[0] (fixed-point) - from instance
-    pub const CONDITION_INST_FIXED0: u8 = 0x94;
-    /// Condition instance runtime_fixed[1] (fixed-point) - from instance
-    pub const CONDITION_INST_FIXED1: u8 = 0x95;
-    /// Condition instance runtime_fixed[2] (fixed-point) - from instance
-    pub const CONDITION_INST_FIXED2: u8 = 0x96;
-    /// Condition instance runtime_fixed[3] (fixed-point) - from instance
-    pub const CONDITION_INST_FIXED3: u8 = 0x97;
-
-    // ===== STATUS EFFECT INSTANCE PROPERTIES (0xA0-0xA9) =====
-    /// Status effect instance runtime_vars[0] (byte) - from instance
-    pub const STATUS_EFFECT_INST_VAR0: u8 = 0xA0;
-    /// Status effect instance runtime_vars[1] (byte) - from instance
-    pub const STATUS_EFFECT_INST_VAR1: u8 = 0xA1;
-    /// Status effect instance runtime_vars[2] (byte) - from instance
-    pub const STATUS_EFFECT_INST_VAR2: u8 = 0xA2;
-    /// Status effect instance runtime_vars[3] (byte) - from instance
-    pub const STATUS_EFFECT_INST_VAR3: u8 = 0xA3;
-    /// Status effect instance runtime_fixed[0] (fixed-point) - from instance
-    pub const STATUS_EFFECT_INST_FIXED0: u8 = 0xA4;
-    /// Status effect instance runtime_fixed[1] (fixed-point) - from instance
-    pub const STATUS_EFFECT_INST_FIXED1: u8 = 0xA5;
-    /// Status effect instance runtime_fixed[2] (fixed-point) - from instance
-    pub const STATUS_EFFECT_INST_FIXED2: u8 = 0xA6;
-    /// Status effect instance runtime_fixed[3] (fixed-point) - from instance
-    pub const STATUS_EFFECT_INST_FIXED3: u8 = 0xA7;
-    /// Status effect instance life span (fixed-point) - from instance
-    pub const STATUS_EFFECT_INST_LIFE_SPAN: u8 = 0xA8;
-    /// Status effect instance stack count (byte) - from instance
-    pub const STATUS_EFFECT_INST_STACK_COUNT: u8 = 0xA9;
-
-    // ===== SPAWN INSTANCE PROPERTIES (0xB0-0xB9) =====
-    /// Spawn instance runtime_vars[0] (byte) - from instance
-    pub const SPAWN_INST_VAR0: u8 = 0xB0;
-    /// Spawn instance runtime_vars[1] (byte) - from instance
-    pub const SPAWN_INST_VAR1: u8 = 0xB1;
-    /// Spawn instance runtime_vars[2] (byte) - from instance
-    pub const SPAWN_INST_VAR2: u8 = 0xB2;
-    /// Spawn instance runtime_vars[3] (byte) - from instance
-    pub const SPAWN_INST_VAR3: u8 = 0xB3;
-    /// Spawn instance runtime_fixed[0] (fixed-point) - from instance
-    pub const SPAWN_INST_FIXED0: u8 = 0xB4;
-    /// Spawn instance runtime_fixed[1] (fixed-point) - from instance
-    pub const SPAWN_INST_FIXED1: u8 = 0xB5;
-    /// Spawn instance runtime_fixed[2] (fixed-point) - from instance
-    pub const SPAWN_INST_FIXED2: u8 = 0xB6;
-    /// Spawn instance runtime_fixed[3] (fixed-point) - from instance
-    pub const SPAWN_INST_FIXED3: u8 = 0xB7;
-
+    pub const SPAWN_INST_LIFE_SPAN: u8 = 0x6A;
     /// Spawn instance element (byte) - from instance
-    pub const SPAWN_INST_ELEMENT: u8 = 0xB9;
+    pub const SPAWN_INST_ELEMENT: u8 = 0x6B;
+    // Reserved for future spawn instance properties: 0x6C-0x6F
+
+    // Spawn Instance Runtime Variables (0x70-0x77)
+    /// Spawn instance runtime_vars[0] (byte) - from instance
+    pub const SPAWN_INST_VAR0: u8 = 0x70;
+    /// Spawn instance runtime_vars[1] (byte) - from instance
+    pub const SPAWN_INST_VAR1: u8 = 0x71;
+    /// Spawn instance runtime_vars[2] (byte) - from instance
+    pub const SPAWN_INST_VAR2: u8 = 0x72;
+    /// Spawn instance runtime_vars[3] (byte) - from instance
+    pub const SPAWN_INST_VAR3: u8 = 0x73;
+    /// Spawn instance runtime_fixed[0] (fixed-point) - from instance
+    pub const SPAWN_INST_FIXED0: u8 = 0x74;
+    /// Spawn instance runtime_fixed[1] (fixed-point) - from instance
+    pub const SPAWN_INST_FIXED1: u8 = 0x75;
+    /// Spawn instance runtime_fixed[2] (fixed-point) - from instance
+    pub const SPAWN_INST_FIXED2: u8 = 0x76;
+    /// Spawn instance runtime_fixed[3] (fixed-point) - from instance
+    pub const SPAWN_INST_FIXED3: u8 = 0x77;
+    // Reserved for future spawn properties: 0x78-0x7F
+
+    // ===== ACTION PROPERTIES (0x80-0x9F) =====
+    // Reserved range: 0x80-0x9F (32 addresses)
+
+    // Action Definition Properties (0x80-0x8F)
+    /// Action energy cost (byte) - from definition
+    pub const ACTION_DEF_ENERGY_COST: u8 = 0x80;
+    /// Action cooldown (fixed-point) - from definition
+    pub const ACTION_DEF_COOLDOWN: u8 = 0x81;
+    /// Action args[0] (byte) - from definition
+    pub const ACTION_DEF_ARG0: u8 = 0x82;
+    /// Action args[1] (byte) - from definition
+    pub const ACTION_DEF_ARG1: u8 = 0x83;
+    /// Action args[2] (byte) - from definition
+    pub const ACTION_DEF_ARG2: u8 = 0x84;
+    /// Action args[3] (byte) - from definition
+    pub const ACTION_DEF_ARG3: u8 = 0x85;
+    /// Action args[4] (byte) - from definition
+    pub const ACTION_DEF_ARG4: u8 = 0x86;
+    /// Action args[5] (byte) - from definition
+    pub const ACTION_DEF_ARG5: u8 = 0x87;
+    /// Action args[6] (byte) - from definition
+    pub const ACTION_DEF_ARG6: u8 = 0x88;
+    /// Action args[7] (byte) - from definition
+    pub const ACTION_DEF_ARG7: u8 = 0x89;
+    // Reserved for future action definition properties: 0x8A-0x8F
+
+    // Action Instance Properties (0x90-0x9F)
+    /// Action instance runtime_vars[0] (byte) - from instance
+    pub const ACTION_INST_VAR0: u8 = 0x90;
+    /// Action instance runtime_vars[1] (byte) - from instance
+    pub const ACTION_INST_VAR1: u8 = 0x91;
+    /// Action instance runtime_vars[2] (byte) - from instance
+    pub const ACTION_INST_VAR2: u8 = 0x92;
+    /// Action instance runtime_vars[3] (byte) - from instance
+    pub const ACTION_INST_VAR3: u8 = 0x93;
+    /// Action instance runtime_fixed[0] (fixed-point) - from instance
+    pub const ACTION_INST_FIXED0: u8 = 0x94;
+    /// Action instance runtime_fixed[1] (fixed-point) - from instance
+    pub const ACTION_INST_FIXED1: u8 = 0x95;
+    /// Action instance runtime_fixed[2] (fixed-point) - from instance
+    pub const ACTION_INST_FIXED2: u8 = 0x96;
+    /// Action instance runtime_fixed[3] (fixed-point) - from instance
+    pub const ACTION_INST_FIXED3: u8 = 0x97;
+    /// Action instance cooldown (fixed-point) - from instance
+    pub const ACTION_INST_COOLDOWN: u8 = 0x98;
+    /// Action instance last used frame (fixed-point) - from instance
+    pub const ACTION_INST_LAST_USED_FRAME: u8 = 0x99;
+    // Reserved for future action instance properties: 0x9A-0x9F
+
+    // ===== CONDITION PROPERTIES (0xA0-0xBF) =====
+    // Reserved range: 0xA0-0xBF (32 addresses)
+
+    // Condition Definition Properties (0xA0-0xAF)
+    /// Condition ID (byte) - from definition
+    pub const CONDITION_DEF_ID: u8 = 0xA0;
+    /// Condition energy multiplier (fixed-point) - from definition
+    pub const CONDITION_DEF_ENERGY_MUL: u8 = 0xA1;
+    /// Condition args[0] (byte) - from definition
+    pub const CONDITION_DEF_ARG0: u8 = 0xA2;
+    /// Condition args[1] (byte) - from definition
+    pub const CONDITION_DEF_ARG1: u8 = 0xA3;
+    /// Condition args[2] (byte) - from definition
+    pub const CONDITION_DEF_ARG2: u8 = 0xA4;
+    /// Condition args[3] (byte) - from definition
+    pub const CONDITION_DEF_ARG3: u8 = 0xA5;
+    /// Condition args[4] (byte) - from definition
+    pub const CONDITION_DEF_ARG4: u8 = 0xA6;
+    /// Condition args[5] (byte) - from definition
+    pub const CONDITION_DEF_ARG5: u8 = 0xA7;
+    /// Condition args[6] (byte) - from definition
+    pub const CONDITION_DEF_ARG6: u8 = 0xA8;
+    /// Condition args[7] (byte) - from definition
+    pub const CONDITION_DEF_ARG7: u8 = 0xA9;
+    // Reserved for future condition definition properties: 0xAA-0xAF
+
+    // Condition Instance Properties (0xB0-0xBF)
+    /// Condition instance runtime_vars[0] (byte) - from instance
+    pub const CONDITION_INST_VAR0: u8 = 0xB0;
+    /// Condition instance runtime_vars[1] (byte) - from instance
+    pub const CONDITION_INST_VAR1: u8 = 0xB1;
+    /// Condition instance runtime_vars[2] (byte) - from instance
+    pub const CONDITION_INST_VAR2: u8 = 0xB2;
+    /// Condition instance runtime_vars[3] (byte) - from instance
+    pub const CONDITION_INST_VAR3: u8 = 0xB3;
+    /// Condition instance runtime_fixed[0] (fixed-point) - from instance
+    pub const CONDITION_INST_FIXED0: u8 = 0xB4;
+    /// Condition instance runtime_fixed[1] (fixed-point) - from instance
+    pub const CONDITION_INST_FIXED1: u8 = 0xB5;
+    /// Condition instance runtime_fixed[2] (fixed-point) - from instance
+    pub const CONDITION_INST_FIXED2: u8 = 0xB6;
+    /// Condition instance runtime_fixed[3] (fixed-point) - from instance
+    pub const CONDITION_INST_FIXED3: u8 = 0xB7;
+    // Reserved for future condition instance properties: 0xB8-0xBF
+
+    // ===== STATUS EFFECT PROPERTIES (0xC0-0xDF) =====
+    // Reserved range: 0xC0-0xDF (32 addresses)
+
+    // Status Effect Definition Properties (0xC0-0xCF)
+    /// Status effect duration (fixed-point) - from definition
+    pub const STATUS_EFFECT_DEF_DURATION: u8 = 0xC0;
+    /// Status effect stack limit (byte) - from definition
+    pub const STATUS_EFFECT_DEF_STACK_LIMIT: u8 = 0xC1;
+    /// Status effect reset on stack flag (byte) - from definition
+    pub const STATUS_EFFECT_DEF_RESET_ON_STACK: u8 = 0xC2;
+    /// Status effect chance (byte) - from definition
+    pub const STATUS_EFFECT_DEF_CHANCE: u8 = 0xC3;
+    /// Status effect args[0] (byte) - from definition
+    pub const STATUS_EFFECT_DEF_ARG0: u8 = 0xC4;
+    /// Status effect args[1] (byte) - from definition
+    pub const STATUS_EFFECT_DEF_ARG1: u8 = 0xC5;
+    /// Status effect args[2] (byte) - from definition
+    pub const STATUS_EFFECT_DEF_ARG2: u8 = 0xC6;
+    // Reserved for future status effect definition properties: 0xC7-0xCF
+
+    // Status Effect Instance Properties (0xD0-0xDF)
+    /// Status effect instance runtime_vars[0] (byte) - from instance
+    pub const STATUS_EFFECT_INST_VAR0: u8 = 0xD0;
+    /// Status effect instance runtime_vars[1] (byte) - from instance
+    pub const STATUS_EFFECT_INST_VAR1: u8 = 0xD1;
+    /// Status effect instance runtime_vars[2] (byte) - from instance
+    pub const STATUS_EFFECT_INST_VAR2: u8 = 0xD2;
+    /// Status effect instance runtime_vars[3] (byte) - from instance
+    pub const STATUS_EFFECT_INST_VAR3: u8 = 0xD3;
+    /// Status effect instance runtime_fixed[0] (fixed-point) - from instance
+    pub const STATUS_EFFECT_INST_FIXED0: u8 = 0xD4;
+    /// Status effect instance runtime_fixed[1] (fixed-point) - from instance
+    pub const STATUS_EFFECT_INST_FIXED1: u8 = 0xD5;
+    /// Status effect instance runtime_fixed[2] (fixed-point) - from instance
+    pub const STATUS_EFFECT_INST_FIXED2: u8 = 0xD6;
+    /// Status effect instance runtime_fixed[3] (fixed-point) - from instance
+    pub const STATUS_EFFECT_INST_FIXED3: u8 = 0xD7;
+    /// Status effect instance life span (fixed-point) - from instance
+    pub const STATUS_EFFECT_INST_LIFE_SPAN: u8 = 0xD8;
+    /// Status effect instance stack count (byte) - from instance
+    pub const STATUS_EFFECT_INST_STACK_COUNT: u8 = 0xD9;
+    // Reserved for future status effect instance properties: 0xDA-0xDF
+
+    // ===== RESERVED FOR FUTURE EXPANSION (0xE0-0xFF) =====
+    // Reserved range: 0xE0-0xFF (32 addresses)
+    // Available for new entity types or additional properties
 }

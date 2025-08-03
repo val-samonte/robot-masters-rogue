@@ -124,7 +124,7 @@
   - Update all references to StatusEffectInstance.remaining_duration to life_span
   - _Requirements: All structural requirements_
 
-- [ ] 15. Defragment and reorganize property address constants (Final Cleanup)
+- [x] 15. Defragment and reorganize property address constants (Final Cleanup)
 
   - Analyze current property address allocation and identify gaps/fragmentation
   - Reorganize property addresses into logical, sequential blocks by entity type
