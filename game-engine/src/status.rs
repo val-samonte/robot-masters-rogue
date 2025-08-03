@@ -37,11 +37,12 @@ impl StatusEffectDefinition {
             duration: props[0],
             stack_limit: props[1] as u8,
             reset_on_stack: props[2] != 0,
+            chance: 100, // Default chance
             args: [0; 8],
             spawns: [0; 4],
-            on_script: extract_script(&props, 3, props.len()),
-            tick_script: extract_script(&props, 3, props.len()),
-            off_script: extract_script(&props, 3, props.len()),
+            on_script: Vec::new(),
+            tick_script: Vec::new(),
+            off_script: Vec::new(),
         }
     }
 
@@ -68,7 +69,7 @@ impl StatusEffectDefinition {
                 if existing_instance.stack_count < self.stack_limit {
                     existing_instance.stack_count += 1;
                     if self.reset_on_stack {
-                        existing_instance.remaining_duration = self.duration;
+                        existing_instance.life_span = self.duration;
                     }
                     return Ok(true);
                 } else {
@@ -223,13 +224,43 @@ impl ScriptContext for StatusEffectContext<'_> {
                 }
             }
             property_address::CHARACTER_HEALTH => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.health;
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.character.health as i16);
                 }
             }
             property_address::CHARACTER_ENERGY => {
                 if var_index < engine.vars.len() {
                     engine.vars[var_index] = self.character.energy;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CAP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.energy_cap;
+                }
+            }
+            property_address::CHARACTER_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(self.character.health_cap as i16);
+                }
+            }
+            property_address::CHARACTER_POWER => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.power;
+                }
+            }
+            property_address::CHARACTER_WEIGHT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.weight;
+                }
+            }
+            property_address::CHARACTER_JUMP_FORCE => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.jump_force;
+                }
+            }
+            property_address::CHARACTER_MOVE_SPEED => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.character.move_speed;
                 }
             }
             property_address::CHARACTER_ENERGY_REGEN => {
@@ -311,15 +342,23 @@ impl ScriptContext for StatusEffectContext<'_> {
                     engine.vars[var_index] = if self.status_def.reset_on_stack { 1 } else { 0 };
                 }
             }
-            property_address::STATUS_EFFECT_DEF_ARG0
-            | property_address::STATUS_EFFECT_DEF_ARG1
-            | property_address::STATUS_EFFECT_DEF_ARG2 => {
+            property_address::STATUS_EFFECT_DEF_CHANCE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.status_def.chance;
+                }
+            }
+            property_address::STATUS_EFFECT_DEF_ARG0 | property_address::STATUS_EFFECT_DEF_ARG1 => {
                 if var_index < engine.vars.len() {
                     let arg_index =
                         (prop_address - property_address::STATUS_EFFECT_DEF_ARG0) as usize;
                     if arg_index < self.status_def.args.len() {
                         engine.vars[var_index] = self.status_def.args[arg_index];
                     }
+                }
+            }
+            property_address::STATUS_EFFECT_DEF_ARG2 => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.status_def.args[2];
                 }
             }
 
@@ -331,8 +370,8 @@ impl ScriptContext for StatusEffectContext<'_> {
                 if var_index < engine.vars.len() {
                     let var_idx =
                         (prop_address - property_address::STATUS_EFFECT_INST_VAR0) as usize;
-                    if var_idx < self.status_instance.vars.len() {
-                        engine.vars[var_index] = self.status_instance.vars[var_idx];
+                    if var_idx < self.status_instance.runtime_vars.len() {
+                        engine.vars[var_index] = self.status_instance.runtime_vars[var_idx];
                     }
                 }
             }
@@ -343,15 +382,15 @@ impl ScriptContext for StatusEffectContext<'_> {
                 if var_index < engine.fixed.len() {
                     let fixed_idx =
                         (prop_address - property_address::STATUS_EFFECT_INST_FIXED0) as usize;
-                    if fixed_idx < self.status_instance.fixed.len() {
-                        engine.fixed[var_index] = self.status_instance.fixed[fixed_idx];
+                    if fixed_idx < self.status_instance.runtime_fixed.len() {
+                        engine.fixed[var_index] = self.status_instance.runtime_fixed[fixed_idx];
                     }
                 }
             }
-            property_address::STATUS_EFFECT_INST_REMAINING_DURATION => {
+            property_address::STATUS_EFFECT_INST_LIFE_SPAN => {
                 if var_index < engine.fixed.len() {
                     engine.fixed[var_index] =
-                        Fixed::from_int(self.status_instance.remaining_duration as i16);
+                        Fixed::from_int(self.status_instance.life_span as i16);
                 }
             }
             property_address::STATUS_EFFECT_INST_STACK_COUNT => {
@@ -361,14 +400,14 @@ impl ScriptContext for StatusEffectContext<'_> {
             }
 
             // Entity direction properties
-            property_address::ENTITY_FACING => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.character.core.get_facing();
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.core.dir.0;
                 }
             }
-            property_address::ENTITY_GRAVITY_DIR => {
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.character.core.get_gravity_dir();
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = self.character.core.dir.1;
                 }
             }
 
@@ -402,13 +441,43 @@ impl ScriptContext for StatusEffectContext<'_> {
                 }
             }
             property_address::CHARACTER_HEALTH => {
-                if var_index < engine.vars.len() {
-                    self.character.health = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    self.character.health = engine.fixed[var_index].to_int().max(0) as u16;
                 }
             }
             property_address::CHARACTER_ENERGY => {
                 if var_index < engine.vars.len() {
                     self.character.energy = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CAP => {
+                if var_index < engine.vars.len() {
+                    self.character.energy_cap = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    self.character.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::CHARACTER_POWER => {
+                if var_index < engine.vars.len() {
+                    self.character.power = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_WEIGHT => {
+                if var_index < engine.vars.len() {
+                    self.character.weight = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_JUMP_FORCE => {
+                if var_index < engine.fixed.len() {
+                    self.character.jump_force = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_MOVE_SPEED => {
+                if var_index < engine.fixed.len() {
+                    self.character.move_speed = engine.fixed[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_REGEN => {
@@ -482,8 +551,8 @@ impl ScriptContext for StatusEffectContext<'_> {
                 if var_index < engine.vars.len() {
                     let var_idx =
                         (prop_address - property_address::STATUS_EFFECT_INST_VAR0) as usize;
-                    if var_idx < self.status_instance.vars.len() {
-                        self.status_instance.vars[var_idx] = engine.vars[var_index];
+                    if var_idx < self.status_instance.runtime_vars.len() {
+                        self.status_instance.runtime_vars[var_idx] = engine.vars[var_index];
                     }
                 }
             }
@@ -494,21 +563,21 @@ impl ScriptContext for StatusEffectContext<'_> {
                 if var_index < engine.fixed.len() {
                     let fixed_idx =
                         (prop_address - property_address::STATUS_EFFECT_INST_FIXED0) as usize;
-                    if fixed_idx < self.status_instance.fixed.len() {
-                        self.status_instance.fixed[fixed_idx] = engine.fixed[var_index];
+                    if fixed_idx < self.status_instance.runtime_fixed.len() {
+                        self.status_instance.runtime_fixed[fixed_idx] = engine.fixed[var_index];
                     }
                 }
             }
 
             // Entity direction properties (writable)
-            property_address::ENTITY_FACING => {
-                if var_index < engine.fixed.len() {
-                    self.character.core.set_facing(engine.fixed[var_index]);
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    self.character.core.dir.0 = engine.vars[var_index];
                 }
             }
-            property_address::ENTITY_GRAVITY_DIR => {
-                if var_index < engine.fixed.len() {
-                    self.character.core.set_gravity_dir(engine.fixed[var_index]);
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    self.character.core.dir.1 = engine.vars[var_index];
                 }
             }
             _ => {} // Property not writable or not supported in status effect context
@@ -566,14 +635,14 @@ impl ScriptContext for StatusEffectContext<'_> {
 
         // Set spawn variables if provided
         if let Some(spawn_vars) = vars {
-            spawn.vars = spawn_vars;
+            spawn.runtime_vars = spawn_vars;
         }
 
         // Assign unique ID
         spawn.core.id = self.game_state.spawn_instances.len() as u8;
 
         // Set properties from spawn definition
-        spawn.lifespan = spawn_def.duration;
+        spawn.life_span = spawn_def.duration;
         spawn.element = spawn_def.element.unwrap_or(crate::entity::Element::Punct);
 
         self.game_state.spawn_instances.push(spawn);
@@ -593,6 +662,667 @@ impl ScriptContext for StatusEffectContext<'_> {
 
     fn write_action_last_used(&mut self, _engine: &mut ScriptEngine, _var_index: usize) {
         // Status effects can't modify action last used data
+    }
+
+    fn read_character_property_impl(
+        &mut self,
+        engine: &mut ScriptEngine,
+        character_id: u8,
+        var_index: usize,
+        property_address: u8,
+    ) {
+        use crate::constants::property_address;
+
+        // Validate character ID
+        if character_id as usize >= self.game_state.characters.len() {
+            return; // Invalid character ID - silent failure
+        }
+
+        let character = &self.game_state.characters[character_id as usize];
+
+        match property_address {
+            // Character core properties
+            property_address::CHARACTER_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.id;
+                }
+            }
+            property_address::CHARACTER_GROUP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.group;
+                }
+            }
+            property_address::CHARACTER_POS_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.core.pos.0;
+                }
+            }
+            property_address::CHARACTER_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.core.pos.1;
+                }
+            }
+            property_address::CHARACTER_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.core.vel.0;
+                }
+            }
+            property_address::CHARACTER_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.core.vel.1;
+                }
+            }
+            property_address::CHARACTER_SIZE_W => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(character.core.size.0 as i16);
+                }
+            }
+            property_address::CHARACTER_SIZE_H => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(character.core.size.1 as i16);
+                }
+            }
+            property_address::CHARACTER_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(character.health as i16);
+                }
+            }
+            property_address::CHARACTER_ENERGY => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CAP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_cap;
+                }
+            }
+            property_address::CHARACTER_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(character.health_cap as i16);
+                }
+            }
+            property_address::CHARACTER_POWER => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.power;
+                }
+            }
+            property_address::CHARACTER_WEIGHT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.weight;
+                }
+            }
+            property_address::CHARACTER_JUMP_FORCE => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.jump_force;
+                }
+            }
+            property_address::CHARACTER_MOVE_SPEED => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = character.move_speed;
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_regen;
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN_RATE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_regen_rate;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_charge;
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE_RATE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.energy_charge_rate;
+                }
+            }
+            property_address::CHARACTER_LOCKED_ACTION_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.locked_action.unwrap_or(255);
+                }
+            }
+            // Character collision flags
+            property_address::CHARACTER_COLLISION_TOP => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if character.core.collision.0 { 1 } else { 0 };
+                }
+            }
+            property_address::CHARACTER_COLLISION_RIGHT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if character.core.collision.1 { 1 } else { 0 };
+                }
+            }
+            property_address::CHARACTER_COLLISION_BOTTOM => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if character.core.collision.2 { 1 } else { 0 };
+                }
+            }
+            property_address::CHARACTER_COLLISION_LEFT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = if character.core.collision.3 { 1 } else { 0 };
+                }
+            }
+            // Character status effects count
+            property_address::CHARACTER_STATUS_EFFECT_COUNT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.status_effects.len().min(255) as u8;
+                }
+            }
+            // Character armor values
+            property_address::CHARACTER_ARMOR_PUNCT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[0];
+                }
+            }
+            property_address::CHARACTER_ARMOR_BLAST => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[1];
+                }
+            }
+            property_address::CHARACTER_ARMOR_FORCE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[2];
+                }
+            }
+            property_address::CHARACTER_ARMOR_SEVER => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[3];
+                }
+            }
+            property_address::CHARACTER_ARMOR_HEAT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[4];
+                }
+            }
+            property_address::CHARACTER_ARMOR_CRYO => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[5];
+                }
+            }
+            property_address::CHARACTER_ARMOR_JOLT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[6];
+                }
+            }
+            property_address::CHARACTER_ARMOR_ACID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[7];
+                }
+            }
+            property_address::CHARACTER_ARMOR_VIRUS => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.armor[8];
+                }
+            }
+            // EntityCore properties
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.dir.0;
+                }
+            }
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.dir.1;
+                }
+            }
+            property_address::ENTITY_ENMITY => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.enmity;
+                }
+            }
+            property_address::ENTITY_TARGET_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.target_id.unwrap_or(255);
+                }
+            }
+            property_address::ENTITY_TARGET_TYPE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = character.core.target_type;
+                }
+            }
+            _ => {} // Property not supported or invalid
+        }
+    }
+
+    fn write_character_property_impl(
+        &mut self,
+        engine: &mut ScriptEngine,
+        character_id: u8,
+        property_address: u8,
+        var_index: usize,
+    ) {
+        use crate::constants::property_address;
+
+        // Validate character ID
+        if character_id as usize >= self.game_state.characters.len() {
+            return; // Invalid character ID - silent failure
+        }
+
+        let character = &mut self.game_state.characters[character_id as usize];
+
+        match property_address {
+            // Character core properties (writable)
+            property_address::CHARACTER_POS_X => {
+                if var_index < engine.fixed.len() {
+                    character.core.pos.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    character.core.pos.1 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    character.core.vel.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    character.core.vel.1 = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    character.health = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::CHARACTER_ENERGY => {
+                if var_index < engine.vars.len() {
+                    character.energy = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CAP => {
+                if var_index < engine.vars.len() {
+                    character.energy_cap = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    character.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::CHARACTER_POWER => {
+                if var_index < engine.vars.len() {
+                    character.power = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_WEIGHT => {
+                if var_index < engine.vars.len() {
+                    character.weight = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_JUMP_FORCE => {
+                if var_index < engine.fixed.len() {
+                    character.jump_force = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_MOVE_SPEED => {
+                if var_index < engine.fixed.len() {
+                    character.move_speed = engine.fixed[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN => {
+                if var_index < engine.vars.len() {
+                    character.energy_regen = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_REGEN_RATE => {
+                if var_index < engine.vars.len() {
+                    character.energy_regen_rate = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE => {
+                if var_index < engine.vars.len() {
+                    character.energy_charge = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ENERGY_CHARGE_RATE => {
+                if var_index < engine.vars.len() {
+                    character.energy_charge_rate = engine.vars[var_index];
+                }
+            }
+            // Character armor values (writable)
+            property_address::CHARACTER_ARMOR_PUNCT => {
+                if var_index < engine.vars.len() {
+                    character.armor[0] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_BLAST => {
+                if var_index < engine.vars.len() {
+                    character.armor[1] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_FORCE => {
+                if var_index < engine.vars.len() {
+                    character.armor[2] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_SEVER => {
+                if var_index < engine.vars.len() {
+                    character.armor[3] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_HEAT => {
+                if var_index < engine.vars.len() {
+                    character.armor[4] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_CRYO => {
+                if var_index < engine.vars.len() {
+                    character.armor[5] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_JOLT => {
+                if var_index < engine.vars.len() {
+                    character.armor[6] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_ACID => {
+                if var_index < engine.vars.len() {
+                    character.armor[7] = engine.vars[var_index];
+                }
+            }
+            property_address::CHARACTER_ARMOR_VIRUS => {
+                if var_index < engine.vars.len() {
+                    character.armor[8] = engine.vars[var_index];
+                }
+            }
+            // EntityCore properties (writable)
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    character.core.dir.0 = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    character.core.dir.1 = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_ENMITY => {
+                if var_index < engine.vars.len() {
+                    character.core.enmity = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_TARGET_ID => {
+                if var_index < engine.vars.len() {
+                    character.core.target_id = if engine.vars[var_index] == 255 {
+                        None
+                    } else {
+                        Some(engine.vars[var_index])
+                    };
+                }
+            }
+            property_address::ENTITY_TARGET_TYPE => {
+                if var_index < engine.vars.len() {
+                    character.core.target_type = engine.vars[var_index];
+                }
+            }
+            _ => {} // Property not writable or not supported
+        }
+    }
+
+    fn read_spawn_property_impl(
+        &mut self,
+        engine: &mut ScriptEngine,
+        spawn_instance_id: u8,
+        var_index: usize,
+        property_address: u8,
+    ) {
+        use crate::constants::property_address;
+
+        // Validate spawn instance ID
+        if spawn_instance_id as usize >= self.game_state.spawn_instances.len() {
+            return; // Invalid spawn instance ID - silent failure
+        }
+
+        let spawn_instance = &self.game_state.spawn_instances[spawn_instance_id as usize];
+
+        match property_address {
+            // EntityCore properties
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.dir.0;
+                }
+            }
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.dir.1;
+                }
+            }
+            property_address::ENTITY_ENMITY => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.enmity;
+                }
+            }
+            property_address::ENTITY_TARGET_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.target_id.unwrap_or(255);
+                }
+            }
+            property_address::ENTITY_TARGET_TYPE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.target_type;
+                }
+            }
+            // Spawn core properties
+            property_address::SPAWN_CORE_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.core.id;
+                }
+            }
+            property_address::SPAWN_OWNER_ID => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.owner_id;
+                }
+            }
+            property_address::SPAWN_OWNER_TYPE => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.owner_type;
+                }
+            }
+            property_address::SPAWN_POS_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.core.pos.0;
+                }
+            }
+            property_address::SPAWN_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.core.pos.1;
+                }
+            }
+            property_address::SPAWN_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.core.vel.0;
+                }
+            }
+            property_address::SPAWN_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.core.vel.1;
+                }
+            }
+            // Spawn instance properties
+            property_address::SPAWN_INST_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(spawn_instance.health as i16);
+                }
+            }
+            property_address::SPAWN_INST_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(spawn_instance.health_cap as i16);
+                }
+            }
+            property_address::SPAWN_INST_LIFE_SPAN => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = Fixed::from_int(spawn_instance.life_span as i16);
+                }
+            }
+            property_address::SPAWN_INST_ROTATION => {
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = spawn_instance.rotation;
+                }
+            }
+            property_address::SPAWN_INST_ELEMENT => {
+                if var_index < engine.vars.len() {
+                    engine.vars[var_index] = spawn_instance.element as u8;
+                }
+            }
+            // Spawn instance runtime variables
+            property_address::SPAWN_INST_VAR0
+            | property_address::SPAWN_INST_VAR1
+            | property_address::SPAWN_INST_VAR2
+            | property_address::SPAWN_INST_VAR3 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = (property_address - property_address::SPAWN_INST_VAR0) as usize;
+                    if var_idx < spawn_instance.runtime_vars.len() {
+                        engine.vars[var_index] = spawn_instance.runtime_vars[var_idx];
+                    }
+                }
+            }
+            property_address::SPAWN_INST_FIXED0
+            | property_address::SPAWN_INST_FIXED1
+            | property_address::SPAWN_INST_FIXED2
+            | property_address::SPAWN_INST_FIXED3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx =
+                        (property_address - property_address::SPAWN_INST_FIXED0) as usize;
+                    if fixed_idx < spawn_instance.runtime_fixed.len() {
+                        engine.fixed[var_index] = spawn_instance.runtime_fixed[fixed_idx];
+                    }
+                }
+            }
+            _ => {} // Property not supported or invalid
+        }
+    }
+
+    fn write_spawn_property_impl(
+        &mut self,
+        engine: &mut ScriptEngine,
+        spawn_instance_id: u8,
+        property_address: u8,
+        var_index: usize,
+    ) {
+        use crate::constants::property_address;
+
+        // Validate spawn instance ID
+        if spawn_instance_id as usize >= self.game_state.spawn_instances.len() {
+            return; // Invalid spawn instance ID - silent failure
+        }
+
+        let spawn_instance = &mut self.game_state.spawn_instances[spawn_instance_id as usize];
+
+        match property_address {
+            // EntityCore properties (writable)
+            property_address::ENTITY_DIR_HORIZONTAL => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.dir.0 = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_DIR_VERTICAL => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.dir.1 = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_ENMITY => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.enmity = engine.vars[var_index];
+                }
+            }
+            property_address::ENTITY_TARGET_ID => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.target_id = if engine.vars[var_index] == 255 {
+                        None
+                    } else {
+                        Some(engine.vars[var_index])
+                    };
+                }
+            }
+            property_address::ENTITY_TARGET_TYPE => {
+                if var_index < engine.vars.len() {
+                    spawn_instance.core.target_type = engine.vars[var_index];
+                }
+            }
+            // Spawn core properties (writable)
+            property_address::SPAWN_POS_X => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.pos.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::SPAWN_POS_Y => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.pos.1 = engine.fixed[var_index];
+                }
+            }
+            property_address::SPAWN_VEL_X => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.vel.0 = engine.fixed[var_index];
+                }
+            }
+            property_address::SPAWN_VEL_Y => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.vel.1 = engine.fixed[var_index];
+                }
+            }
+            // Spawn instance properties (writable)
+            property_address::SPAWN_INST_HEALTH => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.health = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::SPAWN_INST_HEALTH_CAP => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.health_cap = engine.fixed[var_index].to_int().max(0) as u16;
+                }
+            }
+            property_address::SPAWN_INST_ROTATION => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.rotation = engine.fixed[var_index];
+                }
+            }
+            property_address::SPAWN_INST_LIFE_SPAN => {
+                if var_index < engine.fixed.len() {
+                    spawn_instance.life_span = engine.fixed[var_index].to_int() as u16;
+                }
+            }
+            property_address::SPAWN_INST_ELEMENT => {
+                if var_index < engine.vars.len() {
+                    if let Some(element) = crate::entity::Element::from_u8(engine.vars[var_index]) {
+                        spawn_instance.element = element;
+                    }
+                }
+            }
+            // Spawn instance runtime variables (writable)
+            property_address::SPAWN_INST_VAR0
+            | property_address::SPAWN_INST_VAR1
+            | property_address::SPAWN_INST_VAR2
+            | property_address::SPAWN_INST_VAR3 => {
+                if var_index < engine.vars.len() {
+                    let var_idx = (property_address - property_address::SPAWN_INST_VAR0) as usize;
+                    if var_idx < spawn_instance.runtime_vars.len() {
+                        spawn_instance.runtime_vars[var_idx] = engine.vars[var_index];
+                    }
+                }
+            }
+            property_address::SPAWN_INST_FIXED0
+            | property_address::SPAWN_INST_FIXED1
+            | property_address::SPAWN_INST_FIXED2
+            | property_address::SPAWN_INST_FIXED3 => {
+                if var_index < engine.fixed.len() {
+                    let fixed_idx =
+                        (property_address - property_address::SPAWN_INST_FIXED0) as usize;
+                    if fixed_idx < spawn_instance.runtime_fixed.len() {
+                        spawn_instance.runtime_fixed[fixed_idx] = engine.fixed[var_index];
+                    }
+                }
+            }
+            _ => {} // Property not writable or not supported
+        }
     }
 }
 
@@ -697,16 +1427,16 @@ pub fn process_character_status_effects(
                     }
                 }
 
-                // Decrease remaining duration
+                // Decrease life span
                 if let Some(instance_mut) =
                     game_state.get_status_effect_instance_mut(effect_instance_id)
                 {
-                    if instance_mut.remaining_duration > 0 {
-                        instance_mut.remaining_duration -= 1;
+                    if instance_mut.life_span > 0 {
+                        instance_mut.life_span -= 1;
                     }
 
                     // Mark for removal if expired
-                    if instance_mut.remaining_duration == 0 {
+                    if instance_mut.life_span == 0 {
                         effects_to_remove.push(effect_instance_id);
                     }
                 }
@@ -837,7 +1567,8 @@ pub fn create_passive_energy_regen_status_effect() -> StatusEffectDefinition {
     StatusEffectDefinition {
         duration: u16::MAX,    // Permanent effect (never expires)
         stack_limit: 1,        // Only one instance allowed
-        reset_on_stack: false, // Don't reset duration when reapplied
+        reset_on_stack: false, // Don't reset life span when reapplied
+        chance: 100,           // Always applies
         args: [0; 8],
         spawns: [0; 4],
         on_script: vec![operator_address::EXIT, 1], // Exit with success flag (no initialization needed)
@@ -914,11 +1645,4 @@ pub fn character_has_status_effect(
             false
         }
     })
-}
-
-/// Helper function to extract script bytes from definition
-fn extract_script(props: &[u16], from: usize, to: usize) -> Vec<u8> {
-    props
-        .get(from..to)
-        .map_or_else(Vec::new, |slice| slice.iter().map(|&x| x as u8).collect())
 }

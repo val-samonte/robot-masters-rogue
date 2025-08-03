@@ -25,7 +25,7 @@ pub struct GameConfig {
 pub struct CharacterDefinitionJson {
     pub id: u8,
     pub group: u8,
-    pub position: [f64; 2], // [x, y] position as floats
+    pub position: [i16; 2], // [x, y] position as integers
     pub health: u8,
     pub energy: u8,
     pub armor: [u8; 9], // Armor values for all 9 elements
@@ -51,7 +51,7 @@ pub struct ActionDefinitionJson {
 /// JSON-compatible condition definition
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ConditionDefinitionJson {
-    pub energy_mul: f64, // Fixed-point value as float for JSON
+    pub energy_mul: i16, // Fixed-point value as raw integer for JSON
     pub args: [u8; 8],
     pub script: Vec<u8>,
 }
@@ -189,13 +189,13 @@ impl From<CharacterDefinitionJson> for Character {
         let mut character = Character::new(json.id, json.group);
 
         // Set position using Fixed-point conversion
-        // Convert float to fixed-point by multiplying by scale factor (32) and converting to raw
+        // Convert integer to fixed-point directly as raw value
         character.core.pos = (
-            Fixed::from_raw((json.position[0] * 32.0) as i16),
-            Fixed::from_raw((json.position[1] * 32.0) as i16),
+            Fixed::from_raw(json.position[0]),
+            Fixed::from_raw(json.position[1]),
         );
 
-        character.health = json.health;
+        character.health = json.health as u16;
         character.energy = json.energy;
         character.armor = json.armor;
         character.energy_regen = json.energy_regen;
@@ -218,8 +218,6 @@ impl From<ActionDefinitionJson> for ActionDefinition {
     fn from(json: ActionDefinitionJson) -> Self {
         ActionDefinition {
             energy_cost: json.energy_cost,
-            interval: json.interval,
-            duration: json.duration,
             cooldown: json.cooldown,
             args: json.args,
             spawns: json.spawns,
@@ -231,7 +229,7 @@ impl From<ActionDefinitionJson> for ActionDefinition {
 impl From<ConditionDefinitionJson> for ConditionDefinition {
     fn from(json: ConditionDefinitionJson) -> Self {
         ConditionDefinition {
-            energy_mul: Fixed::from_raw((json.energy_mul * 32.0) as i16), // Convert float to fixed-point
+            energy_mul: Fixed::from_raw(json.energy_mul), // Convert integer to fixed-point
             args: json.args,
             script: json.script,
         }
@@ -245,10 +243,14 @@ impl From<SpawnDefinitionJson> for SpawnDefinition {
         let element = json.element.and_then(Element::from_u8);
 
         SpawnDefinition {
-            damage_base: json.damage_base,
+            damage_base: json.damage_base as u16,
+            damage_range: 0,
+            crit_chance: 0,
+            crit_multiplier: 100,
             health_cap: json.health_cap,
             duration: json.duration,
             element,
+            chance: 100,
             args: json.args,
             spawns: json.spawns,
             behavior_script: json.behavior_script,
@@ -264,6 +266,7 @@ impl From<StatusEffectDefinitionJson> for StatusEffectDefinition {
             duration: json.duration,
             stack_limit: json.stack_limit,
             reset_on_stack: json.reset_on_stack,
+            chance: 100,
             args: json.args,
             spawns: json.spawns,
             on_script: json.on_script,
@@ -318,8 +321,8 @@ pub struct GameStateJson {
 pub struct CharacterStateJson {
     pub id: u8,
     pub group: u8,
-    pub position: [f64; 2], // [x, y] as JavaScript numbers
-    pub velocity: [f64; 2], // [vx, vy] as JavaScript numbers
+    pub position: [i16; 2], // [x, y] as integers
+    pub velocity: [i16; 2], // [vx, vy] as integers
     pub health: u8,
     pub energy: u8,
     pub armor: [u8; 9],
@@ -342,8 +345,8 @@ pub struct SpawnStateJson {
     pub id: u8,
     pub spawn_id: u8,
     pub owner_id: u8,
-    pub position: [f64; 2], // [x, y] as JavaScript numbers
-    pub velocity: [f64; 2], // [vx, vy] as JavaScript numbers
+    pub position: [i16; 2], // [x, y] as integers
+    pub velocity: [i16; 2], // [vx, vy] as integers
     pub lifespan: u16,
     pub element: Option<u8>, // Element as u8 value (0-8)
     pub facing: u8,
@@ -351,7 +354,7 @@ pub struct SpawnStateJson {
     pub size: [u8; 2],
     pub collision: [bool; 4], // [top, right, bottom, left]
     pub vars: [u8; 4],
-    pub fixed: [f64; 4], // Fixed-point values converted to JavaScript numbers
+    pub fixed: [i16; 4], // Fixed-point values converted to integers
 }
 
 /// JSON-compatible status effect instance state representation
@@ -362,7 +365,7 @@ pub struct StatusEffectStateJson {
     pub remaining_duration: u16,
     pub stack_count: u8,
     pub vars: [u8; 4],
-    pub fixed: [f64; 4], // Fixed-point values converted to JavaScript numbers
+    pub fixed: [i16; 4], // Fixed-point values converted to integers
 }
 
 impl GameStateJson {
@@ -418,23 +421,17 @@ impl CharacterStateJson {
         Self {
             id: character.core.id,
             group: character.core.group,
-            position: [
-                fixed_to_f64(character.core.pos.0),
-                fixed_to_f64(character.core.pos.1),
-            ],
-            velocity: [
-                fixed_to_f64(character.core.vel.0),
-                fixed_to_f64(character.core.vel.1),
-            ],
-            health: character.health,
+            position: [character.core.pos.0.raw(), character.core.pos.1.raw()],
+            velocity: [character.core.vel.0.raw(), character.core.vel.1.raw()],
+            health: character.health as u8,
             energy: character.energy,
             armor: character.armor,
             energy_regen: character.energy_regen,
             energy_regen_rate: character.energy_regen_rate,
             energy_charge: character.energy_charge,
             energy_charge_rate: character.energy_charge_rate,
-            facing: character.core.facing,
-            gravity_dir: character.core.gravity_dir,
+            facing: character.core.dir.0,
+            gravity_dir: character.core.dir.1,
             size: [character.core.size.0, character.core.size.1],
             collision: [
                 character.core.collision.0,
@@ -460,18 +457,12 @@ impl SpawnStateJson {
             id: spawn.core.id,
             spawn_id: spawn.spawn_id,
             owner_id: spawn.owner_id,
-            position: [
-                fixed_to_f64(spawn.core.pos.0),
-                fixed_to_f64(spawn.core.pos.1),
-            ],
-            velocity: [
-                fixed_to_f64(spawn.core.vel.0),
-                fixed_to_f64(spawn.core.vel.1),
-            ],
-            lifespan: spawn.lifespan,
+            position: [spawn.core.pos.0.raw(), spawn.core.pos.1.raw()],
+            velocity: [spawn.core.vel.0.raw(), spawn.core.vel.1.raw()],
+            lifespan: spawn.life_span,
             element: Some(spawn.element as u8),
-            facing: spawn.core.facing,
-            gravity_dir: spawn.core.gravity_dir,
+            facing: spawn.core.dir.0,
+            gravity_dir: spawn.core.dir.1,
             size: [spawn.core.size.0, spawn.core.size.1],
             collision: [
                 spawn.core.collision.0,
@@ -479,12 +470,12 @@ impl SpawnStateJson {
                 spawn.core.collision.2,
                 spawn.core.collision.3,
             ],
-            vars: spawn.vars,
+            vars: spawn.runtime_vars,
             fixed: [
-                fixed_to_f64(spawn.fixed[0]),
-                fixed_to_f64(spawn.fixed[1]),
-                fixed_to_f64(spawn.fixed[2]),
-                fixed_to_f64(spawn.fixed[3]),
+                spawn.runtime_fixed[0].raw(),
+                spawn.runtime_fixed[1].raw(),
+                spawn.runtime_fixed[2].raw(),
+                spawn.runtime_fixed[3].raw(),
             ],
         }
     }
@@ -499,24 +490,15 @@ impl StatusEffectStateJson {
         Self {
             instance_id,
             definition_id: instance.definition_id,
-            remaining_duration: instance.remaining_duration,
+            remaining_duration: instance.life_span,
             stack_count: instance.stack_count,
-            vars: instance.vars,
+            vars: instance.runtime_vars,
             fixed: [
-                fixed_to_f64(instance.fixed[0]),
-                fixed_to_f64(instance.fixed[1]),
-                fixed_to_f64(instance.fixed[2]),
-                fixed_to_f64(instance.fixed[3]),
+                instance.runtime_fixed[0].raw(),
+                instance.runtime_fixed[1].raw(),
+                instance.runtime_fixed[2].raw(),
+                instance.runtime_fixed[3].raw(),
             ],
         }
     }
-}
-
-/// Helper function to convert Fixed-point numbers to JavaScript-compatible f64
-/// This handles the conversion from the game engine's fixed-point representation
-/// to floating-point numbers that JavaScript can work with
-fn fixed_to_f64(fixed: robot_masters_engine::math::Fixed) -> f64 {
-    // Convert fixed-point to float by dividing by the scale factor
-    // Fixed uses 5 fractional bits, so scale factor is 2^5 = 32
-    fixed.raw() as f64 / 32.0
 }
