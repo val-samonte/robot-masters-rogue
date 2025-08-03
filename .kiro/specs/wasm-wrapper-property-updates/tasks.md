@@ -22,7 +22,7 @@
   - Ensure ActionDefinitionJson only contains energy_cost, cooldown, args, spawns, and script properties
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 3. Update SpawnDefinitionJson structure with enhanced combat properties
+- [x] 3. Update SpawnDefinitionJson structure with enhanced combat properties
 
   - Update damage_base property from u8 to u16 type in SpawnDefinitionJson struct
   - Add damage_range property as u16 type to SpawnDefinitionJson struct
@@ -31,7 +31,7 @@
   - Add chance property as u8 type to SpawnDefinitionJson struct
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 4. Update StatusEffectDefinitionJson structure with chance property
+- [x] 4. Update StatusEffectDefinitionJson structure with chance property
 
   - Add chance property as u8 type to StatusEffectDefinitionJson struct
   - _Requirements: 5.1_

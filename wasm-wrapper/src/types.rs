@@ -67,10 +67,14 @@ pub struct ConditionDefinitionJson {
 /// JSON-compatible spawn definition
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SpawnDefinitionJson {
-    pub damage_base: u8,
+    pub damage_base: u16,    // Updated from u8 to u16
+    pub damage_range: u16,   // New property
+    pub crit_chance: u8,     // New property
+    pub crit_multiplier: u8, // New property
     pub health_cap: u8,
     pub duration: u16,
     pub element: Option<u8>, // Element as u8 value (0-8)
+    pub chance: u8,          // New property
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub behavior_script: Vec<u8>,
@@ -84,6 +88,7 @@ pub struct StatusEffectDefinitionJson {
     pub duration: u16,
     pub stack_limit: u8,
     pub reset_on_stack: bool,
+    pub chance: u8, // New property
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub on_script: Vec<u8>,
@@ -265,14 +270,14 @@ impl From<SpawnDefinitionJson> for SpawnDefinition {
         let element = json.element.and_then(Element::from_u8);
 
         SpawnDefinition {
-            damage_base: json.damage_base as u16,
-            damage_range: 0,
-            crit_chance: 0,
-            crit_multiplier: 100,
+            damage_base: json.damage_base,
+            damage_range: json.damage_range,
+            crit_chance: json.crit_chance,
+            crit_multiplier: json.crit_multiplier,
             health_cap: json.health_cap,
             duration: json.duration,
             element,
-            chance: 100,
+            chance: json.chance,
             args: json.args,
             spawns: json.spawns,
             behavior_script: json.behavior_script,
@@ -288,7 +293,7 @@ impl From<StatusEffectDefinitionJson> for StatusEffectDefinition {
             duration: json.duration,
             stack_limit: json.stack_limit,
             reset_on_stack: json.reset_on_stack,
-            chance: 100,
+            chance: json.chance,
             args: json.args,
             spawns: json.spawns,
             on_script: json.on_script,
