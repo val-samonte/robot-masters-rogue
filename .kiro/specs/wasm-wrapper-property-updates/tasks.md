@@ -15,7 +15,7 @@
   - Update health property from u8 to u16 type in CharacterDefinitionJson struct
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
 
-- [ ] 2. Update ActionDefinitionJson structure by removing obsolete properties
+- [x] 2. Update ActionDefinitionJson structure by removing obsolete properties
 
   - Remove interval property from ActionDefinitionJson struct
   - Remove duration property from ActionDefinitionJson struct

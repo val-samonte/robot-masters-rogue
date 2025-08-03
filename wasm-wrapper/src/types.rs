@@ -50,8 +50,6 @@ pub struct CharacterDefinitionJson {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ActionDefinitionJson {
     pub energy_cost: u8,
-    pub interval: u16,
-    pub duration: u16,
     pub cooldown: u16,
     pub args: [u8; 8],
     pub spawns: [u8; 4],

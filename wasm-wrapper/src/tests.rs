@@ -107,14 +107,11 @@ fn test_game_wrapper_creation() {
         }],
         actions: vec![ActionDefinitionJson {
             energy_cost: 20,
-            interval: 1,
-            duration: 30,
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
             script: vec![
                 operator_address::APPLY_ENERGY_COST,
-                operator_address::APPLY_DURATION,
                 operator_address::EXIT,
                 0,
             ],
@@ -166,8 +163,6 @@ fn test_game_initialization() {
         }],
         actions: vec![ActionDefinitionJson {
             energy_cost: 20,
-            interval: 1,
-            duration: 30,
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
@@ -175,7 +170,6 @@ fn test_game_initialization() {
                 operator_address::EXIT_IF_NO_ENERGY,
                 1,
                 operator_address::APPLY_ENERGY_COST,
-                operator_address::APPLY_DURATION,
                 operator_address::EXIT,
                 0,
             ],
@@ -233,8 +227,6 @@ fn test_frame_stepping() {
         }],
         actions: vec![ActionDefinitionJson {
             energy_cost: 20,
-            interval: 1,
-            duration: 30,
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
@@ -242,7 +234,6 @@ fn test_frame_stepping() {
                 operator_address::EXIT_IF_NO_ENERGY,
                 1,
                 operator_address::APPLY_ENERGY_COST,
-                operator_address::APPLY_DURATION,
                 operator_address::EXIT,
                 0,
             ],
@@ -305,14 +296,11 @@ fn test_state_serialization() {
         }],
         actions: vec![ActionDefinitionJson {
             energy_cost: 20,
-            interval: 1,
-            duration: 30,
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
             script: vec![
                 operator_address::APPLY_ENERGY_COST,
-                operator_address::APPLY_DURATION,
                 operator_address::EXIT,
                 0,
             ],
@@ -385,14 +373,11 @@ fn test_deterministic_behavior() {
         }],
         actions: vec![ActionDefinitionJson {
             energy_cost: 20,
-            interval: 1,
-            duration: 30,
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
             script: vec![
                 operator_address::APPLY_ENERGY_COST,
-                operator_address::APPLY_DURATION,
                 operator_address::EXIT,
                 0,
             ],
@@ -493,8 +478,6 @@ fn test_error_handling() {
         }],
         actions: vec![ActionDefinitionJson {
             energy_cost: 20,
-            interval: 1,
-            duration: 30,
             cooldown: 60,
             args: [0; 8],
             spawns: [0; 4],
