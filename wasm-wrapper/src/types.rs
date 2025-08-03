@@ -403,10 +403,10 @@ pub struct SpawnStateJson {
 pub struct StatusEffectStateJson {
     pub instance_id: u8,
     pub definition_id: usize,
-    pub remaining_duration: u16,
+    pub life_span: u16, // Renamed from remaining_duration
     pub stack_count: u8,
-    pub vars: [u8; 4],
-    pub fixed: [i16; 4], // Fixed-point values converted to integers
+    pub runtime_vars: [u8; 4],        // Renamed from vars
+    pub runtime_fixed: [[i16; 2]; 4], // Renamed from fixed, [numerator, denominator] pairs
 }
 
 impl GameStateJson {
@@ -562,17 +562,22 @@ impl StatusEffectStateJson {
         instance: &robot_masters_engine::entity::StatusEffectInstance,
         instance_id: u8,
     ) -> Self {
+        // For Fixed-point values, we represent them as [raw_value, scale] pairs
+        // where scale is the fractional bits scale (32 for 5-bit precision)
+        const FIXED_SCALE: i16 = 1 << Fixed::FRACTIONAL_BITS; // 32
+
         Self {
             instance_id,
             definition_id: instance.definition_id,
-            remaining_duration: instance.life_span,
+            life_span: instance.life_span, // Renamed from remaining_duration
             stack_count: instance.stack_count,
-            vars: instance.runtime_vars,
-            fixed: [
-                instance.runtime_fixed[0].raw(),
-                instance.runtime_fixed[1].raw(),
-                instance.runtime_fixed[2].raw(),
-                instance.runtime_fixed[3].raw(),
+            runtime_vars: instance.runtime_vars, // Renamed from vars
+            runtime_fixed: [
+                // Renamed from fixed, [numerator, denominator] pairs
+                [instance.runtime_fixed[0].raw(), FIXED_SCALE],
+                [instance.runtime_fixed[1].raw(), FIXED_SCALE],
+                [instance.runtime_fixed[2].raw(), FIXED_SCALE],
+                [instance.runtime_fixed[3].raw(), FIXED_SCALE],
             ],
         }
     }

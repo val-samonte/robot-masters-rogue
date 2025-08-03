@@ -67,14 +67,14 @@
   - Add target_type property as u8 type to SpawnStateJson struct
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10, 4.11, 4.12_
 
-- [ ] 7. Update StatusEffectStateJson structure with renamed fields
+- [x] 7. Update StatusEffectStateJson structure with renamed fields
 
   - Rename remaining_duration property to life_span in StatusEffectStateJson struct
   - Rename vars property to runtime_vars in StatusEffectStateJson struct
   - Rename fixed property to runtime_fixed in StatusEffectStateJson struct
   - _Requirements: 5.2, 5.3, 5.4_
 
-- [ ] 8. Update Character conversion logic (From<CharacterDefinitionJson> for Character)
+- [x] 8. Update Character conversion logic (From<CharacterDefinitionJson> for Character)
 
   - Initialize health_cap with provided value in Character conversion
   - Initialize energy_cap with provided value in Character conversion
