@@ -36,7 +36,7 @@
   - Add chance property as u8 type to StatusEffectDefinitionJson struct
   - _Requirements: 5.1_
 
-- [ ] 5. Update CharacterStateJson structure with new properties and field changes
+- [x] 5. Update CharacterStateJson structure with new properties and field changes
 
   - Update health property from u8 to u16 type in CharacterStateJson struct
   - Add health_cap property as u16 type to CharacterStateJson struct

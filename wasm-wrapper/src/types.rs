@@ -348,17 +348,25 @@ pub struct GameStateJson {
 pub struct CharacterStateJson {
     pub id: u8,
     pub group: u8,
-    pub position: [i16; 2], // [x, y] as integers
-    pub velocity: [i16; 2], // [vx, vy] as integers
-    pub health: u8,
+    pub position: [[i16; 2]; 2], // [[x_num, x_den], [y_num, y_den]]
+    pub velocity: [[i16; 2]; 2], // [[vx_num, vx_den], [vy_num, vy_den]]
+    pub health: u16,             // Updated from u8 to u16
+    pub health_cap: u16,         // New property
     pub energy: u8,
+    pub energy_cap: u8,       // New property
+    pub power: u8,            // New property
+    pub weight: u8,           // New property
+    pub jump_force: [i16; 2], // New property [numerator, denominator]
+    pub move_speed: [i16; 2], // New property [numerator, denominator]
     pub armor: [u8; 9],
     pub energy_regen: u8,
     pub energy_regen_rate: u8,
     pub energy_charge: u8,
     pub energy_charge_rate: u8,
-    pub facing: u8,
-    pub gravity_dir: u8,
+    pub dir: [u8; 2],          // Replaces facing and gravity_dir
+    pub enmity: u8,            // New property
+    pub target_id: Option<u8>, // New property
+    pub target_type: u8,       // New property
     pub size: [u8; 2],
     pub collision: [bool; 4], // [top, right, bottom, left]
     pub locked_action: Option<u8>,
@@ -445,20 +453,38 @@ impl GameStateJson {
 impl CharacterStateJson {
     /// Convert from game engine Character to JSON-compatible representation
     pub fn from_character(character: &robot_masters_engine::entity::Character) -> Self {
+        // For Fixed-point values, we represent them as [raw_value, scale] pairs
+        // where scale is the fractional bits scale (32 for 5-bit precision)
+        const FIXED_SCALE: i16 = 1 << Fixed::FRACTIONAL_BITS; // 32
+
         Self {
             id: character.core.id,
             group: character.core.group,
-            position: [character.core.pos.0.raw(), character.core.pos.1.raw()],
-            velocity: [character.core.vel.0.raw(), character.core.vel.1.raw()],
-            health: character.health as u8,
+            position: [
+                [character.core.pos.0.raw(), FIXED_SCALE],
+                [character.core.pos.1.raw(), FIXED_SCALE],
+            ],
+            velocity: [
+                [character.core.vel.0.raw(), FIXED_SCALE],
+                [character.core.vel.1.raw(), FIXED_SCALE],
+            ],
+            health: character.health,
+            health_cap: character.health_cap,
             energy: character.energy,
+            energy_cap: character.energy_cap,
+            power: character.power,
+            weight: character.weight,
+            jump_force: [character.jump_force.raw(), FIXED_SCALE],
+            move_speed: [character.move_speed.raw(), FIXED_SCALE],
             armor: character.armor,
             energy_regen: character.energy_regen,
             energy_regen_rate: character.energy_regen_rate,
             energy_charge: character.energy_charge,
             energy_charge_rate: character.energy_charge_rate,
-            facing: character.core.dir.0,
-            gravity_dir: character.core.dir.1,
+            dir: [character.core.dir.0, character.core.dir.1],
+            enmity: character.core.enmity,
+            target_id: character.core.target_id,
+            target_type: character.core.target_type,
             size: [character.core.size.0, character.core.size.1],
             collision: [
                 character.core.collision.0,
