@@ -25,14 +25,24 @@ pub struct GameConfig {
 pub struct CharacterDefinitionJson {
     pub id: u8,
     pub group: u8,
-    pub position: [i16; 2], // [x, y] position as integers
-    pub health: u8,
+    pub position: [[i16; 2]; 2], // [[x_num, x_den], [y_num, y_den]]
+    pub health: u16,             // Updated from u8 to u16
+    pub health_cap: u16,         // New property
     pub energy: u8,
-    pub armor: [u8; 9], // Armor values for all 9 elements
+    pub energy_cap: u8,       // New property
+    pub power: u8,            // New property
+    pub weight: u8,           // New property
+    pub jump_force: [i16; 2], // New property [numerator, denominator]
+    pub move_speed: [i16; 2], // New property [numerator, denominator]
+    pub armor: [u8; 9],       // Armor values for all 9 elements
     pub energy_regen: u8,
     pub energy_regen_rate: u8,
     pub energy_charge: u8,
     pub energy_charge_rate: u8,
+    pub dir: [u8; 2],               // New property replacing facing/gravity_dir
+    pub enmity: u8,                 // New property
+    pub target_id: Option<u8>,      // New property
+    pub target_type: u8,            // New property
     pub behaviors: Vec<[usize; 2]>, // [condition_id, action_id] pairs
 }
 
@@ -188,20 +198,34 @@ impl From<CharacterDefinitionJson> for Character {
     fn from(json: CharacterDefinitionJson) -> Self {
         let mut character = Character::new(json.id, json.group);
 
-        // Set position using Fixed-point conversion
-        // Convert integer to fixed-point directly as raw value
+        // Set position using Fixed-point conversion from numerator/denominator
         character.core.pos = (
-            Fixed::from_raw(json.position[0]),
-            Fixed::from_raw(json.position[1]),
+            Fixed::from_int(json.position[0][0]) / Fixed::from_int(json.position[0][1]),
+            Fixed::from_int(json.position[1][0]) / Fixed::from_int(json.position[1][1]),
         );
 
-        character.health = json.health as u16;
+        // Set updated properties
+        character.health = json.health;
+        character.health_cap = json.health_cap;
         character.energy = json.energy;
+        character.energy_cap = json.energy_cap;
+        character.power = json.power;
+        character.weight = json.weight;
+        character.jump_force =
+            Fixed::from_int(json.jump_force[0]) / Fixed::from_int(json.jump_force[1]);
+        character.move_speed =
+            Fixed::from_int(json.move_speed[0]) / Fixed::from_int(json.move_speed[1]);
         character.armor = json.armor;
         character.energy_regen = json.energy_regen;
         character.energy_regen_rate = json.energy_regen_rate;
         character.energy_charge = json.energy_charge;
         character.energy_charge_rate = json.energy_charge_rate;
+
+        // Set EntityCore properties
+        character.core.dir = (json.dir[0], json.dir[1]);
+        character.core.enmity = json.enmity;
+        character.core.target_id = json.target_id;
+        character.core.target_type = json.target_type;
 
         // Convert behavior pairs
         character.behaviors = json

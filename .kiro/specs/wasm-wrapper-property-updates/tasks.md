@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Update CharacterDefinitionJson structure with new properties
+- [x] 1. Update CharacterDefinitionJson structure with new properties
 
   - Add health_cap property as u16 type to CharacterDefinitionJson struct
   - Add energy_cap property as u8 type to CharacterDefinitionJson struct
