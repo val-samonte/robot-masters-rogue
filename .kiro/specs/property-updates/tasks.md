@@ -146,7 +146,7 @@
   - Write tests for StatusEffectDefinition/Instance with updated properties
   - _Requirements: All structural requirements_
 
-- [ ] 17. Create unit tests for property address system
+- [x] 17. Create unit tests for property address system
 
   - Write tests to verify all new property addresses are within u8 range (0-255)
   - Write tests to ensure no property address conflicts exist
@@ -154,7 +154,7 @@
   - Verify runtime variable array access with reduced sizes
   - _Requirements: 8.7_
 
-- [ ] 18. Create unit tests for new entity property access operators
+- [x] 18. Create unit tests for new entity property access operators
 
   - Write tests for READ_CHARACTER_PROPERTY operator with valid and invalid character IDs
   - Write tests for WRITE_CHARACTER_PROPERTY operator with valid and invalid character IDs
