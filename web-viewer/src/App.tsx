@@ -2,6 +2,7 @@ import React from 'react'
 import { Provider } from 'jotai'
 import { useGameState } from './hooks/useGameState'
 import { ConfigurationLoader } from './components/ConfigurationLoader'
+import { DebugPanel } from './components/DebugPanel'
 
 function GameViewer() {
   const {
@@ -89,6 +90,7 @@ function GameViewer() {
         </div>
 
         <ConfigurationLoader />
+        <DebugPanel />
       </div>
     </div>
   )

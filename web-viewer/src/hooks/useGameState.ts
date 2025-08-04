@@ -15,6 +15,7 @@ import {
   GameConfig,
 } from '../atoms/gameState'
 import { gameStateManager } from '../utils/gameStateManager'
+import { setupBrowserDebugging, logGameStateUpdate } from '../utils/debugUtils'
 
 export const useGameState = () => {
   const [gameWrapper, setGameWrapper] = useAtom(gameWrapperAtom)
@@ -61,6 +62,13 @@ export const useGameState = () => {
       setFrameInfo(frame)
       setCurrentFrame(gameStateManager.getCurrentFrame())
       setGameError(null)
+
+      // Log state update for debugging
+      logGameStateUpdate(
+        gameStateManager.getCurrentFrame(),
+        chars.length,
+        spawnsData.length
+      )
     } catch (error) {
       setGameError(error instanceof Error ? error.message : String(error))
     }
@@ -81,10 +89,15 @@ export const useGameState = () => {
         const result = gameStateManager.loadConfiguration(configJson)
 
         if (result.success) {
-          setGameWrapper(gameStateManager.getWrapper())
+          const wrapper = gameStateManager.getWrapper()
+          setGameWrapper(wrapper)
           setGameConfig(config)
           setGameError(null)
           updateGameState()
+
+          // Setup browser debugging tools
+          setupBrowserDebugging(wrapper)
+
           return { success: true }
         } else {
           setGameError(result.error || 'Unknown configuration error')
