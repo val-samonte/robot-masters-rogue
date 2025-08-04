@@ -67,13 +67,15 @@
   - Implement real-time state updates during game execution
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3_
 
-- [ ] 8. Create basic game controls
+- [ ] 8. Create basic game controls and 60fps game loop
 
-  - Implement play/pause/step functionality
-  - Add frame counter and timing display
+  - Implement 60fps game loop using requestAnimationFrame or PIXI ticker
+  - Add play/pause/step functionality to control game execution
+  - Implement frame counter and timing display
   - Create reset functionality to return to initial state
-  - Add game status indicators
+  - Add game status indicators (playing, paused, ended)
   - Handle automatic pause when game ends
+  - Ensure smooth real-time game state updates and rendering
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
 - [ ] 9. Add responsive design and performance optimization

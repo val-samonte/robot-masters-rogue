@@ -273,7 +273,8 @@ mod tests {
             health_cap: 100,
             duration: 300,
             element: Some(Element::Heat),
-            chance: 80, // New property
+            chance: 80,     // New property
+            size: (16, 16), // New property
             args: [0; 8],
             spawns: [0; 4],
             behavior_script: vec![],
@@ -303,7 +304,8 @@ mod tests {
             health_cap: 50,
             duration: 120,
             element: Some(Element::Force),
-            chance: 0, // Min value
+            chance: 0,    // Min value
+            size: (8, 8), // New property
             args: [0; 8],
             spawns: [0; 4],
             behavior_script: vec![],

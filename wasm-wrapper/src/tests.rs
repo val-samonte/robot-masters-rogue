@@ -14,6 +14,7 @@ fn test_character_json_conversion() {
         id: 1,
         group: 2,
         position: [[176, 32], [328, 32]], // 5.5 and 10.25 as numerator/denominator pairs
+        size: [16, 32],                   // width: 16, height: 32
         health: 100,
         health_cap: 120,
         energy: 80,

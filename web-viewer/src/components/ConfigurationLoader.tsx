@@ -8,7 +8,6 @@ import {
 } from '../constants/scriptConstants'
 import {
   WASM_TEST_CONFIGURATIONS,
-  createCustomWasmTestConfig,
   type WasmTestConfigurationType,
 } from '../tests/wasmTestConfigurations'
 
