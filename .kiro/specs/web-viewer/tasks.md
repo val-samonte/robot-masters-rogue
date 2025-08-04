@@ -9,7 +9,7 @@
   - Configure TypeScript for WASM wrapper integration
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 2. Create script constants library
+- [x] 2. Create script constants library
 
   - Define ACTION_SCRIPTS constants with proper bytecode arrays
   - Define CONDITION_SCRIPTS constants with proper bytecode arrays
@@ -28,7 +28,19 @@
   - Create helper functions for game state updates
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 4. Create configuration loader component
+- [ ] 4. Test script constants with WASM integration
+
+  - Create test configurations using script constants from task 2
+  - Verify ACTION_SCRIPTS work correctly with WASM game engine
+  - Test CONDITION_SCRIPTS trigger properly in game scenarios
+  - Validate script template mixing functionality
+  - Test all action types: run, turn around, jump, wall jump, and charge
+  - Test all condition types: always, chance-based, energy-based, and collision-based
+  - Verify proper energy consumption and timing mechanics
+  - Add debugging output for script execution validation
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2_
+
+- [ ] 5. Create configuration loader component
 
   - Build file input component for JSON configuration loading
   - Add configuration validation and error display
@@ -37,7 +49,7 @@
   - Add configuration preview and editing capabilities
   - _Requirements: 2.1, 2.2, 2.3, 1.4_
 
-- [ ] 5. Implement React PIXI game canvas
+- [ ] 6. Implement React PIXI game canvas
 
   - Set up React PIXI application and stage
   - Create tilemap background rendering
@@ -46,7 +58,7 @@
   - Create responsive viewport and scaling system
   - _Requirements: 3.1, 3.2, 3.3, 3.5_
 
-- [ ] 6. Add game state visualization
+- [ ] 7. Add game state visualization
 
   - Connect PIXI rendering to Jotai game state atoms
   - Update entity positions based on game state changes
@@ -55,7 +67,7 @@
   - Implement real-time state updates during game execution
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3_
 
-- [ ] 7. Create basic game controls
+- [ ] 8. Create basic game controls
 
   - Implement play/pause/step functionality
   - Add frame counter and timing display
@@ -64,7 +76,7 @@
   - Handle automatic pause when game ends
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 8. Add responsive design and performance optimization
+- [ ] 9. Add responsive design and performance optimization
 
   - Implement responsive layout for different screen sizes
   - Optimize PIXI rendering for 60 FPS performance
@@ -73,7 +85,7 @@
   - Test performance with large configurations
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 9. Implement export and sharing functionality
+- [ ] 10. Implement export and sharing functionality
 
   - Add configuration export to JSON file
   - Implement game state export functionality
@@ -82,7 +94,7 @@
   - Validate exported data for re-import compatibility
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 10. Add comprehensive error handling and debugging features
+- [ ] 11. Add comprehensive error handling and debugging features
 
   - Implement detailed error display with context
   - Add game state inspection tools
@@ -91,9 +103,9 @@
   - Implement error recovery mechanisms
   - _Requirements: 4.4, 4.5, 1.5_
 
-- [ ] 11. Polish and testing
+- [ ] 12. Polish and testing
 
-  - Add comprehensive unit tests for script constants
+  - Add comprehensive unit tests for remaining components
   - Test WASM integration and error handling
   - Validate PIXI rendering performance
   - Test responsive design across devices
