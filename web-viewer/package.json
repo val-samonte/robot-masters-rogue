@@ -13,7 +13,8 @@
     "react-dom": "^18.2.0",
     "jotai": "^2.6.0",
     "@pixi/react": "^7.1.2",
-    "pixi.js": "^7.4.0"
+    "pixi.js": "^7.4.0",
+    "wasm-wrapper": "file:../wasm-wrapper/pkg"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

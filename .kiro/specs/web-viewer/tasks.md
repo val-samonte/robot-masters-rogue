@@ -19,7 +19,7 @@
   - Implement always, chance-based, energy-based, and collision-based conditions
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 3. Implement WASM wrapper integration
+- [x] 3. Implement WASM wrapper integration
 
   - Set up WASM wrapper loading and initialization
   - Create Jotai atoms for game state management
