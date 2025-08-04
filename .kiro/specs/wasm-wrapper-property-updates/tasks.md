@@ -163,7 +163,7 @@
   - Update runtime_fixed arrays to [[i16; 2]; 4] type in SpawnStateJson and StatusEffectStateJson
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 17. Update TypeScript type definitions to match new JSON structures
+- [x] 17. Update TypeScript type definitions to match new JSON structures
   - Update TypeScript definitions in docs/TypeScript.d.ts with new CharacterDefinitionJson interface
   - Update TypeScript definitions with updated ActionDefinitionJson interface
   - Update TypeScript definitions with new SpawnDefinitionJson interface
