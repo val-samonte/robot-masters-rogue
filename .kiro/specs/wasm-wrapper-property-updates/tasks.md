@@ -111,7 +111,7 @@
   - Use Fixed::numer() and Fixed::denom() methods for jump_force and move_speed serialization
   - _Requirements: 9.1, 9.2, 9.3, 11.1, 11.2, 11.4_
 
-- [ ] 12. Update SpawnStateJson serialization method (from_spawn_instance)
+- [x] 12. Update SpawnStateJson serialization method (from_spawn_instance)
 
   - Include all new properties (health, health_cap, owner_type, rotation) in SpawnInstance serialization
   - Use correct field names (life_span, runtime_vars, runtime_fixed) in SpawnInstance serialization
@@ -120,7 +120,7 @@
   - Use Fixed::numer() and Fixed::denom() methods for rotation and runtime_fixed array serialization
   - _Requirements: 9.4, 9.5, 9.6, 9.7, 11.1, 11.2, 11.4_
 
-- [ ] 13. Update StatusEffectStateJson serialization method (from_status_effect_instance)
+- [x] 13. Update StatusEffectStateJson serialization method (from_status_effect_instance)
 
   - Use life_span instead of remaining_duration in StatusEffectInstance serialization
   - Use runtime_vars and runtime_fixed field names in StatusEffectInstance serialization

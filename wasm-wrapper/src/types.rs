@@ -516,26 +516,22 @@ impl CharacterStateJson {
 impl SpawnStateJson {
     /// Convert from game engine SpawnInstance to JSON-compatible representation
     pub fn from_spawn_instance(spawn: &robot_masters_engine::entity::SpawnInstance) -> Self {
-        // For Fixed-point values, we represent them as [raw_value, scale] pairs
-        // where scale is the fractional bits scale (32 for 5-bit precision)
-        const FIXED_SCALE: i16 = 1 << Fixed::FRACTIONAL_BITS; // 32
-
         Self {
             id: spawn.core.id,
             spawn_id: spawn.spawn_id,
             owner_id: spawn.owner_id,
             owner_type: spawn.owner_type,
             position: [
-                [spawn.core.pos.0.raw(), FIXED_SCALE],
-                [spawn.core.pos.1.raw(), FIXED_SCALE],
+                Self::fixed_to_numer_denom(spawn.core.pos.0),
+                Self::fixed_to_numer_denom(spawn.core.pos.1),
             ],
             velocity: [
-                [spawn.core.vel.0.raw(), FIXED_SCALE],
-                [spawn.core.vel.1.raw(), FIXED_SCALE],
+                Self::fixed_to_numer_denom(spawn.core.vel.0),
+                Self::fixed_to_numer_denom(spawn.core.vel.1),
             ],
             health: spawn.health,
             health_cap: spawn.health_cap,
-            rotation: [spawn.rotation.raw(), FIXED_SCALE],
+            rotation: Self::fixed_to_numer_denom(spawn.rotation),
             life_span: spawn.life_span,
             element: Some(spawn.element as u8),
             dir: [spawn.core.dir.0, spawn.core.dir.1],
@@ -551,12 +547,20 @@ impl SpawnStateJson {
             ],
             runtime_vars: spawn.runtime_vars,
             runtime_fixed: [
-                [spawn.runtime_fixed[0].raw(), FIXED_SCALE],
-                [spawn.runtime_fixed[1].raw(), FIXED_SCALE],
-                [spawn.runtime_fixed[2].raw(), FIXED_SCALE],
-                [spawn.runtime_fixed[3].raw(), FIXED_SCALE],
+                Self::fixed_to_numer_denom(spawn.runtime_fixed[0]),
+                Self::fixed_to_numer_denom(spawn.runtime_fixed[1]),
+                Self::fixed_to_numer_denom(spawn.runtime_fixed[2]),
+                Self::fixed_to_numer_denom(spawn.runtime_fixed[3]),
             ],
         }
+    }
+
+    /// Convert Fixed-point value to [numerator, denominator] representation
+    fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
+        // The Fixed type uses raw integer representation with fractional bits
+        // We represent it as [raw_value, scale] where scale = 2^FRACTIONAL_BITS
+        let denominator = 1 << Fixed::FRACTIONAL_BITS; // 32 for 5-bit precision
+        [fixed.raw(), denominator]
     }
 }
 
@@ -566,10 +570,6 @@ impl StatusEffectStateJson {
         instance: &robot_masters_engine::entity::StatusEffectInstance,
         instance_id: u8,
     ) -> Self {
-        // For Fixed-point values, we represent them as [raw_value, scale] pairs
-        // where scale is the fractional bits scale (32 for 5-bit precision)
-        const FIXED_SCALE: i16 = 1 << Fixed::FRACTIONAL_BITS; // 32
-
         Self {
             instance_id,
             definition_id: instance.definition_id,
@@ -578,11 +578,19 @@ impl StatusEffectStateJson {
             runtime_vars: instance.runtime_vars, // Renamed from vars
             runtime_fixed: [
                 // Renamed from fixed, [numerator, denominator] pairs
-                [instance.runtime_fixed[0].raw(), FIXED_SCALE],
-                [instance.runtime_fixed[1].raw(), FIXED_SCALE],
-                [instance.runtime_fixed[2].raw(), FIXED_SCALE],
-                [instance.runtime_fixed[3].raw(), FIXED_SCALE],
+                Self::fixed_to_numer_denom(instance.runtime_fixed[0]),
+                Self::fixed_to_numer_denom(instance.runtime_fixed[1]),
+                Self::fixed_to_numer_denom(instance.runtime_fixed[2]),
+                Self::fixed_to_numer_denom(instance.runtime_fixed[3]),
             ],
         }
+    }
+
+    /// Convert Fixed-point value to [numerator, denominator] representation
+    fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
+        // The Fixed type uses raw integer representation with fractional bits
+        // We represent it as [raw_value, scale] where scale = 2^FRACTIONAL_BITS
+        let denominator = 1 << Fixed::FRACTIONAL_BITS; // 32 for 5-bit precision
+        [fixed.raw(), denominator]
     }
 }
