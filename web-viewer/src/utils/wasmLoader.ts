@@ -28,7 +28,7 @@ export const validateGameConfig = (
 
   try {
     const validationResult = GameWrapper.validate_config(configJson)
-    if (validationResult === 'valid') {
+    if (validationResult === 'Configuration is valid') {
       return { isValid: true }
     } else {
       return { isValid: false, error: validationResult }
