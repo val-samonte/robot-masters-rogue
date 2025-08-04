@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Provider } from 'jotai'
 import { useGameState } from './hooks/useGameState'
 import { ConfigurationLoader } from './components/ConfigurationLoader'
 import { DebugPanel } from './components/DebugPanel'
+import { setupScriptTestRunner } from './tests/testRunner'
+import { setupScriptIntegrationTests } from './tests/scriptIntegrationTest'
 
 function GameViewer() {
   const {
@@ -13,6 +15,23 @@ function GameViewer() {
     characters,
     spawns,
   } = useGameState()
+
+  // Setup script testing tools on component mount
+  useEffect(() => {
+    const setupTestingTools = async () => {
+      try {
+        // Setup both test runners for browser console access
+        await setupScriptTestRunner()
+        setupScriptIntegrationTests()
+
+        console.log('🧪 Script testing tools initialized')
+      } catch (error) {
+        console.error('Failed to setup script testing tools:', error)
+      }
+    }
+
+    setupTestingTools()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-100">

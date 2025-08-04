@@ -28,7 +28,7 @@
   - Create helper functions for game state updates
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 4. Test script constants with WASM integration
+- [x] 4. Test script constants with WASM integration
 
   - Create test configurations using script constants from task 2
   - Verify ACTION_SCRIPTS work correctly with WASM game engine
