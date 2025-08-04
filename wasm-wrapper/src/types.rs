@@ -459,20 +459,16 @@ impl GameStateJson {
 impl CharacterStateJson {
     /// Convert from game engine Character to JSON-compatible representation
     pub fn from_character(character: &robot_masters_engine::entity::Character) -> Self {
-        // For Fixed-point values, we represent them as [raw_value, scale] pairs
-        // where scale is the fractional bits scale (32 for 5-bit precision)
-        const FIXED_SCALE: i16 = 1 << Fixed::FRACTIONAL_BITS; // 32
-
         Self {
             id: character.core.id,
             group: character.core.group,
             position: [
-                [character.core.pos.0.raw(), FIXED_SCALE],
-                [character.core.pos.1.raw(), FIXED_SCALE],
+                Self::fixed_to_numer_denom(character.core.pos.0),
+                Self::fixed_to_numer_denom(character.core.pos.1),
             ],
             velocity: [
-                [character.core.vel.0.raw(), FIXED_SCALE],
-                [character.core.vel.1.raw(), FIXED_SCALE],
+                Self::fixed_to_numer_denom(character.core.vel.0),
+                Self::fixed_to_numer_denom(character.core.vel.1),
             ],
             health: character.health,
             health_cap: character.health_cap,
@@ -480,8 +476,8 @@ impl CharacterStateJson {
             energy_cap: character.energy_cap,
             power: character.power,
             weight: character.weight,
-            jump_force: [character.jump_force.raw(), FIXED_SCALE],
-            move_speed: [character.move_speed.raw(), FIXED_SCALE],
+            jump_force: Self::fixed_to_numer_denom(character.jump_force),
+            move_speed: Self::fixed_to_numer_denom(character.move_speed),
             armor: character.armor,
             energy_regen: character.energy_regen,
             energy_regen_rate: character.energy_regen_rate,
@@ -506,6 +502,14 @@ impl CharacterStateJson {
                 .map(|&(condition_id, action_id)| [condition_id, action_id])
                 .collect(),
         }
+    }
+
+    /// Convert Fixed-point value to [numerator, denominator] representation
+    fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
+        // The Fixed type uses raw integer representation with fractional bits
+        // We represent it as [raw_value, scale] where scale = 2^FRACTIONAL_BITS
+        let denominator = 1 << Fixed::FRACTIONAL_BITS; // 32 for 5-bit precision
+        [fixed.raw(), denominator]
     }
 }
 

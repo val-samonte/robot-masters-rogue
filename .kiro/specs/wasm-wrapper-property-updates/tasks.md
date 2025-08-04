@@ -88,7 +88,7 @@
   - Update health property to use u16 type in Character conversion
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8_
 
-- [ ] 9. Update SpawnDefinition conversion logic (From<SpawnDefinitionJson> for SpawnDefinition)
+- [x] 9. Update SpawnDefinition conversion logic (From<SpawnDefinitionJson> for SpawnDefinition)
 
   - Set damage_base as u16 type in SpawnDefinition conversion
   - Set damage_range with provided value in SpawnDefinition conversion
@@ -97,12 +97,12 @@
   - Set chance with provided value in SpawnDefinition conversion
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 10. Update StatusEffectDefinition conversion logic (From<StatusEffectDefinitionJson> for StatusEffectDefinition)
+- [x] 10. Update StatusEffectDefinition conversion logic (From<StatusEffectDefinitionJson> for StatusEffectDefinition)
 
   - Set chance with provided value in StatusEffectDefinition conversion
   - _Requirements: 8.1_
 
-- [ ] 11. Update CharacterStateJson serialization method (from_character)
+- [x] 11. Update CharacterStateJson serialization method (from_character)
 
   - Include all new properties (health_cap, energy_cap, power, weight, jump_force, move_speed) in Character serialization
   - Serialize EntityCore.dir as dir array in Character serialization
