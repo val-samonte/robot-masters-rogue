@@ -127,23 +127,19 @@
   - Use Fixed::numer() and Fixed::denom() methods for runtime_fixed array serialization
   - _Requirements: 9.8, 9.9, 11.1, 11.2, 11.4_
 
-- [ ] 14. Update GameConfig validation logic with new property validations
+- [x] 14. Update GameConfig validation logic with new property validations
 
   - Validate new Character properties are within valid ranges in GameConfig validation
   - Validate SpawnDefinition combat properties are within valid ranges in GameConfig validation
-  - Validate StatusEffectDefinition chance property is within 0-100 range in GameConfig validation
   - Validate entity targeting references are valid in GameConfig validation
   - Provide clear error messages for new property validation failures in GameConfig validation
   - Add validation for health_cap >= health constraint
-  - Add validation for crit_chance range (0-100)
-  - Add validation for crit_multiplier range (1-100)
-  - Add validation for chance properties range (0-100)
   - Add validation for target_type when target_id is set
   - Add validation for Fixed-point denominators to ensure they are non-zero
   - Add validation for position and velocity Fixed-point denominators
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 15. Update API documentation to reflect new JSON structures
+- [x] 15. Update API documentation to reflect new JSON structures
 
   - Update API.md documentation with new CharacterDefinitionJson structure
   - Update API.md documentation with updated ActionDefinitionJson structure

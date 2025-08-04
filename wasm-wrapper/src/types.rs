@@ -128,8 +128,63 @@ impl GameConfig {
             }
         }
 
-        // Validate character behavior references
+        // Validate character properties
         for (char_idx, character) in self.characters.iter().enumerate() {
+            // Validate health_cap >= health constraint
+            if character.health_cap < character.health {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].health_cap", char_idx),
+                    message: "Health cap must be greater than or equal to current health"
+                        .to_string(),
+                    context: Some(format!(
+                        "health_cap: {}, health: {}",
+                        character.health_cap, character.health
+                    )),
+                });
+            }
+
+            // Validate Fixed-point denominators for position
+            if character.position[0][1] == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].position[0][1]", char_idx),
+                    message: "Position X denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+            if character.position[1][1] == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].position[1][1]", char_idx),
+                    message: "Position Y denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+
+            // Validate Fixed-point denominators for jump_force and move_speed
+            if character.jump_force[1] == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].jump_force[1]", char_idx),
+                    message: "Jump force denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+            if character.move_speed[1] == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].move_speed[1]", char_idx),
+                    message: "Move speed denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+
+            // Validate target_type when target_id is set
+            if character.target_id.is_some() && character.target_type == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].target_type", char_idx),
+                    message: "Target type must be specified when target_id is set".to_string(),
+                    context: Some("target_type cannot be 0 when target_id is Some".to_string()),
+                });
+            }
+
+            // Validate character behavior references
             for (behavior_idx, &[condition_id, action_id]) in character.behaviors.iter().enumerate()
             {
                 if condition_id >= self.conditions.len() {
@@ -175,8 +230,9 @@ impl GameConfig {
             }
         }
 
-        // Validate element values in spawns
+        // Validate spawn definition properties
         for (spawn_idx, spawn) in self.spawns.iter().enumerate() {
+            // Validate element values
             if let Some(element) = spawn.element {
                 if element > 8 {
                     errors.push(ValidationError {
