@@ -145,8 +145,8 @@ export const DebugPanel: React.FC = () => {
           initialChar.position.x !== finalChar.position.x ||
           initialChar.position.y !== finalChar.position.y
 
-        const energyChanged = initialChar.energy !== finalChar.energy
-        const facingChanged = initialChar.facing !== finalChar.facing
+        // const energyChanged = initialChar.energy !== finalChar.energy
+        // const facingChanged = initialChar.facing !== finalChar.facing
 
         addDebugLog(`Script validation (${finalFrame - initialFrame} frames):`)
         addDebugLog(`  Position changed: ${positionChanged}`)

@@ -4,7 +4,7 @@ import { useGameState } from '../hooks/useGameState'
 export const ConfigurationLoader: React.FC = () => {
   const [configText, setConfigText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const { loadConfiguration, gameError, isGameInitialized } = useGameState()
+  const { loadConfiguration, isGameInitialized } = useGameState()
 
   const handleLoadConfig = async () => {
     if (!configText.trim()) {

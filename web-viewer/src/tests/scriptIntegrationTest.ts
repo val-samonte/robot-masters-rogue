@@ -12,14 +12,11 @@
  */
 
 import {
-  ACTION_SCRIPTS,
-  CONDITION_SCRIPTS,
   createScriptTemplate,
   type ActionScriptType,
   type ConditionScriptType,
 } from '../constants/scriptConstants'
 import { gameStateManager } from '../utils/gameStateManager'
-import { setupBrowserDebugging } from '../utils/debugUtils'
 
 // Test configuration templates
 interface TestCharacter {
@@ -463,7 +460,7 @@ export class ScriptIntegrationTestSuite {
         `${collisionCondition} Condition Test`,
         config,
         60,
-        (initialState, finalState, observations) => {
+        (_initialState, finalState, observations) => {
           const finalChar = finalState.characters[0]
 
           observations.push(
@@ -637,8 +634,8 @@ export class ScriptIntegrationTestSuite {
 
       // Validate results
       const validationSuccess = validator(
-        { characters: initialCharacters, ...initialState },
-        { characters: finalCharacters, ...finalState },
+        { ...initialState, characters: initialCharacters },
+        { ...finalState, characters: finalCharacters },
         observations
       )
 

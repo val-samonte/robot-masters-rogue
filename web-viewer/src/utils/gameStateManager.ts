@@ -1,6 +1,5 @@
 import { GameWrapper } from '../../../wasm-wrapper/pkg/wasm_wrapper.js'
 import {
-  GameConfig,
   GameStateData,
   CharacterRenderData,
   SpawnRenderData,

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { Provider } from 'jotai'
 import { useGameState } from './hooks/useGameState'
 import { ConfigurationLoader } from './components/ConfigurationLoader'
