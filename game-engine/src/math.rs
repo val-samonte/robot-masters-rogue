@@ -19,6 +19,11 @@ impl Fixed {
         Fixed(value << Self::FRACTIONAL_BITS)
     }
 
+    /// Create a Fixed from numerator (integer value)
+    pub fn from_num(value: i16) -> Self {
+        Fixed(value << Self::FRACTIONAL_BITS)
+    }
+
     /// Create a Fixed from raw internal representation
     pub fn from_raw(raw: i16) -> Self {
         Fixed(raw)
@@ -37,6 +42,16 @@ impl Fixed {
     /// Get the fractional part as a value between 0 and 31
     pub fn frac(self) -> u8 {
         (self.0 & ((1 << Self::FRACTIONAL_BITS) - 1)) as u8
+    }
+
+    /// Get the numerator of the Fixed-point value (raw value)
+    pub fn numer(self) -> i16 {
+        self.0
+    }
+
+    /// Get the denominator of the Fixed-point value (always 2^FRACTIONAL_BITS)
+    pub fn denom(self) -> i16 {
+        1 << Self::FRACTIONAL_BITS
     }
 
     /// Addition with overflow handling

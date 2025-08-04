@@ -25,14 +25,24 @@ pub struct GameConfig {
 pub struct CharacterDefinitionJson {
     pub id: u8,
     pub group: u8,
-    pub position: [i16; 2], // [x, y] position as integers
-    pub health: u8,
+    pub position: [[i16; 2]; 2], // [[x_num, x_den], [y_num, y_den]]
+    pub health: u16,             // Updated from u8 to u16
+    pub health_cap: u16,         // New property
     pub energy: u8,
-    pub armor: [u8; 9], // Armor values for all 9 elements
+    pub energy_cap: u8,       // New property
+    pub power: u8,            // New property
+    pub weight: u8,           // New property
+    pub jump_force: [i16; 2], // New property [numerator, denominator]
+    pub move_speed: [i16; 2], // New property [numerator, denominator]
+    pub armor: [u8; 9],       // Armor values for all 9 elements
     pub energy_regen: u8,
     pub energy_regen_rate: u8,
     pub energy_charge: u8,
     pub energy_charge_rate: u8,
+    pub dir: [u8; 2],               // New property replacing facing/gravity_dir
+    pub enmity: u8,                 // New property
+    pub target_id: Option<u8>,      // New property
+    pub target_type: u8,            // New property
     pub behaviors: Vec<[usize; 2]>, // [condition_id, action_id] pairs
 }
 
@@ -40,8 +50,6 @@ pub struct CharacterDefinitionJson {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ActionDefinitionJson {
     pub energy_cost: u8,
-    pub interval: u16,
-    pub duration: u16,
     pub cooldown: u16,
     pub args: [u8; 8],
     pub spawns: [u8; 4],
@@ -59,10 +67,14 @@ pub struct ConditionDefinitionJson {
 /// JSON-compatible spawn definition
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SpawnDefinitionJson {
-    pub damage_base: u8,
+    pub damage_base: u16,    // Updated from u8 to u16
+    pub damage_range: u16,   // New property
+    pub crit_chance: u8,     // New property
+    pub crit_multiplier: u8, // New property
     pub health_cap: u8,
     pub duration: u16,
     pub element: Option<u8>, // Element as u8 value (0-8)
+    pub chance: u8,          // New property
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub behavior_script: Vec<u8>,
@@ -76,6 +88,7 @@ pub struct StatusEffectDefinitionJson {
     pub duration: u16,
     pub stack_limit: u8,
     pub reset_on_stack: bool,
+    pub chance: u8, // New property
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub on_script: Vec<u8>,
@@ -115,8 +128,63 @@ impl GameConfig {
             }
         }
 
-        // Validate character behavior references
+        // Validate character properties
         for (char_idx, character) in self.characters.iter().enumerate() {
+            // Validate health_cap >= health constraint
+            if character.health_cap < character.health {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].health_cap", char_idx),
+                    message: "Health cap must be greater than or equal to current health"
+                        .to_string(),
+                    context: Some(format!(
+                        "health_cap: {}, health: {}",
+                        character.health_cap, character.health
+                    )),
+                });
+            }
+
+            // Validate Fixed-point denominators for position
+            if character.position[0][1] == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].position[0][1]", char_idx),
+                    message: "Position X denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+            if character.position[1][1] == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].position[1][1]", char_idx),
+                    message: "Position Y denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+
+            // Validate Fixed-point denominators for jump_force and move_speed
+            if character.jump_force[1] == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].jump_force[1]", char_idx),
+                    message: "Jump force denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+            if character.move_speed[1] == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].move_speed[1]", char_idx),
+                    message: "Move speed denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+
+            // Validate target_type when target_id is set
+            if character.target_id.is_some() && character.target_type == 0 {
+                errors.push(ValidationError {
+                    field: format!("characters[{}].target_type", char_idx),
+                    message: "Target type must be specified when target_id is set".to_string(),
+                    context: Some("target_type cannot be 0 when target_id is Some".to_string()),
+                });
+            }
+
+            // Validate character behavior references
             for (behavior_idx, &[condition_id, action_id]) in character.behaviors.iter().enumerate()
             {
                 if condition_id >= self.conditions.len() {
@@ -162,8 +230,9 @@ impl GameConfig {
             }
         }
 
-        // Validate element values in spawns
+        // Validate spawn definition properties
         for (spawn_idx, spawn) in self.spawns.iter().enumerate() {
+            // Validate element values
             if let Some(element) = spawn.element {
                 if element > 8 {
                     errors.push(ValidationError {
@@ -188,20 +257,34 @@ impl From<CharacterDefinitionJson> for Character {
     fn from(json: CharacterDefinitionJson) -> Self {
         let mut character = Character::new(json.id, json.group);
 
-        // Set position using Fixed-point conversion
-        // Convert integer to fixed-point directly as raw value
+        // Set position using Fixed-point conversion from numerator/denominator
         character.core.pos = (
-            Fixed::from_raw(json.position[0]),
-            Fixed::from_raw(json.position[1]),
+            Fixed::from_num(json.position[0][0]) / Fixed::from_num(json.position[0][1]),
+            Fixed::from_num(json.position[1][0]) / Fixed::from_num(json.position[1][1]),
         );
 
-        character.health = json.health as u16;
+        // Set updated properties
+        character.health = json.health;
+        character.health_cap = json.health_cap;
         character.energy = json.energy;
+        character.energy_cap = json.energy_cap;
+        character.power = json.power;
+        character.weight = json.weight;
+        character.jump_force =
+            Fixed::from_num(json.jump_force[0]) / Fixed::from_num(json.jump_force[1]);
+        character.move_speed =
+            Fixed::from_num(json.move_speed[0]) / Fixed::from_num(json.move_speed[1]);
         character.armor = json.armor;
         character.energy_regen = json.energy_regen;
         character.energy_regen_rate = json.energy_regen_rate;
         character.energy_charge = json.energy_charge;
         character.energy_charge_rate = json.energy_charge_rate;
+
+        // Set EntityCore properties
+        character.core.dir = (json.dir[0], json.dir[1]);
+        character.core.enmity = json.enmity;
+        character.core.target_id = json.target_id;
+        character.core.target_type = json.target_type;
 
         // Convert behavior pairs
         character.behaviors = json
@@ -243,14 +326,14 @@ impl From<SpawnDefinitionJson> for SpawnDefinition {
         let element = json.element.and_then(Element::from_u8);
 
         SpawnDefinition {
-            damage_base: json.damage_base as u16,
-            damage_range: 0,
-            crit_chance: 0,
-            crit_multiplier: 100,
+            damage_base: json.damage_base,
+            damage_range: json.damage_range,
+            crit_chance: json.crit_chance,
+            crit_multiplier: json.crit_multiplier,
             health_cap: json.health_cap,
             duration: json.duration,
             element,
-            chance: 100,
+            chance: json.chance,
             args: json.args,
             spawns: json.spawns,
             behavior_script: json.behavior_script,
@@ -266,7 +349,7 @@ impl From<StatusEffectDefinitionJson> for StatusEffectDefinition {
             duration: json.duration,
             stack_limit: json.stack_limit,
             reset_on_stack: json.reset_on_stack,
-            chance: 100,
+            chance: json.chance,
             args: json.args,
             spawns: json.spawns,
             on_script: json.on_script,
@@ -321,17 +404,25 @@ pub struct GameStateJson {
 pub struct CharacterStateJson {
     pub id: u8,
     pub group: u8,
-    pub position: [i16; 2], // [x, y] as integers
-    pub velocity: [i16; 2], // [vx, vy] as integers
-    pub health: u8,
+    pub position: [[i16; 2]; 2], // [[x_num, x_den], [y_num, y_den]]
+    pub velocity: [[i16; 2]; 2], // [[vx_num, vx_den], [vy_num, vy_den]]
+    pub health: u16,             // Updated from u8 to u16
+    pub health_cap: u16,         // New property
     pub energy: u8,
+    pub energy_cap: u8,       // New property
+    pub power: u8,            // New property
+    pub weight: u8,           // New property
+    pub jump_force: [i16; 2], // New property [numerator, denominator]
+    pub move_speed: [i16; 2], // New property [numerator, denominator]
     pub armor: [u8; 9],
     pub energy_regen: u8,
     pub energy_regen_rate: u8,
     pub energy_charge: u8,
     pub energy_charge_rate: u8,
-    pub facing: u8,
-    pub gravity_dir: u8,
+    pub dir: [u8; 2],          // Replaces facing and gravity_dir
+    pub enmity: u8,            // New property
+    pub target_id: Option<u8>, // New property
+    pub target_type: u8,       // New property
     pub size: [u8; 2],
     pub collision: [bool; 4], // [top, right, bottom, left]
     pub locked_action: Option<u8>,
@@ -344,17 +435,23 @@ pub struct CharacterStateJson {
 pub struct SpawnStateJson {
     pub id: u8,
     pub spawn_id: u8,
-    pub owner_id: u8,
-    pub position: [i16; 2], // [x, y] as integers
-    pub velocity: [i16; 2], // [vx, vy] as integers
-    pub lifespan: u16,
-    pub element: Option<u8>, // Element as u8 value (0-8)
-    pub facing: u8,
-    pub gravity_dir: u8,
+    pub owner_id: u8,            // Now supports EntityId type
+    pub owner_type: u8,          // New property (1=Character, 2=Spawn)
+    pub position: [[i16; 2]; 2], // [[x_num, x_den], [y_num, y_den]]
+    pub velocity: [[i16; 2]; 2], // [[vx_num, vx_den], [vy_num, vy_den]]
+    pub health: u16,             // New property
+    pub health_cap: u16,         // New property
+    pub rotation: [i16; 2],      // New property [numerator, denominator]
+    pub life_span: u16,          // Renamed from lifespan
+    pub element: Option<u8>,     // Element as u8 value (0-8)
+    pub dir: [u8; 2],            // Replaces facing and gravity_dir
+    pub enmity: u8,              // New property
+    pub target_id: Option<u8>,   // New property
+    pub target_type: u8,         // New property
     pub size: [u8; 2],
-    pub collision: [bool; 4], // [top, right, bottom, left]
-    pub vars: [u8; 4],
-    pub fixed: [i16; 4], // Fixed-point values converted to integers
+    pub collision: [bool; 4],         // [top, right, bottom, left]
+    pub runtime_vars: [u8; 4],        // Renamed from vars
+    pub runtime_fixed: [[i16; 2]; 4], // Renamed from fixed, [numerator, denominator] pairs
 }
 
 /// JSON-compatible status effect instance state representation
@@ -362,10 +459,10 @@ pub struct SpawnStateJson {
 pub struct StatusEffectStateJson {
     pub instance_id: u8,
     pub definition_id: usize,
-    pub remaining_duration: u16,
+    pub life_span: u16, // Renamed from remaining_duration
     pub stack_count: u8,
-    pub vars: [u8; 4],
-    pub fixed: [i16; 4], // Fixed-point values converted to integers
+    pub runtime_vars: [u8; 4],        // Renamed from vars
+    pub runtime_fixed: [[i16; 2]; 4], // Renamed from fixed, [numerator, denominator] pairs
 }
 
 impl GameStateJson {
@@ -421,17 +518,31 @@ impl CharacterStateJson {
         Self {
             id: character.core.id,
             group: character.core.group,
-            position: [character.core.pos.0.raw(), character.core.pos.1.raw()],
-            velocity: [character.core.vel.0.raw(), character.core.vel.1.raw()],
-            health: character.health as u8,
+            position: [
+                Self::fixed_to_numer_denom(character.core.pos.0),
+                Self::fixed_to_numer_denom(character.core.pos.1),
+            ],
+            velocity: [
+                Self::fixed_to_numer_denom(character.core.vel.0),
+                Self::fixed_to_numer_denom(character.core.vel.1),
+            ],
+            health: character.health,
+            health_cap: character.health_cap,
             energy: character.energy,
+            energy_cap: character.energy_cap,
+            power: character.power,
+            weight: character.weight,
+            jump_force: Self::fixed_to_numer_denom(character.jump_force),
+            move_speed: Self::fixed_to_numer_denom(character.move_speed),
             armor: character.armor,
             energy_regen: character.energy_regen,
             energy_regen_rate: character.energy_regen_rate,
             energy_charge: character.energy_charge,
             energy_charge_rate: character.energy_charge_rate,
-            facing: character.core.dir.0,
-            gravity_dir: character.core.dir.1,
+            dir: [character.core.dir.0, character.core.dir.1],
+            enmity: character.core.enmity,
+            target_id: character.core.target_id,
+            target_type: character.core.target_type,
             size: [character.core.size.0, character.core.size.1],
             collision: [
                 character.core.collision.0,
@@ -448,6 +559,11 @@ impl CharacterStateJson {
                 .collect(),
         }
     }
+
+    /// Convert Fixed-point value to [numerator, denominator] representation
+    fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
+        [fixed.numer(), fixed.denom()]
+    }
 }
 
 impl SpawnStateJson {
@@ -457,12 +573,24 @@ impl SpawnStateJson {
             id: spawn.core.id,
             spawn_id: spawn.spawn_id,
             owner_id: spawn.owner_id,
-            position: [spawn.core.pos.0.raw(), spawn.core.pos.1.raw()],
-            velocity: [spawn.core.vel.0.raw(), spawn.core.vel.1.raw()],
-            lifespan: spawn.life_span,
+            owner_type: spawn.owner_type,
+            position: [
+                Self::fixed_to_numer_denom(spawn.core.pos.0),
+                Self::fixed_to_numer_denom(spawn.core.pos.1),
+            ],
+            velocity: [
+                Self::fixed_to_numer_denom(spawn.core.vel.0),
+                Self::fixed_to_numer_denom(spawn.core.vel.1),
+            ],
+            health: spawn.health,
+            health_cap: spawn.health_cap,
+            rotation: Self::fixed_to_numer_denom(spawn.rotation),
+            life_span: spawn.life_span,
             element: Some(spawn.element as u8),
-            facing: spawn.core.dir.0,
-            gravity_dir: spawn.core.dir.1,
+            dir: [spawn.core.dir.0, spawn.core.dir.1],
+            enmity: spawn.core.enmity,
+            target_id: spawn.core.target_id,
+            target_type: spawn.core.target_type,
             size: [spawn.core.size.0, spawn.core.size.1],
             collision: [
                 spawn.core.collision.0,
@@ -470,14 +598,19 @@ impl SpawnStateJson {
                 spawn.core.collision.2,
                 spawn.core.collision.3,
             ],
-            vars: spawn.runtime_vars,
-            fixed: [
-                spawn.runtime_fixed[0].raw(),
-                spawn.runtime_fixed[1].raw(),
-                spawn.runtime_fixed[2].raw(),
-                spawn.runtime_fixed[3].raw(),
+            runtime_vars: spawn.runtime_vars,
+            runtime_fixed: [
+                Self::fixed_to_numer_denom(spawn.runtime_fixed[0]),
+                Self::fixed_to_numer_denom(spawn.runtime_fixed[1]),
+                Self::fixed_to_numer_denom(spawn.runtime_fixed[2]),
+                Self::fixed_to_numer_denom(spawn.runtime_fixed[3]),
             ],
         }
+    }
+
+    /// Convert Fixed-point value to [numerator, denominator] representation
+    fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
+        [fixed.numer(), fixed.denom()]
     }
 }
 
@@ -490,15 +623,21 @@ impl StatusEffectStateJson {
         Self {
             instance_id,
             definition_id: instance.definition_id,
-            remaining_duration: instance.life_span,
+            life_span: instance.life_span, // Renamed from remaining_duration
             stack_count: instance.stack_count,
-            vars: instance.runtime_vars,
-            fixed: [
-                instance.runtime_fixed[0].raw(),
-                instance.runtime_fixed[1].raw(),
-                instance.runtime_fixed[2].raw(),
-                instance.runtime_fixed[3].raw(),
+            runtime_vars: instance.runtime_vars, // Renamed from vars
+            runtime_fixed: [
+                // Renamed from fixed, [numerator, denominator] pairs
+                Self::fixed_to_numer_denom(instance.runtime_fixed[0]),
+                Self::fixed_to_numer_denom(instance.runtime_fixed[1]),
+                Self::fixed_to_numer_denom(instance.runtime_fixed[2]),
+                Self::fixed_to_numer_denom(instance.runtime_fixed[3]),
             ],
         }
+    }
+
+    /// Convert Fixed-point value to [numerator, denominator] representation
+    fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
+        [fixed.numer(), fixed.denom()]
     }
 }
