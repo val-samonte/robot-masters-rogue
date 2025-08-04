@@ -153,7 +153,7 @@
   - Document Fixed-point value handling using numerator/denominator pairs and deterministic serialization
   - _Requirements: All requirements for documentation completeness_
 
-- [ ] 16. Update position and velocity handling to use numerator/denominator pairs
+- [x] 16. Update position and velocity handling to use numerator/denominator pairs
 
   - Update position property to [[i16; 2]; 2] type in CharacterDefinitionJson and CharacterStateJson
   - Update velocity property to [[i16; 2]; 2] type in CharacterStateJson and SpawnStateJson

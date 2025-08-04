@@ -259,8 +259,8 @@ impl From<CharacterDefinitionJson> for Character {
 
         // Set position using Fixed-point conversion from numerator/denominator
         character.core.pos = (
-            Fixed::from_int(json.position[0][0]) / Fixed::from_int(json.position[0][1]),
-            Fixed::from_int(json.position[1][0]) / Fixed::from_int(json.position[1][1]),
+            Fixed::from_num(json.position[0][0]) / Fixed::from_num(json.position[0][1]),
+            Fixed::from_num(json.position[1][0]) / Fixed::from_num(json.position[1][1]),
         );
 
         // Set updated properties
@@ -271,9 +271,9 @@ impl From<CharacterDefinitionJson> for Character {
         character.power = json.power;
         character.weight = json.weight;
         character.jump_force =
-            Fixed::from_int(json.jump_force[0]) / Fixed::from_int(json.jump_force[1]);
+            Fixed::from_num(json.jump_force[0]) / Fixed::from_num(json.jump_force[1]);
         character.move_speed =
-            Fixed::from_int(json.move_speed[0]) / Fixed::from_int(json.move_speed[1]);
+            Fixed::from_num(json.move_speed[0]) / Fixed::from_num(json.move_speed[1]);
         character.armor = json.armor;
         character.energy_regen = json.energy_regen;
         character.energy_regen_rate = json.energy_regen_rate;
@@ -562,10 +562,7 @@ impl CharacterStateJson {
 
     /// Convert Fixed-point value to [numerator, denominator] representation
     fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
-        // The Fixed type uses raw integer representation with fractional bits
-        // We represent it as [raw_value, scale] where scale = 2^FRACTIONAL_BITS
-        let denominator = 1 << Fixed::FRACTIONAL_BITS; // 32 for 5-bit precision
-        [fixed.raw(), denominator]
+        [fixed.numer(), fixed.denom()]
     }
 }
 
@@ -613,10 +610,7 @@ impl SpawnStateJson {
 
     /// Convert Fixed-point value to [numerator, denominator] representation
     fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
-        // The Fixed type uses raw integer representation with fractional bits
-        // We represent it as [raw_value, scale] where scale = 2^FRACTIONAL_BITS
-        let denominator = 1 << Fixed::FRACTIONAL_BITS; // 32 for 5-bit precision
-        [fixed.raw(), denominator]
+        [fixed.numer(), fixed.denom()]
     }
 }
 
@@ -644,9 +638,6 @@ impl StatusEffectStateJson {
 
     /// Convert Fixed-point value to [numerator, denominator] representation
     fn fixed_to_numer_denom(fixed: Fixed) -> [i16; 2] {
-        // The Fixed type uses raw integer representation with fractional bits
-        // We represent it as [raw_value, scale] where scale = 2^FRACTIONAL_BITS
-        let denominator = 1 << Fixed::FRACTIONAL_BITS; // 32 for 5-bit precision
-        [fixed.raw(), denominator]
+        [fixed.numer(), fixed.denom()]
     }
 }
