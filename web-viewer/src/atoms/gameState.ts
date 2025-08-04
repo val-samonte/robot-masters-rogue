@@ -12,6 +12,7 @@ export interface GameStateData {
   characters: CharacterRenderData[]
   spawns: SpawnRenderData[]
   status_effects: StatusEffect[]
+  tilemap: number[][]
 }
 
 export interface CharacterRenderData {

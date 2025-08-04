@@ -3,6 +3,7 @@ import { Provider } from 'jotai'
 import { useGameState } from './hooks/useGameState'
 import { ConfigurationLoader } from './components/ConfigurationLoader'
 import { DebugPanel } from './components/DebugPanel'
+import { GameCanvas } from './components/GameCanvas'
 import { setupScriptTestRunner } from './tests/testRunner'
 import { setupScriptIntegrationTests } from './tests/scriptIntegrationTest'
 
@@ -57,7 +58,7 @@ function GameViewer() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold text-gray-800 mb-2">
@@ -106,10 +107,22 @@ function GameViewer() {
               </div>
             </div>
           )}
+
+          {/* Game Canvas */}
+          <div className="xl:col-span-1">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                Game View
+              </h2>
+              <GameCanvas />
+            </div>
+          </div>
         </div>
 
-        <ConfigurationLoader />
-        <DebugPanel />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ConfigurationLoader />
+          <DebugPanel />
+        </div>
       </div>
     </div>
   )

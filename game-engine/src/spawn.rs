@@ -31,6 +31,7 @@ impl SpawnDefinition {
                 duration: 60,
                 element: None,
                 chance: 100,
+                size: (16, 16), // Default size
                 args: [0; 8],
                 spawns: [0; 4],
                 behavior_script: Vec::new(),
@@ -57,6 +58,7 @@ impl SpawnDefinition {
             duration,
             element,
             chance: 100,
+            size: (16, 16), // Default size
             args: [0; 8],
             spawns: [0; 4],
             behavior_script: Vec::new(),
@@ -79,6 +81,8 @@ impl SpawnDefinition {
             SpawnInstance::new(spawn_id, owner_id, pos)
         };
 
+        // Set size from definition
+        instance.core.size = self.size;
         instance.life_span = self.duration;
         if let Some(vars) = vars {
             instance.runtime_vars = vars;

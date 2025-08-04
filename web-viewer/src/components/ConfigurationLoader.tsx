@@ -234,7 +234,17 @@ export const ConfigurationLoader: React.FC = () => {
     seed: 12345,
     tilemap: Array(15)
       .fill(null)
-      .map(() => Array(16).fill(0)),
+      .map((_, row) =>
+        Array(16)
+          .fill(0)
+          .map((_, col) => {
+            // Add some ground tiles at the bottom
+            if (row >= 12) return 1
+            // Add some scattered blocks for testing
+            if ((row === 8 && col === 5) || (row === 6 && col === 10)) return 1
+            return 0
+          })
+      ),
     characters: [
       {
         id: 1,

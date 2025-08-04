@@ -70,7 +70,17 @@ export const initializeGame = (wrapper: GameWrapper): void => {
 export const getGameState = (wrapper: GameWrapper) => {
   try {
     const stateJson = wrapper.get_state_json()
-    return JSON.parse(stateJson)
+    const rawState = JSON.parse(stateJson)
+
+    // Transform the state to match our TypeScript interface
+    return {
+      frame: rawState.frame,
+      status: rawState.status,
+      characters: rawState.characters || [],
+      spawns: rawState.spawns || [],
+      status_effects: rawState.status_effects || [],
+      tilemap: rawState.tilemap || [],
+    }
   } catch (error) {
     const errorDetails = wrapper.get_last_error_details()
     throw new Error(`Failed to get game state: ${errorDetails || error}`)
@@ -80,7 +90,33 @@ export const getGameState = (wrapper: GameWrapper) => {
 export const getCharacters = (wrapper: GameWrapper) => {
   try {
     const charactersJson = wrapper.get_characters_json()
-    return JSON.parse(charactersJson)
+    const rawCharacters = JSON.parse(charactersJson)
+
+    // Transform raw WASM data to match TypeScript interface
+    return rawCharacters.map((char: any) => ({
+      id: char.id,
+      position: {
+        x: char.position[0][0] / char.position[0][1], // Convert fixed-point to decimal
+        y: char.position[1][0] / char.position[1][1],
+      },
+      size: {
+        width: char.size[0],
+        height: char.size[1],
+      },
+      health: char.health,
+      energy: char.energy,
+      facing: char.dir[0], // Use horizontal direction as facing
+      velocity: {
+        x: char.velocity[0][0] / char.velocity[0][1], // Convert fixed-point to decimal
+        y: char.velocity[1][0] / char.velocity[1][1],
+      },
+      collision: {
+        top: char.collision[0],
+        right: char.collision[1],
+        bottom: char.collision[2],
+        left: char.collision[3],
+      },
+    }))
   } catch (error) {
     const errorDetails = wrapper.get_last_error_details()
     throw new Error(`Failed to get characters: ${errorDetails || error}`)
@@ -90,7 +126,29 @@ export const getCharacters = (wrapper: GameWrapper) => {
 export const getSpawns = (wrapper: GameWrapper) => {
   try {
     const spawnsJson = wrapper.get_spawns_json()
-    return JSON.parse(spawnsJson)
+    const rawSpawns = JSON.parse(spawnsJson)
+
+    // Transform raw WASM data to match TypeScript interface
+    return rawSpawns.map((spawn: any) => ({
+      id: spawn.id,
+      position: {
+        x: spawn.position[0][0] / spawn.position[0][1], // Convert fixed-point to decimal
+        y: spawn.position[1][0] / spawn.position[1][1],
+      },
+      size: {
+        width: spawn.size[0],
+        height: spawn.size[1],
+      },
+      lifespan_remaining: spawn.life_span,
+      properties: {
+        spawn_id: spawn.spawn_id,
+        owner_id: spawn.owner_id,
+        owner_type: spawn.owner_type,
+        health: spawn.health,
+        health_cap: spawn.health_cap,
+        element: spawn.element,
+      },
+    }))
   } catch (error) {
     const errorDetails = wrapper.get_last_error_details()
     throw new Error(`Failed to get spawns: ${errorDetails || error}`)

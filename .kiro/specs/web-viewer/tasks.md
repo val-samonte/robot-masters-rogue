@@ -49,7 +49,7 @@
   - Add configuration preview and editing capabilities
   - _Requirements: 2.1, 2.2, 2.3, 1.4_
 
-- [ ] 6. Implement React PIXI game canvas
+- [x] 6. Implement React PIXI game canvas
 
   - Set up React PIXI application and stage
   - Create tilemap background rendering
@@ -58,7 +58,7 @@
   - Create responsive viewport and scaling system
   - _Requirements: 3.1, 3.2, 3.3, 3.5_
 
-- [ ] 7. Add game state visualization
+- [x] 7. Add game state visualization
 
   - Connect PIXI rendering to Jotai game state atoms
   - Update entity positions based on game state changes

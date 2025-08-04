@@ -26,6 +26,7 @@ pub struct CharacterDefinitionJson {
     pub id: u8,
     pub group: u8,
     pub position: [[i16; 2]; 2], // [[x_num, x_den], [y_num, y_den]]
+    pub size: [u8; 2],           // [width, height] in pixels
     pub health: u16,             // Updated from u8 to u16
     pub health_cap: u16,         // New property
     pub energy: u8,
@@ -75,6 +76,7 @@ pub struct SpawnDefinitionJson {
     pub duration: u16,
     pub element: Option<u8>, // Element as u8 value (0-8)
     pub chance: u8,          // New property
+    pub size: [u8; 2],       // [width, height] in pixels
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub behavior_script: Vec<u8>,
@@ -281,6 +283,7 @@ impl From<CharacterDefinitionJson> for Character {
         character.energy_charge_rate = json.energy_charge_rate;
 
         // Set EntityCore properties
+        character.core.size = (json.size[0], json.size[1]);
         character.core.dir = (json.dir[0], json.dir[1]);
         character.core.enmity = json.enmity;
         character.core.target_id = json.target_id;
@@ -334,6 +337,7 @@ impl From<SpawnDefinitionJson> for SpawnDefinition {
             duration: json.duration,
             element,
             chance: json.chance,
+            size: (json.size[0], json.size[1]),
             args: json.args,
             spawns: json.spawns,
             behavior_script: json.behavior_script,

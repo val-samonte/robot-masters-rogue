@@ -103,6 +103,7 @@ pub struct SpawnDefinition {
     pub duration: u16,
     pub element: Option<Element>,
     pub chance: u8,
+    pub size: (u8, u8),  // [width, height] in pixels
     pub args: [u8; 8],   // Passed when calling scripts (read-only)
     pub spawns: [u8; 4], // Spawn IDs
     pub behavior_script: Vec<u8>,

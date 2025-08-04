@@ -17,7 +17,24 @@ const BASE_WASM_CONFIG = {
   tilemap: Array(15)
     .fill(null)
     .map(() => Array(16).fill(0)), // 15x16 empty tilemap
-  spawns: [],
+  spawns: [
+    {
+      damage_base: 10,
+      damage_range: 5,
+      crit_chance: 10,
+      crit_multiplier: 150,
+      health_cap: 1,
+      duration: 300,
+      element: null,
+      chance: 100,
+      size: [8, 8], // width: 8, height: 8
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      behavior_script: [],
+      collision_script: [],
+      despawn_script: [],
+    },
+  ],
   status_effects: [],
 }
 
@@ -26,14 +43,33 @@ const BASE_WASM_CONFIG = {
  */
 export const RUN_ALWAYS_WASM_CONFIG = {
   ...BASE_WASM_CONFIG,
+  // Create tilemap with 1s as borders
+  tilemap: [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Top border
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Left/right borders
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Bottom border
+  ],
   characters: [
     {
       id: 1,
       group: 1,
       position: [
-        [160, 32],
-        [240, 32],
-      ], // Fixed-point [5.0, 7.5]
+        [16, 1], // x: 16 (fixed-point 16.0)
+        [192, 1], // y: 192 (240-16-32, fixed-point 192.0)
+      ],
+      size: [16, 32], // width: 16, height: 32
       health: 100,
       health_cap: 100,
       energy: 100,
@@ -85,6 +121,7 @@ export const JUMP_GROUNDED_WASM_CONFIG = {
         [160, 32],
         [240, 32],
       ], // Fixed-point [5.0, 7.5]
+      size: [16, 32], // width: 32, height: 32
       health: 100,
       health_cap: 100,
       energy: 100,
@@ -136,6 +173,7 @@ export const TURN_AROUND_WASM_CONFIG = {
         [160, 32],
         [240, 32],
       ], // Fixed-point [5.0, 7.5]
+      size: [16, 32], // width: 32, height: 32
       health: 100,
       health_cap: 100,
       energy: 100,
@@ -187,6 +225,7 @@ export const CHARGE_LOW_ENERGY_WASM_CONFIG = {
         [160, 32],
         [240, 32],
       ], // Fixed-point [5.0, 7.5]
+      size: [16, 32], // width: 32, height: 32
       health: 100,
       health_cap: 100,
       energy: 15, // Start with low energy
@@ -238,6 +277,7 @@ export const WALL_JUMP_WASM_CONFIG = {
         [32, 32],
         [200, 32],
       ], // Fixed-point [1.0, 6.25] - near left wall
+      size: [16, 32], // width: 32, height: 32
       health: 100,
       health_cap: 100,
       energy: 100,
@@ -289,6 +329,7 @@ export const MIXED_SCRIPTS_WASM_CONFIG = {
         [160, 32],
         [240, 32],
       ], // Fixed-point [5.0, 7.5]
+      size: [16, 32], // width: 32, height: 32
       health: 100,
       health_cap: 100,
       energy: 50,
@@ -427,6 +468,7 @@ export function createCustomWasmTestConfig(
           [160, 32],
           [240, 32],
         ], // Fixed-point [5.0, 7.5]
+        size: [16, 32], // width: 32, height: 32
         health: 100,
         health_cap: 100,
         energy: 100,
