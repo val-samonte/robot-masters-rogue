@@ -155,19 +155,38 @@ declare module 'robot-masters-wasm' {
   export interface GameConfig {
     seed: number
     tilemap: number[][] // 15x16 tilemap as nested arrays
-    characters: CharacterDefinition[]
-    actions: ActionDefinition[]
+    characters: CharacterDefinitionJson[]
+    actions: ActionDefinitionJson[]
     conditions: ConditionDefinition[]
-    spawns: SpawnDefinition[]
-    status_effects: StatusEffectDefinition[]
+    spawns: SpawnDefinitionJson[]
+    status_effects: StatusEffectDefinitionJson[]
   }
 
-  export interface CharacterDefinition {
+  /**
+   * Character definition with enhanced properties for combat and movement
+   */
+  export interface CharacterDefinitionJson {
     id: number
     group: number
-    position: [number, number] // [x, y] position as floats
+    /** Position as [[x_numerator, x_denominator], [y_numerator, y_denominator]] for deterministic Fixed-point values */
+    position: [[number, number], [number, number]]
+    /** Current health (u16 type, 0-65535) */
     health: number
+    /** Maximum health capacity (u16 type, 0-65535) */
+    health_cap: number
+    /** Current energy (u8 type, 0-255) */
     energy: number
+    /** Maximum energy capacity (u8 type, 0-255) */
+    energy_cap: number
+    /** Power stat affecting damage output (u8 type, 0-255) */
+    power: number
+    /** Weight affecting movement and physics (u8 type, 0-255) */
+    weight: number
+    /** Jump force as [numerator, denominator] for deterministic Fixed-point value */
+    jump_force: [number, number]
+    /** Movement speed as [numerator, denominator] for deterministic Fixed-point value */
+    move_speed: [number, number]
+    /** Armor values for all 9 elements */
     armor: [
       number,
       number,
@@ -178,21 +197,36 @@ declare module 'robot-masters-wasm' {
       number,
       number,
       number
-    ] // Armor values for all 9 elements
+    ]
     energy_regen: number
     energy_regen_rate: number
     energy_charge: number
     energy_charge_rate: number
-    behaviors: [number, number][] // [condition_id, action_id] pairs
+    /** Direction as [x_dir, y_dir] replacing facing and gravity_dir */
+    dir: [number, number]
+    /** Enmity level for AI targeting (u8 type, 0-255) */
+    enmity: number
+    /** Optional target entity ID */
+    target_id?: number
+    /** Target type: 1=Character, 2=Spawn */
+    target_type: number
+    /** Behavior pairs as [condition_id, action_id] */
+    behaviors: [number, number][]
   }
 
-  export interface ActionDefinition {
+  /**
+   * Action definition with simplified structure (interval and duration removed)
+   */
+  export interface ActionDefinitionJson {
+    /** Energy cost to perform this action */
     energy_cost: number
-    interval: number
-    duration: number
+    /** Cooldown period in frames before action can be used again */
     cooldown: number
+    /** Action arguments array */
     args: [number, number, number, number, number, number, number, number]
+    /** Spawn IDs that this action can create */
     spawns: [number, number, number, number]
+    /** Script bytecode for action execution */
     script: number[]
   }
 
@@ -202,26 +236,59 @@ declare module 'robot-masters-wasm' {
     script: number[]
   }
 
-  export interface SpawnDefinition {
+  /**
+   * Spawn definition with enhanced combat properties
+   */
+  export interface SpawnDefinitionJson {
+    /** Base damage value (u16 type, 0-65535) */
     damage_base: number
+    /** Damage range for random variation (u16 type, 0-65535) */
+    damage_range: number
+    /** Critical hit chance percentage (u8 type, 0-100) */
+    crit_chance: number
+    /** Critical hit damage multiplier (u8 type, 1-100) */
+    crit_multiplier: number
+    /** Maximum health for this spawn type */
     health_cap: number
+    /** Duration in frames before automatic despawn */
     duration: number
-    element?: number // Element as number value (0-8)
+    /** Element type as number value (0-8) */
+    element?: number
+    /** Application chance percentage (u8 type, 0-100) */
+    chance: number
+    /** Spawn arguments array */
     args: [number, number, number, number, number, number, number, number]
+    /** Nested spawn IDs that this spawn can create */
     spawns: [number, number, number, number]
+    /** Script for spawn behavior logic */
     behavior_script: number[]
+    /** Script for collision handling */
     collision_script: number[]
+    /** Script for despawn cleanup */
     despawn_script: number[]
   }
 
-  export interface StatusEffectDefinition {
+  /**
+   * Status effect definition with application chance
+   */
+  export interface StatusEffectDefinitionJson {
+    /** Duration in frames for this status effect */
     duration: number
+    /** Maximum number of stacks allowed */
     stack_limit: number
+    /** Whether to reset duration when stacking */
     reset_on_stack: boolean
+    /** Application chance percentage (u8 type, 0-100) */
+    chance: number
+    /** Status effect arguments array */
     args: [number, number, number, number, number, number, number, number]
+    /** Spawn IDs that this status effect can create */
     spawns: [number, number, number, number]
+    /** Script executed when status effect is applied */
     on_script: number[]
+    /** Script executed each frame while active */
     tick_script: number[]
+    /** Script executed when status effect expires */
     off_script: number[]
   }
 
@@ -238,19 +305,39 @@ declare module 'robot-masters-wasm' {
     frame: number
     seed: number
     status: GameStatus
-    characters: CharacterState[]
-    spawns: SpawnState[]
-    status_effects: StatusEffectState[]
+    characters: CharacterStateJson[]
+    spawns: SpawnStateJson[]
+    status_effects: StatusEffectStateJson[]
     tilemap: number[][]
   }
 
-  export interface CharacterState {
+  /**
+   * Character state with comprehensive properties and Fixed-point representation
+   */
+  export interface CharacterStateJson {
     id: number
     group: number
-    position: [number, number] // [x, y] as JavaScript numbers
-    velocity: [number, number] // [vx, vy] as JavaScript numbers
+    /** Position as [[x_numerator, x_denominator], [y_numerator, y_denominator]] for deterministic Fixed-point values */
+    position: [[number, number], [number, number]]
+    /** Velocity as [[vx_numerator, vx_denominator], [vy_numerator, vy_denominator]] for deterministic Fixed-point values */
+    velocity: [[number, number], [number, number]]
+    /** Current health (u16 type, 0-65535) */
     health: number
+    /** Maximum health capacity (u16 type, 0-65535) */
+    health_cap: number
+    /** Current energy (u8 type, 0-255) */
     energy: number
+    /** Maximum energy capacity (u8 type, 0-255) */
+    energy_cap: number
+    /** Power stat affecting damage output (u8 type, 0-255) */
+    power: number
+    /** Weight affecting movement and physics (u8 type, 0-255) */
+    weight: number
+    /** Jump force as [numerator, denominator] for deterministic Fixed-point value */
+    jump_force: [number, number]
+    /** Movement speed as [numerator, denominator] for deterministic Fixed-point value */
+    move_speed: [number, number]
+    /** Armor values for all 9 elements */
     armor: [
       number,
       number,
@@ -266,38 +353,91 @@ declare module 'robot-masters-wasm' {
     energy_regen_rate: number
     energy_charge: number
     energy_charge_rate: number
-    facing: number
-    gravity_dir: number
+    /** Direction as [x_dir, y_dir] replacing facing and gravity_dir */
+    dir: [number, number]
+    /** Enmity level for AI targeting (u8 type, 0-255) */
+    enmity: number
+    /** Optional target entity ID */
+    target_id?: number
+    /** Target type: 1=Character, 2=Spawn */
+    target_type: number
+    /** Entity size as [width, height] */
     size: [number, number]
-    collision: [boolean, boolean, boolean, boolean] // [top, right, bottom, left]
+    /** Collision flags as [top, right, bottom, left] */
+    collision: [boolean, boolean, boolean, boolean]
+    /** Currently locked action ID if any */
     locked_action?: number
+    /** Active status effect instance IDs */
     status_effects: number[]
-    behaviors: [number, number][] // [condition_id, action_id] pairs
+    /** Behavior pairs as [condition_id, action_id] */
+    behaviors: [number, number][]
   }
 
-  export interface SpawnState {
+  /**
+   * Spawn state with comprehensive properties and Fixed-point representation
+   */
+  export interface SpawnStateJson {
     id: number
     spawn_id: number
+    /** Owner entity ID (supports both Character and Spawn entities) */
     owner_id: number
-    position: [number, number] // [x, y] as JavaScript numbers
-    velocity: [number, number] // [vx, vy] as JavaScript numbers
-    lifespan: number
-    element?: number // Element as number value (0-8)
-    facing: number
-    gravity_dir: number
+    /** Owner type: 1=Character, 2=Spawn */
+    owner_type: number
+    /** Position as [[x_numerator, x_denominator], [y_numerator, y_denominator]] for deterministic Fixed-point values */
+    position: [[number, number], [number, number]]
+    /** Velocity as [[vx_numerator, vx_denominator], [vy_numerator, vy_denominator]] for deterministic Fixed-point values */
+    velocity: [[number, number], [number, number]]
+    /** Current health (u16 type, 0-65535) */
+    health: number
+    /** Maximum health capacity (u16 type, 0-65535) */
+    health_cap: number
+    /** Rotation as [numerator, denominator] for deterministic Fixed-point value */
+    rotation: [number, number]
+    /** Remaining lifespan in frames (renamed from lifespan) */
+    life_span: number
+    /** Element type as number value (0-8) */
+    element?: number
+    /** Direction as [x_dir, y_dir] replacing facing and gravity_dir */
+    dir: [number, number]
+    /** Enmity level for AI targeting (u8 type, 0-255) */
+    enmity: number
+    /** Optional target entity ID */
+    target_id?: number
+    /** Target type: 1=Character, 2=Spawn */
+    target_type: number
+    /** Entity size as [width, height] */
     size: [number, number]
-    collision: [boolean, boolean, boolean, boolean] // [top, right, bottom, left]
-    vars: [number, number, number, number]
-    fixed: [number, number, number, number] // Fixed-point values converted to JavaScript numbers
+    /** Collision flags as [top, right, bottom, left] */
+    collision: [boolean, boolean, boolean, boolean]
+    /** Runtime variables array (renamed from vars) */
+    runtime_vars: [number, number, number, number]
+    /** Runtime Fixed-point values as [[num1, den1], [num2, den2], [num3, den3], [num4, den4]] (renamed from fixed) */
+    runtime_fixed: [
+      [number, number],
+      [number, number],
+      [number, number],
+      [number, number]
+    ]
   }
 
-  export interface StatusEffectState {
+  /**
+   * Status effect state with renamed fields and Fixed-point representation
+   */
+  export interface StatusEffectStateJson {
     instance_id: number
     definition_id: number
-    remaining_duration: number
+    /** Remaining duration in frames (renamed from remaining_duration) */
+    life_span: number
     stack_count: number
-    vars: [number, number, number, number]
-    fixed: [number, number, number, number] // Fixed-point values converted to JavaScript numbers
+    /** Runtime variables array (renamed from vars) */
+    runtime_vars: [number, number, number, number]
+    /** Runtime Fixed-point values as [[num1, den1], [num2, den2], [num3, den3], [num4, den4]] (renamed from fixed) */
+    runtime_fixed: [
+      [number, number],
+      [number, number],
+      [number, number],
+      [number, number]
+    ]
   }
 
   export interface HealthInfo {
@@ -359,4 +499,39 @@ declare module 'robot-masters-wasm' {
     message: string
     context?: string
   }
+
+  // Type aliases for backward compatibility (deprecated - use Json suffixed versions)
+  /** @deprecated Use CharacterDefinitionJson instead */
+  export type CharacterDefinition = CharacterDefinitionJson
+  /** @deprecated Use ActionDefinitionJson instead */
+  export type ActionDefinition = ActionDefinitionJson
+  /** @deprecated Use SpawnDefinitionJson instead */
+  export type SpawnDefinition = SpawnDefinitionJson
+  /** @deprecated Use StatusEffectDefinitionJson instead */
+  export type StatusEffectDefinition = StatusEffectDefinitionJson
+  /** @deprecated Use CharacterStateJson instead */
+  export type CharacterState = CharacterStateJson
+  /** @deprecated Use SpawnStateJson instead */
+  export type SpawnState = SpawnStateJson
+  /** @deprecated Use StatusEffectStateJson instead */
+  export type StatusEffectState = StatusEffectStateJson
+
+  /**
+   * Fixed-point value representation
+   * All Fixed-point values in the game engine are represented as [numerator, denominator] pairs
+   * to maintain deterministic behavior across different platforms and JavaScript environments.
+   *
+   * Example: The value 1.5 would be represented as [3, 2] (3/2 = 1.5)
+   * Example: The value 0.25 would be represented as [1, 4] (1/4 = 0.25)
+   *
+   * This ensures exact mathematical precision and prevents floating-point rounding errors
+   * that could cause desynchronization in multiplayer or replay systems.
+   */
+  export type FixedPointPair = [number, number] // [numerator, denominator]
+
+  /**
+   * 2D Fixed-point position/velocity representation
+   * Each axis is represented as a [numerator, denominator] pair for deterministic calculations
+   */
+  export type FixedPoint2D = [[number, number], [number, number]] // [[x_num, x_den], [y_num, y_den]]
 }
