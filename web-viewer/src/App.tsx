@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import { Provider } from 'jotai'
 import { useGameState } from './hooks/useGameState'
+import { useGameLoop } from './hooks/useGameLoop'
 import { ConfigurationLoader } from './components/ConfigurationLoader'
 import { DebugPanel } from './components/DebugPanel'
 import { GameCanvas } from './components/GameCanvas'
+import { GameControls } from './components/GameControls'
 import { setupScriptTestRunner } from './tests/testRunner'
 import { setupScriptIntegrationTests } from './tests/scriptIntegrationTest'
 
@@ -16,6 +18,9 @@ function GameViewer() {
     characters,
     spawns,
   } = useGameState()
+
+  // Initialize the 60fps game loop
+  const { currentFps, isRunning } = useGameLoop()
 
   // Setup script testing tools on component mount
   useEffect(() => {
@@ -104,6 +109,11 @@ function GameViewer() {
                 <div>Status: {gameState.status}</div>
                 <div>Characters: {characters.length}</div>
                 <div>Spawns: {spawns.length}</div>
+                {isRunning && (
+                  <div className="text-green-600 font-medium">
+                    Running at {currentFps || 60} FPS
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -119,8 +129,9 @@ function GameViewer() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <ConfigurationLoader />
+          <GameControls />
           <DebugPanel />
         </div>
       </div>

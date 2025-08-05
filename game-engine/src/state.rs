@@ -110,11 +110,11 @@ impl GameState {
         // 2. Execute character behaviors
         self.process_character_behaviors()?;
 
-        // 3. Update physics
-        self.update_physics()?;
+        // 3. Check collisions and constrain velocity
+        self.check_and_constrain_movement()?;
 
-        // 4. Handle collisions
-        self.process_collisions()?;
+        // 4. Update physics (apply velocity to position)
+        self.update_physics()?;
 
         // 5. Clean up expired entities
         self.cleanup_entities()?;
@@ -466,6 +466,7 @@ impl GameState {
 
             // Evaluate condition
             let condition_result = self.evaluate_condition(character_idx, condition_id)?;
+
             if condition_result == 0 {
                 continue; // Condition failed, try next behavior
             }
@@ -631,12 +632,58 @@ impl GameState {
     }
 
     fn update_physics(&mut self) -> GameResult<()> {
-        // Will be implemented in physics task
+        // Apply velocity to position for all characters
+        for character in &mut self.characters {
+            crate::physics::PhysicsSystem::update_position(&mut character.core);
+        }
+
+        // Apply velocity to position for all spawns
+        for spawn in &mut self.spawn_instances {
+            crate::physics::PhysicsSystem::update_position(&mut spawn.core);
+        }
+
         Ok(())
     }
 
-    fn process_collisions(&mut self) -> GameResult<()> {
-        // Will be implemented in collision task
+    fn check_and_constrain_movement(&mut self) -> GameResult<()> {
+        // Check collisions and constrain movement for characters
+        for character in &mut self.characters {
+            let collision_result = self.tile_map.check_collision(&character.core);
+
+            // Apply collision constraints to movement BEFORE updating position
+            crate::physics::PhysicsSystem::apply_collision_constraints(
+                &mut character.core,
+                &collision_result,
+            );
+
+            // Update collision flags for reference
+            character.core.collision = (
+                collision_result.top,
+                collision_result.right,
+                collision_result.bottom,
+                collision_result.left,
+            );
+        }
+
+        // Check collisions and constrain movement for spawns
+        for spawn in &mut self.spawn_instances {
+            let collision_result = self.tile_map.check_collision(&spawn.core);
+
+            // Apply collision constraints to movement BEFORE updating position
+            crate::physics::PhysicsSystem::apply_collision_constraints(
+                &mut spawn.core,
+                &collision_result,
+            );
+
+            // Update collision flags for reference
+            spawn.core.collision = (
+                collision_result.top,
+                collision_result.right,
+                collision_result.bottom,
+                collision_result.left,
+            );
+        }
+
         Ok(())
     }
 
@@ -1186,6 +1233,18 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                     // Move Speed (Fixed) - read from fixed array
                     if var_index < engine.fixed.len() {
                         character.move_speed = engine.fixed[var_index];
+                    }
+                }
+                property_address::CHARACTER_VEL_X => {
+                    // Velocity X (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.core.vel.0 = engine.fixed[var_index];
+                    }
+                }
+                property_address::CHARACTER_VEL_Y => {
+                    // Velocity Y (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.core.vel.1 = engine.fixed[var_index];
                     }
                 }
                 _ => {}

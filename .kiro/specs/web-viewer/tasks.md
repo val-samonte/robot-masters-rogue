@@ -67,7 +67,7 @@
   - Implement real-time state updates during game execution
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3_
 
-- [ ] 8. Create basic game controls and 60fps game loop
+- [x] 8. Create basic game controls and 60fps game loop
 
   - Implement 60fps game loop using requestAnimationFrame or PIXI ticker
   - Add play/pause/step functionality to control game execution
@@ -78,7 +78,39 @@
   - Ensure smooth real-time game state updates and rendering
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 9. Add responsive design and performance optimization
+- [ ] 9. Implement global gravity system
+
+  - Add global gravity as Fixed type to GameState with default value (e.g., Fixed::from_int(1) for downward)
+  - Implement GAME_GRAVITY property accessor with both READ and WRITE access in script property system
+  - Enable scripts to dynamically modify gravity during gameplay (e.g., gravity wells, anti-gravity zones)
+  - Add gravity application in physics update loop - apply to entity velocity each frame
+  - Implement gravity direction system using existing dir.1 (vertical direction) property:
+    - dir.1 = 0: Downward gravity (multiply game_gravity by +1.0)
+    - dir.1 = 1: Neutral gravity (multiply game_gravity by 0.0 - no gravity effect)
+    - dir.1 = 2: Upward gravity (multiply game_gravity by -1.0 - inverted)
+  - Apply gravity calculation: entity_velocity.y += game_state.gravity \* gravity_multiplier
+  - Ensure both characters and spawns use the same dir.1 system for gravity control
+  - Characters default to dir.1 = 0 (affected by downward gravity)
+  - Spawns default to dir.1 = 1 (neutral - not affected by gravity)
+  - Support inverted gravity (negative Fixed values for upward gravity)
+  - Add gravity field to game configuration interface for initial setup
+  - Document gravity direction system in code comments and constants file:
+    - Document dir.1 values: 0=downward, 1=neutral, 2=upward
+    - Document gravity calculation formula: velocity.y += gravity \* direction_multiplier
+    - Document default values: characters=0 (downward), spawns=1 (neutral)
+  - _Requirements: Core physics functionality for realistic movement_
+
+- [ ] 10. Fix collision detection and wall constraints
+
+  - Fix collision detection to properly prevent movement into walls
+  - Ensure collision detection works for all directions (top, right, bottom, left)
+  - Implement proper collision response that stops entities at wall boundaries
+  - Fix position correction when entities are pushed into walls
+  - Test collision detection with different entity sizes and positions
+  - Verify entities cannot pass through tilemap boundaries
+  - _Requirements: Core physics functionality for proper game boundaries_
+
+- [ ] 11. Add responsive design and performance optimization
 
   - Implement responsive layout for different screen sizes
   - Optimize PIXI rendering for 60 FPS performance
@@ -87,7 +119,7 @@
   - Test performance with large configurations
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 10. Implement export and sharing functionality
+- [ ] 12. Implement export and sharing functionality
 
   - Add configuration export to JSON file
   - Implement game state export functionality
@@ -96,7 +128,7 @@
   - Validate exported data for re-import compatibility
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 11. Add comprehensive error handling and debugging features
+- [ ] 13. Add comprehensive error handling and debugging features
 
   - Implement detailed error display with context
   - Add game state inspection tools
@@ -105,7 +137,7 @@
   - Implement error recovery mechanisms
   - _Requirements: 4.4, 4.5, 1.5_
 
-- [ ] 12. Polish and testing
+- [ ] 14. Polish and testing
 
   - Add comprehensive unit tests for remaining components
   - Test WASM integration and error handling

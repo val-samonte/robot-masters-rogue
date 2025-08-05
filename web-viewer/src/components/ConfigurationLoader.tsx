@@ -7,9 +7,11 @@ import {
   type ConditionScriptType,
 } from '../constants/scriptConstants'
 import {
-  WASM_TEST_CONFIGURATIONS,
-  type WasmTestConfigurationType,
-} from '../tests/wasmTestConfigurations'
+  GAME_CONFIGS,
+  type GameConfigType,
+  getGameConfig,
+  getAvailableConfigs,
+} from '../config/gameConfigs'
 
 interface ValidationError {
   field: string
@@ -138,8 +140,8 @@ export const ConfigurationLoader: React.FC = () => {
     }
   }
 
-  const loadTestConfiguration = (configName: WasmTestConfigurationType) => {
-    const config = WASM_TEST_CONFIGURATIONS[configName]
+  const loadTestConfiguration = (configName: GameConfigType) => {
+    const config = getGameConfig(configName)
     setConfigText(JSON.stringify(config, null, 2))
     setValidationErrors([])
     setLoadError('')
@@ -325,20 +327,17 @@ export const ConfigurationLoader: React.FC = () => {
             <select
               onChange={(e) =>
                 e.target.value &&
-                loadTestConfiguration(
-                  e.target.value as WasmTestConfigurationType
-                )
+                loadTestConfiguration(e.target.value as GameConfigType)
               }
               className="px-3 py-1 text-sm border border-gray-300 rounded"
               defaultValue=""
             >
               <option value="">Load Test Config...</option>
-              <option value="RUN_ALWAYS">Run Always</option>
-              <option value="TURN_AROUND">Turn Around</option>
-              <option value="JUMP_GROUNDED">Jump When Grounded</option>
-              <option value="WALL_JUMP">Wall Jump</option>
-              <option value="CHARGE_LOW_ENERGY">Charge Low Energy</option>
-              <option value="MIXED_SCRIPTS">Mixed Scripts</option>
+              {getAvailableConfigs().map((configName) => (
+                <option key={configName} value={configName}>
+                  {configName.replace(/_/g, ' ').toLowerCase()}
+                </option>
+              ))}
             </select>
           </div>
         </div>

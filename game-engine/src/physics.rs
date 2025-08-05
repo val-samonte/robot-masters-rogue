@@ -36,52 +36,82 @@ impl Tilemap {
     /// Check collision between entity and tilemap
     pub fn check_collision(&self, entity: &EntityCore) -> CollisionResult {
         let (x, y) = entity.pos;
+        let (vx, vy) = entity.vel;
         let (width, height) = entity.size;
 
-        // Convert pixel coordinates to tile coordinates
-        let left_tile = (x.to_int() / 16) as usize;
-        let right_tile = ((x.to_int() + width as i32) / 16) as usize;
-        let top_tile = (y.to_int() / 16) as usize;
-        let bottom_tile = ((y.to_int() + height as i32) / 16) as usize;
+        // Calculate next position
+        let next_x = x.add(vx);
+        let next_y = y.add(vy);
+
+        // Convert current and next pixel coordinates to tile coordinates
+        let current_left = (x.to_int() / 16) as usize;
+        let current_right = ((x.to_int() + width as i32 - 1) / 16) as usize;
+        let current_top = (y.to_int() / 16) as usize;
+        let current_bottom = ((y.to_int() + height as i32 - 1) / 16) as usize;
+
+        let next_left = (next_x.to_int() / 16) as usize;
+        let next_right = ((next_x.to_int() + width as i32 - 1) / 16) as usize;
+        let next_top = (next_y.to_int() / 16) as usize;
+        let next_bottom = ((next_y.to_int() + height as i32 - 1) / 16) as usize;
 
         let mut result = CollisionResult::default();
 
-        // Check collision on each side if enabled
-        if entity.collision.0 {
-            // top
-            for tx in left_tile..=right_tile {
-                if self.get_tile(tx, top_tile) == TileType::Block {
-                    result.top = true;
+        // Check collision only if moving in that direction and collision is enabled
+        if entity.collision.0 && vy.to_int() < 0 {
+            // Moving up - check if next position would collide with tiles above
+            for tx in next_left..=next_right {
+                for ty in next_top..=current_top.saturating_sub(1) {
+                    if self.get_tile(tx, ty) == TileType::Block {
+                        result.top = true;
+                        break;
+                    }
+                }
+                if result.top {
                     break;
                 }
             }
         }
 
-        if entity.collision.1 {
-            // right
-            for ty in top_tile..=bottom_tile {
-                if self.get_tile(right_tile, ty) == TileType::Block {
-                    result.right = true;
+        if entity.collision.1 && vx.to_int() > 0 {
+            // Moving right - check if next position would collide with tiles to the right
+            for ty in next_top..=next_bottom {
+                for tx in current_right.saturating_add(1)..=next_right {
+                    if self.get_tile(tx, ty) == TileType::Block {
+                        result.right = true;
+                        break;
+                    }
+                }
+                if result.right {
                     break;
                 }
             }
         }
 
-        if entity.collision.2 {
-            // bottom
-            for tx in left_tile..=right_tile {
-                if self.get_tile(tx, bottom_tile) == TileType::Block {
-                    result.bottom = true;
+        if entity.collision.2 && vy.to_int() > 0 {
+            // Moving down - check if next position would collide with tiles below
+            for tx in next_left..=next_right {
+                for ty in current_bottom.saturating_add(1)..=next_bottom {
+                    if self.get_tile(tx, ty) == TileType::Block {
+                        result.bottom = true;
+                        break;
+                    }
+                }
+                if result.bottom {
                     break;
                 }
             }
         }
 
-        if entity.collision.3 {
-            // left
-            for ty in top_tile..=bottom_tile {
-                if self.get_tile(left_tile, ty) == TileType::Block {
-                    result.left = true;
+        if entity.collision.3 && vx.to_int() < 0 {
+            // Moving left - check if next position would collide with tiles to the left
+            for ty in next_top..=next_bottom {
+                for tx in next_left..=current_left.saturating_sub(1) {
+                    if self.get_tile(tx, ty) == TileType::Block {
+                        result.left = true;
+                        break;
+                    }
+                }
+                if result.left {
                     break;
                 }
             }
@@ -118,6 +148,7 @@ impl PhysicsSystem {
 
     /// Apply collision constraints to entity movement
     pub fn apply_collision_constraints(entity: &mut EntityCore, collision: &CollisionResult) {
+        // Only stop movement if there's actually a collision in the direction of movement
         if collision.left && entity.vel.0.to_int() < 0 {
             entity.vel.0 = Fixed::ZERO;
         }

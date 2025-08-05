@@ -304,7 +304,7 @@ impl EntityCore {
             group,
             pos: (Fixed::ZERO, Fixed::ZERO),
             vel: (Fixed::ZERO, Fixed::ZERO),
-            size: (16, 16), // Default 16x16 pixel size
+            size: (0, 0), // Size will be set from configuration
             collision: (true, true, true, true),
             dir: (1, 1),     // Default to right (1) and downward (1)
             enmity: 0,       // Default enmity

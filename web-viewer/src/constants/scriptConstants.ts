@@ -127,17 +127,10 @@ export const ACTION_SCRIPTS = {
   RUN: [
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read facing direction (0=left, 1=right)
-    OperatorAddress.READ_PROP,
-    1,
     PropertyAddress.CHARACTER_MOVE_SPEED, // Read character's move speed (fixed-point)
-    OperatorAddress.MUL,
-    2,
-    1,
-    0, // Multiply speed by facing direction -> fixed[2]
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_X,
-    2, // Write result to velocity X
+    0, // Write move speed directly to velocity X (assumes facing right)
     OperatorAddress.EXIT,
     0,
   ],
