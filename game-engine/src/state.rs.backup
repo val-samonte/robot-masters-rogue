@@ -883,25 +883,8 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                         engine.fixed[var_index] = character.move_speed;
                     }
                 }
-                property_address::ENTITY_DIR_VERTICAL => {
-                    // Vertical direction (u8) - store in vars array
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = character.core.dir.1;
-                    }
-                }
                 _ => {}
             }
-        }
-
-        // Handle game state properties that don't require character context
-        match prop_address {
-            property_address::GAME_GRAVITY => {
-                // Game gravity (Fixed) - store in fixed array
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.game_state.gravity;
-                }
-            }
-            _ => {}
         }
     }
 
@@ -980,25 +963,8 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                         character.move_speed = engine.fixed[var_index];
                     }
                 }
-                property_address::ENTITY_DIR_VERTICAL => {
-                    // Vertical direction (u8) - read from vars array
-                    if var_index < engine.vars.len() {
-                        character.core.dir.1 = engine.vars[var_index];
-                    }
-                }
                 _ => {}
             }
-        }
-
-        // Handle game state properties that don't require character context
-        match prop_address {
-            property_address::GAME_GRAVITY => {
-                // Game gravity (Fixed) - read from fixed array
-                if var_index < engine.fixed.len() {
-                    self.game_state.gravity = engine.fixed[var_index];
-                }
-            }
-            _ => {}
         }
     }
 
@@ -1251,25 +1217,8 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                         engine.fixed[var_index] = character.move_speed;
                     }
                 }
-                property_address::ENTITY_DIR_VERTICAL => {
-                    // Vertical direction (u8) - store in vars array
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = character.core.dir.1;
-                    }
-                }
                 _ => {}
             }
-        }
-
-        // Handle game state properties that don't require character context
-        match prop_address {
-            property_address::GAME_GRAVITY => {
-                // Game gravity (Fixed) - store in fixed array
-                if var_index < engine.fixed.len() {
-                    engine.fixed[var_index] = self.game_state.gravity;
-                }
-            }
-            _ => {}
         }
     }
 
@@ -1360,25 +1309,8 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                         character.core.vel.1 = engine.fixed[var_index];
                     }
                 }
-                property_address::ENTITY_DIR_VERTICAL => {
-                    // Vertical direction (u8) - read from vars array
-                    if var_index < engine.vars.len() {
-                        character.core.dir.1 = engine.vars[var_index];
-                    }
-                }
                 _ => {}
             }
-        }
-
-        // Handle game state properties that don't require character context
-        match prop_address {
-            property_address::GAME_GRAVITY => {
-                // Game gravity (Fixed) - read from fixed array
-                if var_index < engine.fixed.len() {
-                    self.game_state.gravity = engine.fixed[var_index];
-                }
-            }
-            _ => {}
         }
     }
 

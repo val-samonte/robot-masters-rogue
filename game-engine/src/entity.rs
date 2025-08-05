@@ -306,7 +306,7 @@ impl EntityCore {
             vel: (Fixed::ZERO, Fixed::ZERO),
             size: (0, 0), // Size will be set from configuration
             collision: (true, true, true, true),
-            dir: (1, 1),     // Default to right (1) and downward (1)
+            dir: (1, 0),     // Default to right (1) and downward gravity (0)
             enmity: 0,       // Default enmity
             target_id: None, // No target initially
             target_type: 0,  // No target type initially
@@ -331,21 +331,30 @@ impl EntityCore {
         }
     }
 
-    /// Get gravity direction as Fixed value (-1.0 for upward, 1.0 for downward)
-    pub fn get_gravity_dir(&self) -> Fixed {
-        if self.dir.1 == 0 {
-            Fixed::from_int(-1) // Upward
-        } else {
-            Fixed::from_int(1) // Downward
+    /// Get gravity multiplier based on dir.1 value
+    /// dir.1 = 0: Downward gravity (multiply by +1.0)
+    /// dir.1 = 1: Neutral gravity (multiply by 0.0 - no gravity effect)  
+    /// dir.1 = 2: Upward gravity (multiply by -1.0 - inverted)
+    pub fn get_gravity_multiplier(&self) -> Fixed {
+        match self.dir.1 {
+            0 => Fixed::from_int(1),  // Downward gravity
+            1 => Fixed::ZERO,         // Neutral - no gravity effect
+            2 => Fixed::from_int(-1), // Upward gravity (inverted)
+            _ => Fixed::ZERO,         // Invalid value defaults to neutral
         }
     }
 
-    /// Set gravity direction from Fixed value (-1.0 → upward, 1.0 → downward)
-    pub fn set_gravity_dir(&mut self, value: Fixed) {
-        if value < Fixed::ZERO {
-            self.dir.1 = 0; // Upward
+    /// Set gravity direction from multiplier value
+    /// +1.0 → downward (dir.1 = 0)
+    /// 0.0 → neutral (dir.1 = 1)
+    /// -1.0 → upward (dir.1 = 2)
+    pub fn set_gravity_direction(&mut self, multiplier: Fixed) {
+        if multiplier > Fixed::ZERO {
+            self.dir.1 = 0; // Downward
+        } else if multiplier < Fixed::ZERO {
+            self.dir.1 = 2; // Upward
         } else {
-            self.dir.1 = 1; // Downward
+            self.dir.1 = 1; // Neutral
         }
     }
 }
@@ -354,6 +363,7 @@ impl SpawnInstance {
     pub fn new(spawn_id: SpawnLookupId, owner_id: EntityId, pos: (Fixed, Fixed)) -> Self {
         let mut core = EntityCore::new(0, 0); // ID will be assigned by game state
         core.pos = pos;
+        core.dir.1 = 1; // Spawns default to neutral gravity (not affected by gravity)
 
         Self {
             core,
@@ -378,6 +388,7 @@ impl SpawnInstance {
     ) -> Self {
         let mut core = EntityCore::new(0, 0); // ID will be assigned by game state
         core.pos = pos;
+        core.dir.1 = 1; // Spawns default to neutral gravity (not affected by gravity)
 
         Self {
             core,

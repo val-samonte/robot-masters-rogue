@@ -3,6 +3,17 @@
  *
  * Predefined script templates for common actions and conditions.
  * These constants provide easy-to-use bytecode arrays for testing different character behaviors.
+ *
+ * GRAVITY DIRECTION SYSTEM:
+ * The ENTITY_DIR_VERTICAL property controls how gravity affects entities:
+ * - dir.1 = 0: Downward gravity (multiply game_gravity by +1.0) - DEFAULT for characters
+ * - dir.1 = 1: Neutral gravity (multiply game_gravity by 0.0 - no gravity effect) - DEFAULT for spawns
+ * - dir.1 = 2: Upward gravity (multiply game_gravity by -1.0 - inverted)
+ *
+ * Gravity calculation: entity_velocity.y += game_state.gravity * gravity_multiplier
+ *
+ * Characters default to dir.1 = 0 (affected by downward gravity)
+ * Spawns default to dir.1 = 1 (neutral - not affected by gravity)
  */
 
 // Constants imported from wasm-wrapper project to avoid magic numbers

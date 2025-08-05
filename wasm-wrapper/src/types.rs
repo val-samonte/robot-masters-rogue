@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GameConfig {
     pub seed: u16,
-    pub tilemap: Vec<Vec<u8>>, // 15x16 tilemap as nested arrays
+    pub gravity: Option<[i16; 2]>, // Optional gravity as [numerator, denominator], defaults to [1, 1] (downward)
+    pub tilemap: Vec<Vec<u8>>,     // 15x16 tilemap as nested arrays
     pub characters: Vec<CharacterDefinitionJson>,
     pub actions: Vec<ActionDefinitionJson>,
     pub conditions: Vec<ConditionDefinitionJson>,
@@ -110,6 +111,17 @@ impl GameConfig {
     /// Validate the complete game configuration
     pub fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
+
+        // Validate gravity field if present
+        if let Some(gravity) = &self.gravity {
+            if gravity[1] == 0 {
+                errors.push(ValidationError {
+                    field: "gravity".to_string(),
+                    message: "Gravity denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+        }
 
         // Validate tilemap dimensions
         if self.tilemap.len() != 15 {
@@ -396,6 +408,7 @@ pub fn convert_tilemap(json_tilemap: &[Vec<u8>]) -> Result<[[u8; 16]; 15], Valid
 pub struct GameStateJson {
     pub frame: u16,
     pub seed: u16,
+    pub gravity: [i16; 2], // Gravity as [numerator, denominator]
     pub status: String,
     pub characters: Vec<CharacterStateJson>,
     pub spawns: Vec<SpawnStateJson>,
@@ -489,6 +502,7 @@ impl GameStateJson {
         Self {
             frame: game_state.frame,
             seed: game_state.seed,
+            gravity: [game_state.gravity.numer(), game_state.gravity.denom()],
             status: match game_state.status {
                 robot_masters_engine::state::GameStatus::Playing => "playing".to_string(),
                 robot_masters_engine::state::GameStatus::Ended => "ended".to_string(),

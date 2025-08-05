@@ -78,7 +78,7 @@
   - Ensure smooth real-time game state updates and rendering
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 9. Implement global gravity system
+- [x] 9. Implement global gravity system
 
   - Add global gravity as Fixed type to GameState with default value (e.g., Fixed::from_int(1) for downward)
   - Implement GAME_GRAVITY property accessor with both READ and WRITE access in script property system

@@ -205,11 +205,11 @@ mod tests {
         let entity_core = EntityCore::new(10, 5);
 
         // Test that facing and gravity_dir are combined into dir tuple
-        assert_eq!(entity_core.dir, (1, 1)); // Default: right (1) and downward (1)
+        assert_eq!(entity_core.dir, (1, 0)); // Default: right (1) and downward gravity (0)
 
         // Test helper methods for direction access
         assert_eq!(entity_core.get_facing(), Fixed::from_int(1)); // Right
-        assert_eq!(entity_core.get_gravity_dir(), Fixed::from_int(1)); // Downward
+        assert_eq!(entity_core.get_gravity_multiplier(), Fixed::from_int(1)); // Downward gravity multiplier
     }
 
     #[test]
@@ -218,11 +218,11 @@ mod tests {
 
         // Test direction modification through helper methods
         entity_core.set_facing(Fixed::from_int(-1)); // Left
-        entity_core.set_gravity_dir(Fixed::from_int(-1)); // Upward
+        entity_core.set_gravity_direction(Fixed::from_int(-1)); // Upward
 
-        assert_eq!(entity_core.dir, (0, 0)); // Left (0) and upward (0)
+        assert_eq!(entity_core.dir, (0, 2)); // Left (0) and upward (2)
         assert_eq!(entity_core.get_facing(), Fixed::from_int(-1));
-        assert_eq!(entity_core.get_gravity_dir(), Fixed::from_int(-1));
+        assert_eq!(entity_core.get_gravity_multiplier(), Fixed::from_int(-1));
     }
 
     #[test]
@@ -253,9 +253,9 @@ mod tests {
         assert_eq!(entity_core.group, 8);
         assert_eq!(entity_core.pos, (Fixed::ZERO, Fixed::ZERO));
         assert_eq!(entity_core.vel, (Fixed::ZERO, Fixed::ZERO));
-        assert_eq!(entity_core.size, (16, 16)); // Default 16x16 pixel size
+        assert_eq!(entity_core.size, (0, 0)); // Size will be set from configuration
         assert_eq!(entity_core.collision, (true, true, true, true));
-        assert_eq!(entity_core.dir, (1, 1)); // Right and downward
+        assert_eq!(entity_core.dir, (1, 0)); // Right (1) and downward gravity (0)
         assert_eq!(entity_core.enmity, 0);
         assert_eq!(entity_core.target_id, None);
         assert_eq!(entity_core.target_type, 0);
