@@ -134,14 +134,34 @@ export const ACTION_SCRIPTS = {
   /**
    * Run action - moves character horizontally based on facing direction
    * Uses CHARACTER_MOVE_SPEED * facing direction for movement
+   * Properly handles left (0) and right (1) facing directions
    */
   RUN: [
     OperatorAddress.READ_PROP,
     0,
     PropertyAddress.CHARACTER_MOVE_SPEED, // Read character's move speed (fixed-point)
+    OperatorAddress.READ_PROP,
+    1,
+    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read facing direction (0=left, 1=right)
+    OperatorAddress.EQUAL,
+    2,
+    1,
+    1, // Check if facing right (1) -> var[2] = 1 if facing right
+    OperatorAddress.SKIP,
+    3,
+    2, // If facing right, skip to positive velocity write
+    // Facing left - use negative speed
+    OperatorAddress.NEGATE,
+    0, // Negate the speed for left movement
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_X,
-    0, // Write move speed directly to velocity X (assumes facing right)
+    0, // Write negative speed for left movement
+    OperatorAddress.EXIT,
+    0,
+    // Facing right - use positive speed
+    OperatorAddress.WRITE_PROP,
+    PropertyAddress.CHARACTER_VEL_X,
+    0, // Write positive speed for right movement
     OperatorAddress.EXIT,
     0,
   ],
@@ -157,35 +177,52 @@ export const ACTION_SCRIPTS = {
     OperatorAddress.EQUAL,
     1,
     0,
-    0, // Check if facing left (0)
+    0, // Check if facing left (0) -> var[1] = 1 if facing left
+    OperatorAddress.SKIP,
+    3,
+    1, // If facing left, skip to set right
+    // Facing right - set to left (0)
     OperatorAddress.ASSIGN_BYTE,
     2,
-    1, // If left, set to right (1)
+    0, // Set to left (0)
+    OperatorAddress.SKIP,
+    2,
+    0, // Skip the set right section
+    // Facing left - set to right (1)
     OperatorAddress.ASSIGN_BYTE,
-    3,
-    0, // If right, set to left (0)
+    2,
+    1, // Set to right (1)
     OperatorAddress.WRITE_PROP,
     PropertyAddress.ENTITY_DIR_HORIZONTAL,
-    1, // Write new facing direction
+    2, // Write new facing direction
     OperatorAddress.EXIT,
     0,
   ],
 
   /**
-   * Jump action - applies upward velocity if character has energy
+   * Jump action - applies upward velocity if character has energy and is grounded
    * Uses CHARACTER_JUMP_FORCE property, applies energy cost
+   * Only works when character is touching the ground (bottom collision)
    */
   JUMP: [
+    OperatorAddress.READ_PROP,
+    0,
+    PropertyAddress.CHARACTER_COLLISION_BOTTOM, // Check if grounded
+    OperatorAddress.SKIP,
+    4,
+    0, // If grounded (var[0] = 1), skip exit and energy check
+    OperatorAddress.EXIT,
+    5, // Exit with flag 5 if not grounded
     OperatorAddress.EXIT_IF_NO_ENERGY,
     10, // Exit if no energy with flag 10
     OperatorAddress.READ_PROP,
-    0,
+    1,
     PropertyAddress.CHARACTER_JUMP_FORCE, // Read character's jump force (fixed-point)
     OperatorAddress.NEGATE,
-    0, // Make it negative for upward velocity
+    1, // Make it negative for upward velocity
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_Y,
-    0, // Write jump velocity to Y
+    1, // Write jump velocity to Y
     OperatorAddress.APPLY_ENERGY_COST,
     OperatorAddress.EXIT,
     0,
@@ -193,43 +230,83 @@ export const ACTION_SCRIPTS = {
 
   /**
    * Wall jump action - jumps off walls when touching them
-   * Uses 50% of CHARACTER_JUMP_FORCE for vertical force, CHARACTER_MOVE_SPEED for horizontal force
+   * Uses 75% of CHARACTER_JUMP_FORCE for vertical force, CHARACTER_MOVE_SPEED for horizontal force
+   * Pushes away from the wall being touched (left wall = jump right, right wall = jump left)
+   * Only works when not grounded (wall sliding) and touching a wall
    */
   WALL_JUMP: [
+    // Check if grounded - if so, exit
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.CHARACTER_COLLISION_LEFT, // Check left wall collision
+    PropertyAddress.CHARACTER_COLLISION_BOTTOM, // Check if grounded
+    OperatorAddress.SKIP,
+    2,
+    0, // If not grounded (0), continue
+    OperatorAddress.EXIT,
+    20, // Exit with flag 20 if grounded
+
+    // Check if touching left or right wall
     OperatorAddress.READ_PROP,
     1,
+    PropertyAddress.CHARACTER_COLLISION_LEFT, // Check left wall collision
+    OperatorAddress.READ_PROP,
+    2,
     PropertyAddress.CHARACTER_COLLISION_RIGHT, // Check right wall collision
     OperatorAddress.OR,
+    3,
+    1,
+    2, // Check if touching either wall
+    OperatorAddress.SKIP,
     2,
-    0,
-    1, // Check if touching either wall
+    3, // If touching wall, continue
+    OperatorAddress.EXIT,
+    21, // Exit with flag 21 if not touching wall
+
     OperatorAddress.EXIT_IF_NO_ENERGY,
     15, // Exit if no energy with flag 15
+
+    // Calculate and apply vertical velocity (75% of jump force)
     OperatorAddress.READ_PROP,
     0,
     PropertyAddress.CHARACTER_JUMP_FORCE, // Read character's jump force (fixed-point)
     OperatorAddress.ASSIGN_FIXED,
     1,
-    1,
-    2, // Assign 0.5 (1/2) to fixed[1]
+    3,
+    4, // Assign 0.75 (3/4) to fixed[1]
     OperatorAddress.MUL,
     2,
     0,
-    1, // Multiply jump force by 0.5 -> fixed[2]
+    1, // Multiply jump force by 0.75 -> fixed[2]
     OperatorAddress.NEGATE,
     2, // Make negative for upward velocity
-    OperatorAddress.READ_PROP,
-    1,
-    PropertyAddress.CHARACTER_MOVE_SPEED, // Read character's move speed (fixed-point)
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_Y,
-    2, // Write reduced vertical velocity (fixed-point)
+    2, // Write vertical velocity (upward)
+
+    // Calculate horizontal velocity based on which wall is touched
+    OperatorAddress.READ_PROP,
+    3,
+    PropertyAddress.CHARACTER_MOVE_SPEED, // Read character's move speed (fixed-point)
+    OperatorAddress.READ_PROP,
+    4,
+    PropertyAddress.CHARACTER_COLLISION_LEFT, // Check left wall collision
+    OperatorAddress.SKIP,
+    4,
+    4, // If not touching left wall, check right wall
+    // Touching left wall - jump right (positive velocity)
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_X,
-    1, // Write horizontal velocity (fixed-point)
+    3, // Write positive horizontal velocity
+    OperatorAddress.SKIP,
+    3,
+    0, // Skip the negative velocity section
+    // Touching right wall - jump left (negative velocity)
+    OperatorAddress.NEGATE,
+    3, // Make speed negative for left movement
+    OperatorAddress.WRITE_PROP,
+    PropertyAddress.CHARACTER_VEL_X,
+    3, // Write negative horizontal velocity
+
     OperatorAddress.APPLY_ENERGY_COST,
     OperatorAddress.EXIT,
     0,

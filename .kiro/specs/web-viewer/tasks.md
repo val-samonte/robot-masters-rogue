@@ -110,38 +110,14 @@
   - Verify entities cannot pass through tilemap boundaries
   - _Requirements: Core physics functionality for proper game boundaries_
 
-- [ ] 11. Add responsive design and performance optimization
+- [-] 11. Update movement actions to work with fixed collision detection and gravity
 
-  - Implement responsive layout for different screen sizes
-  - Optimize PIXI rendering for 60 FPS performance
-  - Add proper cleanup and memory management
-  - Implement efficient state updates and batching
-  - Test performance with large configurations
-  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
-
-- [ ] 12. Implement export and sharing functionality
-
-  - Add configuration export to JSON file
-  - Implement game state export functionality
-  - Create shareable URL generation with embedded configurations
-  - Add URL-based configuration loading
-  - Validate exported data for re-import compatibility
-  - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
-
-- [ ] 13. Add comprehensive error handling and debugging features
-
-  - Implement detailed error display with context
-  - Add game state inspection tools
-  - Create debugging information panels
-  - Add validation for script templates and configurations
-  - Implement error recovery mechanisms
-  - _Requirements: 4.4, 4.5, 1.5_
-
-- [ ] 14. Polish and testing
-
-  - Add comprehensive unit tests for remaining components
-  - Test WASM integration and error handling
-  - Validate PIXI rendering performance
-  - Test responsive design across devices
-  - Add documentation and usage examples
-  - _Requirements: 1.5, 5.1, 5.2, 5.3, 5.4, 5.5_
+  - Update jump action script to work properly with the new gravity system
+  - Fix wall jump action to detect walls correctly using the updated collision detection
+  - Ensure all movement actions (run, jump, wall jump) respect collision boundaries
+  - Test that jump actions apply proper upward velocity that gets correctly modified by gravity
+  - Verify wall jump detects wall collision flags properly (left/right collision detection)
+  - Update action scripts to use proper velocity values that work with Fixed-point arithmetic
+  - Test movement actions with different gravity values and directions
+  - Ensure actions work correctly with position correction system
+  - _Requirements: Core movement functionality that works with updated physics system_

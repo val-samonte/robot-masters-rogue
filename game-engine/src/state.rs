@@ -553,7 +553,7 @@ impl GameState {
     }
 
     /// Execute an action for a character
-    fn execute_action(
+    pub fn execute_action(
         &mut self,
         character_idx: usize,
         action_id: ActionId,

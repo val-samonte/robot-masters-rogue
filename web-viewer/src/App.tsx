@@ -125,13 +125,17 @@ function GameViewer() {
                 Game View
               </h2>
               <GameCanvas />
+
+              {/* Game Controls directly below canvas */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <GameControls />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ConfigurationLoader />
-          <GameControls />
           <DebugPanel />
         </div>
       </div>

@@ -326,10 +326,21 @@ export const ConfigurationLoader: React.FC = () => {
               Script Builder
             </button>
             <select
-              onChange={(e) =>
-                e.target.value &&
-                loadTestConfiguration(e.target.value as GameConfigType)
-              }
+              onChange={(e) => {
+                if (e.target.value) {
+                  const configName = e.target.value as GameConfigType
+                  loadTestConfiguration(configName)
+                  // Auto-load the configuration
+                  setTimeout(() => {
+                    const config = getGameConfig(configName)
+                    const configJson = JSON.stringify(config, null, 2)
+                    const result = loadConfiguration(configJson)
+                    if (result.success) {
+                      console.log(`Auto-loaded ${configName} configuration`)
+                    }
+                  }, 100)
+                }
+              }}
               className="px-3 py-1 text-sm border border-gray-300 rounded"
               defaultValue=""
             >
