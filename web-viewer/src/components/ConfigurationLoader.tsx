@@ -167,6 +167,7 @@ export const ConfigurationLoader: React.FC = () => {
 
     const config = {
       seed: Math.floor(Math.random() * 65536),
+      gravity: [1, 1], // Default downward gravity [numerator, denominator]
       tilemap: Array(15)
         .fill(null)
         .map(() => Array(16).fill(0)),

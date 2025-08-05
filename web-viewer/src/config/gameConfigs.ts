@@ -9,6 +9,7 @@ import { ACTION_SCRIPTS, CONDITION_SCRIPTS } from '../constants/scriptConstants'
 
 export interface GameConfig {
   seed: number
+  gravity?: [number, number] // Optional gravity as [numerator, denominator], defaults to [1, 1] (downward)
   tilemap: number[][] // 2D array as expected by WASM wrapper
   actions: Array<{
     energy_cost: number
@@ -159,6 +160,7 @@ export const MOVE_RIGHT_CONFIG: GameConfig = {
  */
 export const JUMP_CONFIG: GameConfig = {
   seed: 12345,
+  gravity: [1, 1], // Default downward gravity
   tilemap: BASIC_TILEMAP,
   actions: [
     {
@@ -299,6 +301,73 @@ export const RANDOM_CONFIG: GameConfig = {
 }
 
 /**
+ * Configuration for testing low gravity jumping (moon-like gravity)
+ */
+export const LOW_GRAVITY_CONFIG: GameConfig = {
+  seed: 12345,
+  gravity: [1, 4], // Quarter gravity (0.25) - much lighter
+  tilemap: BASIC_TILEMAP,
+  actions: [
+    {
+      energy_cost: 10,
+      cooldown: 15, // Faster cooldown for low gravity
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.JUMP],
+    },
+  ],
+  conditions: [
+    {
+      energy_mul: 0, // No energy multiplier
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [...CONDITION_SCRIPTS.ALWAYS], // Always trigger
+    },
+  ],
+  characters: [
+    {
+      ...BASIC_CHARACTER,
+      behaviors: [[0, 0]], // Always jump
+    },
+  ],
+  spawns: [],
+  status_effects: [],
+}
+
+/**
+ * Configuration for testing inverted gravity (upside-down world)
+ */
+export const INVERTED_GRAVITY_CONFIG: GameConfig = {
+  seed: 12345,
+  gravity: [-1, 1], // Inverted gravity (upward)
+  tilemap: BASIC_TILEMAP,
+  actions: [
+    {
+      energy_cost: 10,
+      cooldown: 30,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.JUMP],
+    },
+  ],
+  conditions: [
+    {
+      energy_mul: 0,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [...CONDITION_SCRIPTS.CHANCE_20], // 20% chance to jump
+    },
+  ],
+  characters: [
+    {
+      ...BASIC_CHARACTER,
+      dir: [1, 2], // Facing right, upward gravity direction
+      behaviors: [[0, 0]], // 20% chance to jump
+    },
+  ],
+  spawns: [],
+  status_effects: [],
+}
+
+/**
  * Available configuration presets
  */
 export const GAME_CONFIGS = {
@@ -307,6 +376,8 @@ export const GAME_CONFIGS = {
   WALL_JUMP: WALL_JUMP_CONFIG,
   CHARGE: CHARGE_CONFIG,
   RANDOM: RANDOM_CONFIG,
+  LOW_GRAVITY: LOW_GRAVITY_CONFIG,
+  INVERTED_GRAVITY: INVERTED_GRAVITY_CONFIG,
 } as const
 
 export type GameConfigType = keyof typeof GAME_CONFIGS
