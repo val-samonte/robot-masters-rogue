@@ -8,9 +8,9 @@ use crate::entity::{
     StatusEffectId, StatusEffectInstance, StatusEffectInstanceId,
 };
 use crate::math::Fixed;
-use crate::physics::Tilemap;
 use crate::random::SeededRng;
 use crate::script::ScriptError;
+use crate::tilemap::Tilemap;
 
 use alloc::vec::Vec;
 
@@ -158,16 +158,19 @@ impl GameState {
         // 2. Execute character behaviors
         self.process_character_behaviors()?;
 
-        // 3. Check collisions and constrain velocity
+        // 3. Apply gravity to velocity
+        self.apply_gravity()?;
+
+        // 4. Check collisions and constrain velocity
         self.check_and_constrain_movement()?;
 
-        // 4. Update physics (apply velocity to position)
-        self.update_physics()?;
+        // 5. Apply velocity to position
+        self.apply_velocity_to_position()?;
 
-        // 5. Clean up expired entities
+        // 6. Clean up expired entities
         self.cleanup_entities()?;
 
-        // 6. Validate and recover game state if needed
+        // 7. Validate and recover game state if needed
         crate::error::ErrorRecovery::validate_and_recover_game_state(
             &mut self.characters,
             &mut self.spawn_instances,
@@ -679,7 +682,7 @@ impl GameState {
         Ok(())
     }
 
-    fn update_physics(&mut self) -> GameResult<()> {
+    fn apply_gravity(&mut self) -> GameResult<()> {
         // Apply gravity to all characters
         for character in &mut self.characters {
             let gravity_multiplier = character.core.get_gravity_multiplier();
@@ -694,6 +697,10 @@ impl GameState {
             spawn.core.vel.1 = spawn.core.vel.1.add(gravity_force);
         }
 
+        Ok(())
+    }
+
+    fn apply_velocity_to_position(&mut self) -> GameResult<()> {
         // Apply velocity to position for all characters
         for character in &mut self.characters {
             crate::physics::PhysicsSystem::update_position(&mut character.core);
@@ -708,42 +715,228 @@ impl GameState {
     }
 
     fn check_and_constrain_movement(&mut self) -> GameResult<()> {
-        // Check collisions and constrain movement for characters
+        use crate::tilemap::CollisionRect;
+
+        // Process characters
         for character in &mut self.characters {
-            let collision_result = self.tile_map.check_collision(&character.core);
+            // First, check if character is currently overlapping with solid tiles and correct position
+            Self::correct_position_overlap(&self.tile_map, &mut character.core);
 
-            // Apply collision constraints to movement BEFORE updating position
-            crate::physics::PhysicsSystem::apply_collision_constraints(
-                &mut character.core,
-                &collision_result,
-            );
+            // Create collision rectangle for current position (after position correction)
+            let current_rect = CollisionRect::from_entity(character.core.pos, character.core.size);
 
-            // Update collision flags for reference
-            character.core.collision = (
-                collision_result.top,
-                collision_result.right,
-                collision_result.bottom,
-                collision_result.left,
+            // Store original velocity for collision detection
+            let original_vel_x = character.core.vel.0;
+            let original_vel_y = character.core.vel.1;
+
+            // Check horizontal movement
+            let allowed_horizontal = self
+                .tile_map
+                .check_horizontal_movement(current_rect, character.core.vel.0);
+            let horizontal_collision = allowed_horizontal.raw() != character.core.vel.0.raw();
+
+            // Check vertical movement
+            let allowed_vertical = self
+                .tile_map
+                .check_vertical_movement(current_rect, character.core.vel.1);
+            let vertical_collision = allowed_vertical.raw() != character.core.vel.1.raw();
+
+            // Apply the allowed movement
+            character.core.vel.0 = allowed_horizontal;
+            character.core.vel.1 = allowed_vertical;
+
+            // Update collision flags based on movement direction and collision detection
+            let mut collision_flags = (false, false, false, false); // top, right, bottom, left
+
+            // Check specific collision directions if movement was constrained
+            if horizontal_collision {
+                if original_vel_x.to_int() > 0 {
+                    // Was trying to move right but got stopped
+                    collision_flags.1 = true; // right collision
+                } else if original_vel_x.to_int() < 0 {
+                    // Was trying to move left but got stopped
+                    collision_flags.3 = true; // left collision
+                }
+            }
+
+            if vertical_collision {
+                if original_vel_y.to_int() > 0 {
+                    // Was trying to move down but got stopped
+                    collision_flags.2 = true; // bottom collision
+                } else if original_vel_y.to_int() < 0 {
+                    // Was trying to move up but got stopped
+                    collision_flags.0 = true; // top collision
+                }
+            }
+
+            // Also check if entity is currently touching walls (for grounded detection, etc.)
+            let next_pos = (
+                character.core.pos.0.add(character.core.vel.0),
+                character.core.pos.1.add(character.core.vel.1),
             );
+            let next_rect = CollisionRect::from_entity(next_pos, character.core.size);
+
+            // Check top collision (entity trying to move up into a wall)
+            let top_check_rect = CollisionRect::new(
+                next_rect.x,
+                next_rect.y.sub(crate::math::Fixed::ONE),
+                next_rect.width,
+                1,
+            );
+            if self.tile_map.check_collision(top_check_rect) {
+                collision_flags.0 = true;
+            }
+
+            // Check right collision (entity trying to move right into a wall)
+            let right_check_rect = CollisionRect::new(
+                next_rect
+                    .x
+                    .add(crate::math::Fixed::from_int(next_rect.width as i16)),
+                next_rect.y,
+                1,
+                next_rect.height,
+            );
+            if self.tile_map.check_collision(right_check_rect) {
+                collision_flags.1 = true;
+            }
+
+            // Check bottom collision (entity standing on ground)
+            let bottom_check_rect = CollisionRect::new(
+                next_rect.x,
+                next_rect
+                    .y
+                    .add(crate::math::Fixed::from_int(next_rect.height as i16)),
+                next_rect.width,
+                1,
+            );
+            if self.tile_map.check_collision(bottom_check_rect) {
+                collision_flags.2 = true;
+            }
+
+            // Check left collision (entity trying to move left into a wall)
+            let left_check_rect = CollisionRect::new(
+                next_rect.x.sub(crate::math::Fixed::ONE),
+                next_rect.y,
+                1,
+                next_rect.height,
+            );
+            if self.tile_map.check_collision(left_check_rect) {
+                collision_flags.3 = true;
+            }
+
+            // Update entity collision flags
+            character.core.collision = collision_flags;
         }
 
-        // Check collisions and constrain movement for spawns
+        // Process spawns
         for spawn in &mut self.spawn_instances {
-            let collision_result = self.tile_map.check_collision(&spawn.core);
+            // First, check if spawn is currently overlapping with solid tiles and correct position
+            Self::correct_position_overlap(&self.tile_map, &mut spawn.core);
 
-            // Apply collision constraints to movement BEFORE updating position
-            crate::physics::PhysicsSystem::apply_collision_constraints(
-                &mut spawn.core,
-                &collision_result,
-            );
+            // Create collision rectangle for current position (after position correction)
+            let current_rect = CollisionRect::from_entity(spawn.core.pos, spawn.core.size);
 
-            // Update collision flags for reference
-            spawn.core.collision = (
-                collision_result.top,
-                collision_result.right,
-                collision_result.bottom,
-                collision_result.left,
+            // Store original velocity for collision detection
+            let original_vel_x = spawn.core.vel.0;
+            let original_vel_y = spawn.core.vel.1;
+
+            // Check horizontal movement
+            let allowed_horizontal = self
+                .tile_map
+                .check_horizontal_movement(current_rect, spawn.core.vel.0);
+            let horizontal_collision = allowed_horizontal.raw() != spawn.core.vel.0.raw();
+
+            // Check vertical movement
+            let allowed_vertical = self
+                .tile_map
+                .check_vertical_movement(current_rect, spawn.core.vel.1);
+            let vertical_collision = allowed_vertical.raw() != spawn.core.vel.1.raw();
+
+            // Apply the allowed movement
+            spawn.core.vel.0 = allowed_horizontal;
+            spawn.core.vel.1 = allowed_vertical;
+
+            // Update collision flags based on movement direction and collision detection
+            let mut collision_flags = (false, false, false, false); // top, right, bottom, left
+
+            // Check specific collision directions if movement was constrained
+            if horizontal_collision {
+                if original_vel_x.to_int() > 0 {
+                    // Was trying to move right but got stopped
+                    collision_flags.1 = true; // right collision
+                } else if original_vel_x.to_int() < 0 {
+                    // Was trying to move left but got stopped
+                    collision_flags.3 = true; // left collision
+                }
+            }
+
+            if vertical_collision {
+                if original_vel_y.to_int() > 0 {
+                    // Was trying to move down but got stopped
+                    collision_flags.2 = true; // bottom collision
+                } else if original_vel_y.to_int() < 0 {
+                    // Was trying to move up but got stopped
+                    collision_flags.0 = true; // top collision
+                }
+            }
+
+            // Also check if entity is currently touching walls (for grounded detection, etc.)
+            let next_pos = (
+                spawn.core.pos.0.add(spawn.core.vel.0),
+                spawn.core.pos.1.add(spawn.core.vel.1),
             );
+            let next_rect = CollisionRect::from_entity(next_pos, spawn.core.size);
+
+            // Check top collision (entity trying to move up into a wall)
+            let top_check_rect = CollisionRect::new(
+                next_rect.x,
+                next_rect.y.sub(crate::math::Fixed::ONE),
+                next_rect.width,
+                1,
+            );
+            if self.tile_map.check_collision(top_check_rect) {
+                collision_flags.0 = true;
+            }
+
+            // Check right collision (entity trying to move right into a wall)
+            let right_check_rect = CollisionRect::new(
+                next_rect
+                    .x
+                    .add(crate::math::Fixed::from_int(next_rect.width as i16)),
+                next_rect.y,
+                1,
+                next_rect.height,
+            );
+            if self.tile_map.check_collision(right_check_rect) {
+                collision_flags.1 = true;
+            }
+
+            // Check bottom collision (entity standing on ground)
+            let bottom_check_rect = CollisionRect::new(
+                next_rect.x,
+                next_rect
+                    .y
+                    .add(crate::math::Fixed::from_int(next_rect.height as i16)),
+                next_rect.width,
+                1,
+            );
+            if self.tile_map.check_collision(bottom_check_rect) {
+                collision_flags.2 = true;
+            }
+
+            // Check left collision (entity trying to move left into a wall)
+            let left_check_rect = CollisionRect::new(
+                next_rect.x.sub(crate::math::Fixed::ONE),
+                next_rect.y,
+                1,
+                next_rect.height,
+            );
+            if self.tile_map.check_collision(left_check_rect) {
+                collision_flags.3 = true;
+            }
+
+            // Update entity collision flags
+            spawn.core.collision = collision_flags;
         }
 
         Ok(())
@@ -753,6 +946,108 @@ impl GameState {
         // Remove expired spawn instances
         self.spawn_instances.retain(|spawn| spawn.life_span > 0);
         Ok(())
+    }
+
+    /// Correct entity position if it's overlapping with solid tiles
+    pub fn correct_position_overlap(
+        tilemap: &crate::tilemap::Tilemap,
+        entity: &mut crate::entity::EntityCore,
+    ) {
+        use crate::tilemap::CollisionRect;
+
+        let current_rect = CollisionRect::from_entity(entity.pos, entity.size);
+
+        // If not currently overlapping, no correction needed
+        if !tilemap.check_collision(current_rect) {
+            return;
+        }
+
+        // Try to push entity out of collision by moving it in each direction
+        // Priority: up > left > right > down (prefer pushing up to prevent sinking)
+
+        const MAX_CORRECTION_DISTANCE: i32 = 32; // Maximum pixels to push
+
+        // Try pushing up
+        for distance in 1..=MAX_CORRECTION_DISTANCE {
+            let test_pos = (
+                entity.pos.0,
+                entity
+                    .pos
+                    .1
+                    .sub(crate::math::Fixed::from_int(distance as i16)),
+            );
+            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
+
+            if !tilemap.check_collision(test_rect) {
+                entity.pos.1 = entity
+                    .pos
+                    .1
+                    .sub(crate::math::Fixed::from_int(distance as i16));
+                return;
+            }
+        }
+
+        // Try pushing left
+        for distance in 1..=MAX_CORRECTION_DISTANCE {
+            let test_pos = (
+                entity
+                    .pos
+                    .0
+                    .sub(crate::math::Fixed::from_int(distance as i16)),
+                entity.pos.1,
+            );
+            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
+
+            if !tilemap.check_collision(test_rect) {
+                entity.pos.0 = entity
+                    .pos
+                    .0
+                    .sub(crate::math::Fixed::from_int(distance as i16));
+                return;
+            }
+        }
+
+        // Try pushing right
+        for distance in 1..=MAX_CORRECTION_DISTANCE {
+            let test_pos = (
+                entity
+                    .pos
+                    .0
+                    .add(crate::math::Fixed::from_int(distance as i16)),
+                entity.pos.1,
+            );
+            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
+
+            if !tilemap.check_collision(test_rect) {
+                entity.pos.0 = entity
+                    .pos
+                    .0
+                    .add(crate::math::Fixed::from_int(distance as i16));
+                return;
+            }
+        }
+
+        // Try pushing down (last resort)
+        for distance in 1..=MAX_CORRECTION_DISTANCE {
+            let test_pos = (
+                entity.pos.0,
+                entity
+                    .pos
+                    .1
+                    .add(crate::math::Fixed::from_int(distance as i16)),
+            );
+            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
+
+            if !tilemap.check_collision(test_rect) {
+                entity.pos.1 = entity
+                    .pos
+                    .1
+                    .add(crate::math::Fixed::from_int(distance as i16));
+                return;
+            }
+        }
+
+        // If we can't find a valid position, entity remains stuck (shouldn't happen in normal gameplay)
     }
 }
 /// Context for condition script execution

@@ -100,7 +100,7 @@
     - Document default values: characters=0 (downward), spawns=1 (neutral)
   - _Requirements: Core physics functionality for realistic movement_
 
-- [ ] 10. Fix collision detection and wall constraints
+- [x] 10. Fix collision detection and wall constraints
 
   - Fix collision detection to properly prevent movement into walls
   - Ensure collision detection works for all directions (top, right, bottom, left)

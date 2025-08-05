@@ -492,8 +492,8 @@ impl GameStateJson {
             for x in 0..16 {
                 let tile_type = game_state.tile_map.get_tile(x, y);
                 row.push(match tile_type {
-                    robot_masters_engine::physics::TileType::Empty => 0,
-                    robot_masters_engine::physics::TileType::Block => 1,
+                    robot_masters_engine::tilemap::TileType::Empty => 0,
+                    robot_masters_engine::tilemap::TileType::Block => 1,
                 });
             }
             tilemap.push(row);
