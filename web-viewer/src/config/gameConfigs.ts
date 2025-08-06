@@ -382,20 +382,16 @@ export const SIMPLE_JUMP_CONFIG: GameConfig = {
       args: [0, 0, 0, 0, 0, 0, 0, 0],
       spawns: [0, 0, 0, 0],
       script: [
-        // Simple jump script: check if grounded, then set Y velocity to -5.0 (upward)
-        10,
-        0,
-        40, // READ_PROP var[0] CHARACTER_COLLISION_BOTTOM (check if grounded)
-        4,
-        4,
-        0, // SKIP 4 instructions if var[0] is 0 (not grounded)
+        // Simple jump script: exit if not grounded, then set Y velocity to -5.0 (upward)
+        3,
+        0, // EXIT_IF_NOT_GROUNDED 0 (exit with 0 if not grounded)
         21,
         1,
         5,
         1, // ASSIGN_FIXED fixed[1] = 5/1 = 5.0
         34,
         1, // NEGATE fixed[1] (make it -5.0)
-        11,
+        16,
         21,
         1, // WRITE_PROP CHARACTER_VEL_Y fixed[1] (write -5.0 to Y velocity)
         0,
@@ -407,7 +403,7 @@ export const SIMPLE_JUMP_CONFIG: GameConfig = {
     {
       energy_mul: 32, // 1.0 in fixed-point
       args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.IS_GROUNDED], // Only when grounded
+      script: [...CONDITION_SCRIPTS.ALWAYS], // Always trigger (grounded check in action)
     },
   ],
   characters: [

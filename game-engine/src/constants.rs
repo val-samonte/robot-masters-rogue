@@ -5,23 +5,28 @@
 /// This module provides named constants for all operator byte values used in the scripting system,
 /// improving code maintainability and reducing the risk of errors from hardcoded values.
 pub mod operator_address {
-    // ===== CONTROL FLOW OPERATORS (0-9) =====
+    // ===== EXIT OPERATORS (0-4) =====
     /// Exit script with specified flag
     pub const EXIT: u8 = 0;
     /// Exit if insufficient energy
     pub const EXIT_IF_NO_ENERGY: u8 = 1;
     /// Exit if action is on cooldown
     pub const EXIT_IF_COOLDOWN: u8 = 2;
-    /// Skip specified number of bytes
-    pub const SKIP: u8 = 3;
-    /// Jump to specified position
-    pub const GOTO: u8 = 4;
+    /// Exit if character is not grounded (not touching ground)
+    pub const EXIT_IF_NOT_GROUNDED: u8 = 3;
+    // Reserved for future exit operators: 4-9
 
-    // ===== PROPERTY OPERATIONS (10-11) =====
+    // ===== CONTROL FLOW OPERATORS (10-14) =====
+    /// Skip specified number of bytes
+    pub const SKIP: u8 = 10;
+    /// Jump to specified position
+    pub const GOTO: u8 = 11;
+
+    // ===== PROPERTY OPERATIONS (15-16) =====
     /// Read property into variable: [ReadProp, var_index, prop_address]
-    pub const READ_PROP: u8 = 10;
+    pub const READ_PROP: u8 = 15;
     /// Write variable to property: [WriteProp, prop_address, var_index]
-    pub const WRITE_PROP: u8 = 11;
+    pub const WRITE_PROP: u8 = 16;
 
     // ===== VARIABLE OPERATIONS (20-24) =====
     /// Assign byte literal to variable: [AssignByte, var_index, literal_value]

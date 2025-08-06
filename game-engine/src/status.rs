@@ -596,6 +596,11 @@ impl ScriptContext for StatusEffectContext<'_> {
         false // Status effects don't have cooldowns
     }
 
+    fn is_grounded(&self) -> bool {
+        // Check if the character is grounded (bottom collision)
+        self.character.core.collision.2
+    }
+
     fn get_random_u8(&mut self) -> u8 {
         self.game_state.next_random_u8()
     }

@@ -58,7 +58,7 @@ fn test_user_scenario_character_on_floor() {
 
     // Test multiple frames to ensure character stays on floor
     for frame in 0..20 {
-        let initial_y = game_state.characters[0].core.pos.1.to_int();
+        let _initial_y = game_state.characters[0].core.pos.1.to_int();
 
         game_state.advance_frame().expect("Failed to advance frame");
 

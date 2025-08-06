@@ -436,6 +436,10 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
     fn is_on_cooldown(&self) -> bool {
         false
     }
+    fn is_grounded(&self) -> bool {
+        // Spawns don't have grounding concept, always return false
+        false
+    }
     fn get_random_u8(&mut self) -> u8 {
         self.game_state.next_random_u8()
     }

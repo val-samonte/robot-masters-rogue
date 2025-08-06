@@ -110,7 +110,7 @@
   - Verify entities cannot pass through tilemap boundaries
   - _Requirements: Core physics functionality for proper game boundaries_
 
-- [-] 11. Update movement actions to work with fixed collision detection and gravity
+- [ ] 11. Update movement actions to work with fixed collision detection and gravity
 
   - Update jump action script to work properly with the new gravity system
   - Fix wall jump action to detect walls correctly using the updated collision detection

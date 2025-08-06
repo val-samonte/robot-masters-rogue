@@ -12,16 +12,20 @@
  * Operator address constants for script operators
  */
 export const OperatorAddress = {
-  // ===== CONTROL FLOW OPERATORS (0-9) =====
+  // ===== EXIT OPERATORS (0-9) =====
   EXIT: 0,
   EXIT_IF_NO_ENERGY: 1,
   EXIT_IF_COOLDOWN: 2,
-  SKIP: 3,
-  GOTO: 4,
+  EXIT_IF_NOT_GROUNDED: 3,
+  // Reserved for future exit operators: 4-9
 
-  // ===== PROPERTY OPERATIONS (10-11) =====
-  READ_PROP: 10,
-  WRITE_PROP: 11,
+  // ===== CONTROL FLOW OPERATORS (10-14) =====
+  SKIP: 10,
+  GOTO: 11,
+
+  // ===== PROPERTY OPERATIONS (15-16) =====
+  READ_PROP: 15,
+  WRITE_PROP: 16,
 
   // ===== VARIABLE OPERATIONS (20-24) =====
   ASSIGN_BYTE: 20,

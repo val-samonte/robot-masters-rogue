@@ -1326,6 +1326,14 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
         false
     }
 
+    fn is_grounded(&self) -> bool {
+        if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            character.core.collision.2 // Bottom collision flag
+        } else {
+            false
+        }
+    }
+
     fn get_random_u8(&mut self) -> u8 {
         self.game_state.next_random_u8()
     }
@@ -1708,6 +1716,14 @@ impl crate::script::ScriptContext for ActionContext<'_> {
             }
         }
         false
+    }
+
+    fn is_grounded(&self) -> bool {
+        if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            character.core.collision.2 // Bottom collision flag
+        } else {
+            false
+        }
     }
 
     fn get_random_u8(&mut self) -> u8 {
