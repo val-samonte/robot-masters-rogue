@@ -72,26 +72,7 @@ const BASIC_TILEMAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Bottom wall
 ]
 
-/**
- * Empty tilemap with only ground at the bottom
- */
-const OPEN_TILEMAP = [
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // Empty top
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Ground only
-]
+// Removed unused OPEN_TILEMAP
 
 /**
  * Basic character template with standard properties
@@ -123,325 +104,166 @@ const BASIC_CHARACTER = {
   target_type: 0,
 }
 
-/**
- * Configuration for testing basic movement (character runs right)
- */
-export const MOVE_RIGHT_CONFIG: GameConfig = {
-  seed: 12345,
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.RUN], // Use the RUN action script
-    },
-  ],
-  conditions: [
-    {
-      energy_mul: 32, // 1.0 in fixed-point
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.ALWAYS], // Always trigger
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      behaviors: [[0, 0]], // Condition 0 triggers Action 0
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
+// All other configurations removed - only COMBINATION_1 is needed
 
 /**
- * Configuration for testing jumping behavior
+ * Configuration for testing combination behaviors with priority system
+ * Priority (highest to lowest):
+ * 1. If wall leaning and not on ground - WALL JUMP
+ * 2. If on ground - JUMP
+ * 3. If wall leaning but on ground - TURN AROUND
+ * 4. Always - RUN
  */
-export const JUMP_CONFIG: GameConfig = {
+export const COMBINATION_1_CONFIG: GameConfig = {
   seed: 12345,
-  gravity: [1, 1], // Default downward gravity
+  gravity: [3, 2], // Stronger gravity (1.5) for more realistic physics
   tilemap: BASIC_TILEMAP,
   actions: [
+    // Action 0: WALL_JUMP (highest priority)
     {
-      energy_cost: 10,
-      cooldown: 30,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.JUMP], // Use the JUMP action script
-    },
-  ],
-  conditions: [
-    {
-      energy_mul: 32, // 1.0 in fixed-point
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.IS_GROUNDED], // Only jump when grounded
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      behaviors: [[0, 0]], // Condition 0 triggers Action 0
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
-
-/**
- * Configuration for testing wall jumping
- */
-export const WALL_JUMP_CONFIG: GameConfig = {
-  seed: 12345,
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    {
-      energy_cost: 15,
+      energy_cost: 7,
       cooldown: 20,
       args: [0, 0, 0, 0, 0, 0, 0, 0],
       spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.WALL_JUMP], // Use the WALL_JUMP action script
+      script: [...ACTION_SCRIPTS.WALL_JUMP],
     },
-  ],
-  conditions: [
+    // Action 1: JUMP (second priority)
     {
-      energy_mul: 32, // 1.0 in fixed-point
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.IS_WALL_SLIDING], // Only wall jump when wall sliding
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      behaviors: [[0, 0]], // Condition 0 triggers Action 0
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
-
-/**
- * Configuration for testing energy charging
- */
-export const CHARGE_CONFIG: GameConfig = {
-  seed: 12345,
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.CHARGE], // Use the CHARGE action script
-    },
-  ],
-  conditions: [
-    {
-      energy_mul: 32, // 1.0 in fixed-point
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.ENERGY_LOW_20], // Charge when energy is low
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      energy: 10, // Start with low energy
-      behaviors: [[0, 0]], // Condition 0 triggers Action 0
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
-
-/**
- * Configuration for testing random behavior
- */
-export const RANDOM_CONFIG: GameConfig = {
-  seed: 12345,
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.RUN], // Use the RUN action script
-    },
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.TURN_AROUND], // Use the TURN_AROUND action script
-    },
-  ],
-  conditions: [
-    {
-      energy_mul: 32, // 1.0 in fixed-point
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.CHANCE_50], // 50% chance to run
-    },
-    {
-      energy_mul: 32, // 1.0 in fixed-point
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.CHANCE_10], // 10% chance to turn around
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      behaviors: [
-        [0, 0], // 50% chance to run
-        [1, 1], // 10% chance to turn around
-      ],
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
-
-/**
- * Configuration for testing low gravity jumping (moon-like gravity)
- */
-export const LOW_GRAVITY_CONFIG: GameConfig = {
-  seed: 12345,
-  gravity: [1, 4], // Quarter gravity (0.25) - much lighter
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    {
-      energy_cost: 10,
-      cooldown: 15, // Faster cooldown for low gravity
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.JUMP],
-    },
-  ],
-  conditions: [
-    {
-      energy_mul: 0, // No energy multiplier
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.ALWAYS], // Always trigger
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      behaviors: [[0, 0]], // Always jump
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
-
-/**
- * Configuration for testing inverted gravity (upside-down world)
- */
-export const INVERTED_GRAVITY_CONFIG: GameConfig = {
-  seed: 12345,
-  gravity: [-1, 1], // Inverted gravity (upward)
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    {
-      energy_cost: 10,
+      energy_cost: 3,
       cooldown: 30,
       args: [0, 0, 0, 0, 0, 0, 0, 0],
       spawns: [0, 0, 0, 0],
       script: [...ACTION_SCRIPTS.JUMP],
     },
+    // Action 2: TURN_AROUND (third priority)
+    {
+      energy_cost: 0,
+      cooldown: 10,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.TURN_AROUND],
+    },
+    // Action 3: RUN (lowest priority - always)
+    {
+      energy_cost: 0,
+      cooldown: 0,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.RUN],
+    },
   ],
   conditions: [
+    // Condition 0: Wall leaning and NOT on ground (for WALL_JUMP)
     {
-      energy_mul: 0,
+      energy_mul: 32,
       args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.CHANCE_20], // 20% chance to jump
+      script: [
+        // Check if NOT grounded (bottom collision = 0)
+        15,
+        0,
+        40, // READ_PROP var[0] CHARACTER_COLLISION_BOTTOM
+        60,
+        1,
+        0, // NOT var[1] = !var[0] (true if not grounded)
+
+        // Check if touching left or right wall
+        15,
+        2,
+        41, // READ_PROP var[2] CHARACTER_COLLISION_LEFT
+        15,
+        3,
+        39, // READ_PROP var[3] CHARACTER_COLLISION_RIGHT
+        61,
+        4,
+        2,
+        3, // OR var[4] = var[2] OR var[3] (touching any wall)
+
+        // Wall jump condition: NOT grounded AND touching wall
+        62,
+        5,
+        1,
+        4, // AND var[5] = var[1] AND var[4] (not grounded AND wall)
+        91,
+        5, // EXIT_WITH_VAR var[5]
+      ],
+    },
+    // Condition 1: On ground (for JUMP)
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [
+        // Check if grounded (bottom collision = 1)
+        15,
+        0,
+        40, // READ_PROP var[0] CHARACTER_COLLISION_BOTTOM
+        91,
+        0, // EXIT_WITH_VAR var[0] (true if grounded)
+      ],
+    },
+    // Condition 2: Wall leaning AND on ground (for TURN_AROUND)
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [
+        // Check if grounded
+        15,
+        0,
+        40, // READ_PROP var[0] CHARACTER_COLLISION_BOTTOM
+
+        // Check if touching left or right wall
+        15,
+        1,
+        41, // READ_PROP var[1] CHARACTER_COLLISION_LEFT
+        15,
+        2,
+        39, // READ_PROP var[2] CHARACTER_COLLISION_RIGHT
+        61,
+        3,
+        1,
+        2, // OR var[3] = var[1] OR var[2] (touching any wall)
+
+        // Turn around condition: grounded AND touching wall
+        62,
+        4,
+        0,
+        3, // AND var[4] = var[0] AND var[3] (grounded AND wall)
+        91,
+        4, // EXIT_WITH_VAR var[4]
+      ],
+    },
+    // Condition 3: Always (for RUN)
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [...CONDITION_SCRIPTS.ALWAYS],
     },
   ],
   characters: [
     {
       ...BASIC_CHARACTER,
-      dir: [1, 2], // Facing right, upward gravity direction
-      behaviors: [[0, 0]], // 20% chance to jump
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
-
-/**
- * Configuration for testing simple jump with ALWAYS condition
- * This should make the character jump every frame when grounded
- */
-export const SIMPLE_JUMP_CONFIG: GameConfig = {
-  seed: 12345,
-  gravity: [1, 1], // Normal downward gravity
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    {
-      energy_cost: 0, // No energy cost for testing
-      cooldown: 60, // 1 second cooldown to prevent infinite jumping
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [
-        // Simple jump script: exit if not grounded, then set Y velocity to -5.0 (upward)
-        3,
-        0, // EXIT_IF_NOT_GROUNDED 0 (exit with 0 if not grounded)
-        21,
-        1,
-        5,
-        1, // ASSIGN_FIXED fixed[1] = 5/1 = 5.0
-        34,
-        1, // NEGATE fixed[1] (make it -5.0)
-        16,
-        21,
-        1, // WRITE_PROP CHARACTER_VEL_Y fixed[1] (write -5.0 to Y velocity)
-        0,
-        1, // EXIT 1 (success)
+      jump_force: [240, 32], // Increased jump force for good visibility
+      behaviors: [
+        [0, 0], // Wall leaning + not grounded -> WALL_JUMP (highest priority)
+        [1, 1], // Grounded -> JUMP (second priority)
+        [2, 2], // Wall leaning + grounded -> TURN_AROUND (third priority)
+        [3, 3], // Always -> RUN (lowest priority)
       ],
     },
   ],
-  conditions: [
-    {
-      energy_mul: 32, // 1.0 in fixed-point
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.ALWAYS], // Always trigger (grounded check in action)
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      behaviors: [[0, 0]], // Condition 0 (ALWAYS) triggers Action 0 (JUMP)
-    },
-  ],
   spawns: [],
   status_effects: [],
 }
 
 /**
- * Available configuration presets
+ * Available configuration presets - simplified to only COMBINATION_1
  */
 export const GAME_CONFIGS = {
-  MOVE_RIGHT: MOVE_RIGHT_CONFIG,
-  JUMP: JUMP_CONFIG,
-  WALL_JUMP: WALL_JUMP_CONFIG,
-  CHARGE: CHARGE_CONFIG,
-  RANDOM: RANDOM_CONFIG,
-  LOW_GRAVITY: LOW_GRAVITY_CONFIG,
-  INVERTED_GRAVITY: INVERTED_GRAVITY_CONFIG,
-  SIMPLE_JUMP: SIMPLE_JUMP_CONFIG,
+  COMBINATION_1: COMBINATION_1_CONFIG,
 } as const
 
-export type GameConfigType = keyof typeof GAME_CONFIGS
-
 /**
- * Get a game configuration by name
+ * Get the COMBINATION_1 configuration
  */
-export function getGameConfig(configName: GameConfigType): GameConfig {
-  return GAME_CONFIGS[configName]
-}
-
-/**
- * List all available configuration names
- */
-export function getAvailableConfigs(): GameConfigType[] {
-  return Object.keys(GAME_CONFIGS) as GameConfigType[]
+export function getGameConfig(configName: 'COMBINATION_1'): GameConfig {
+  return COMBINATION_1_CONFIG
 }

@@ -83,8 +83,6 @@ interface TilemapProps {
 }
 
 function Tilemap({ width, height, tilemap }: TilemapProps) {
-  console.log('Tilemap render - tilemap data:', tilemap)
-
   const drawBackground = useCallback(
     (g: any) => {
       g.clear()
@@ -170,7 +168,7 @@ interface HealthBarProps {
 }
 
 function HealthBar({ width, health, maxHealth, y }: HealthBarProps) {
-  const healthBarHeight = 4
+  const healthBarHeight = 2
   const healthPercent = health / maxHealth
   const healthColor =
     healthPercent > 0.5 ? 0x2ecc71 : healthPercent > 0.25 ? 0xf39c12 : 0xe74c3c
@@ -200,7 +198,7 @@ interface EnergyBarProps {
 }
 
 function EnergyBar({ width, energy, maxEnergy, y }: EnergyBarProps) {
-  const energyBarHeight = 4
+  const energyBarHeight = 2
   const energyPercent = energy / maxEnergy
 
   return (
@@ -214,7 +212,7 @@ function EnergyBar({ width, energy, maxEnergy, y }: EnergyBarProps) {
       <Rectangle
         width={width * energyPercent}
         height={energyBarHeight}
-        fill={0x9b59b6}
+        fill={0x3399bb}
       />
     </Container>
   )
@@ -246,15 +244,6 @@ interface CharacterEntityProps {
 }
 
 function CharacterEntity({ character }: CharacterEntityProps) {
-  console.log(
-    'Drawing character:',
-    character.id,
-    'at position:',
-    character.position,
-    'size:',
-    character.size
-  )
-
   return (
     <Container x={character.position.x} y={character.position.y}>
       <CharacterBody
@@ -265,13 +254,13 @@ function CharacterEntity({ character }: CharacterEntityProps) {
         width={character.size.width}
         health={character.health}
         maxHealth={100}
-        y={-8}
+        y={-7}
       />
       <EnergyBar
         width={character.size.width}
         energy={character.energy}
         maxEnergy={100}
-        y={-14}
+        y={-5}
       />
       <FacingIndicator
         facing={character.facing}
@@ -372,18 +361,16 @@ export function GameCanvas({ className = '' }: GameCanvasProps) {
   const spawns = useAtomValue(spawnsAtom)
   const gameState = useAtomValue(gameStateAtom)
 
-  // Debug logging
-  useEffect(() => {
-    console.log('GameCanvas render - Characters:', characters)
-    console.log('GameCanvas render - Spawns:', spawns)
-    console.log('GameCanvas render - GameState:', gameState)
-  }, [characters, spawns, gameState])
-
   // Responsive canvas sizing
   const [containerSize, setContainerSize] = useState({
     width: BASE_CANVAS_WIDTH,
     height: BASE_CANVAS_HEIGHT,
   })
+
+  useEffect(() => {
+    if (!gameState) return
+    console.log('>>', gameState.frame, gameState.characters)
+  }, [gameState])
 
   useEffect(() => {
     const updateSize = () => {
@@ -465,31 +452,6 @@ export function GameCanvas({ className = '' }: GameCanvasProps) {
           {spawns.map((spawn) => (
             <SpawnEntity key={spawn.id} spawn={spawn} />
           ))}
-
-          {/* Game info overlay */}
-          <Container x={10} y={10}>
-            <Text
-              text={`Frame: ${gameState.frame} | Status: ${gameState.status}`}
-              style={
-                {
-                  fontSize: 14,
-                  fill: TEXT_COLOR,
-                  fontFamily: 'monospace',
-                } as any
-              }
-            />
-            <Text
-              text={`Characters: ${characters.length} | Spawns: ${spawns.length}`}
-              style={
-                {
-                  fontSize: 12,
-                  fill: TEXT_COLOR,
-                  fontFamily: 'monospace',
-                } as any
-              }
-              y={20}
-            />
-          </Container>
         </Container>
       </Stage>
     </div>

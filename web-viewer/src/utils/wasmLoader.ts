@@ -160,6 +160,27 @@ export const stepFrame = (wrapper: GameWrapper): void => {
     wrapper.step_frame()
   } catch (error) {
     const errorDetails = wrapper.get_last_error_details()
+
+    // Enhanced error logging for debugging
+    console.error('=== STEP FRAME ERROR ===')
+    console.error('Original error:', error)
+    console.error('WASM error details:', errorDetails)
+    console.error('Game frame:', wrapper.get_frame())
+    console.error('Game status:', wrapper.get_game_status())
+    console.error('Is game initialized:', wrapper.is_game_initialized())
+    console.error('Is game ended:', wrapper.is_game_ended())
+
+    // Try to get current game state for debugging
+    try {
+      const stateJson = wrapper.get_state_json()
+      const state = JSON.parse(stateJson)
+      console.error('Current game state:', state)
+    } catch (stateError) {
+      console.error('Could not get game state:', stateError)
+    }
+
+    console.error('========================')
+
     throw new Error(`Failed to step frame: ${errorDetails || error}`)
   }
 }

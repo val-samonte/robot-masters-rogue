@@ -1,5 +1,5 @@
 import { useAtom } from 'jotai'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   gameWrapperAtom,
   gameConfigAtom,
@@ -29,20 +29,36 @@ export const useGameState = () => {
   const [gameError, setGameError] = useAtom(gameErrorAtom)
   const [isGameInitialized] = useAtom(isGameInitializedAtom)
   const [isGameEnded] = useAtom(isGameEndedAtom)
+  const [isWasmInitialized, setIsWasmInitialized] = useState(false)
 
-  // Initialize WASM on mount
+  // Initialize WASM on mount (only once)
   useEffect(() => {
+    let mounted = true
+
     const initWasm = async () => {
       try {
         await gameStateManager.initialize()
-        console.log('WASM initialized successfully')
+        if (mounted) {
+          console.log('WASM initialized successfully')
+          setIsWasmInitialized(true)
+        }
       } catch (error) {
-        setGameError(error instanceof Error ? error.message : String(error))
+        if (mounted) {
+          setGameError(error instanceof Error ? error.message : String(error))
+          setIsWasmInitialized(false)
+        }
       }
     }
 
     initWasm()
-  }, [setGameError])
+
+    // Cleanup on unmount
+    return () => {
+      mounted = false
+      console.log('Cleaning up WASM on component unmount')
+      gameStateManager.cleanup()
+    }
+  }, []) // Empty dependency array to run only once
 
   // Update game state atoms when wrapper changes
   const updateGameState = useCallback(() => {
@@ -173,6 +189,7 @@ export const useGameState = () => {
     gameError,
     isGameInitialized,
     isGameEnded,
+    isWasmInitialized,
 
     // Actions
     loadConfiguration,

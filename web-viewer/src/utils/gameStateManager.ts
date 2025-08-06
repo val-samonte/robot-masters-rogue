@@ -19,13 +19,25 @@ import {
 
 export class GameStateManager {
   private wrapper: GameWrapper | null = null
+  private initialized: boolean = false
 
   async initialize(): Promise<void> {
+    if (this.initialized) return
+    this.initialized = true
     await initializeWasm()
   }
 
   loadConfiguration(configJson: string): { success: boolean; error?: string } {
     try {
+      // Clean up existing wrapper before creating new one
+      if (this.wrapper) {
+        console.log(
+          'Cleaning up existing WASM wrapper before loading new configuration'
+        )
+        this.wrapper.free()
+        this.wrapper = null
+      }
+
       // Validate configuration first
       const validation = validateGameConfig(configJson)
       if (!validation.isValid) {
@@ -124,6 +136,11 @@ export class GameStateManager {
       stepFrame(this.wrapper)
       return { success: true }
     } catch (error) {
+      // Enhanced error logging for debugging
+      console.error('=== GAME STATE MANAGER ERROR ===')
+      console.error('Step frame failed in gameStateManager:', error)
+      console.error('================================')
+
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
@@ -168,6 +185,8 @@ export class GameStateManager {
       this.wrapper.free()
       this.wrapper = null
     }
+    // Reset initialization flag so it can be re-initialized if needed
+    this.initialized = false
   }
 }
 

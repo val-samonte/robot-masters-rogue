@@ -121,3 +121,14 @@
   - Test movement actions with different gravity values and directions
   - Ensure actions work correctly with position correction system
   - _Requirements: Core movement functionality that works with updated physics system_
+
+- [x] 12. Fix WASM memory issues and simplify web viewer interface
+  - Identify and fix multiple WASM initialization causing memory corruption
+  - Ensure WASM is loaded only ONCE and properly call free() when needed
+  - Simplify web interface to only show: canvas, playback controls, and COMBINATION_1 config
+  - Remove all unused configuration options and complex UI elements
+  - Remove unused game configurations (keep only COMBINATION_1)
+  - Clean up and refactor codebase for clarity and maintainability
+  - Implement proper WASM lifecycle management to prevent memory leaks
+  - Test that the simplified interface works without memory access errors
+  - _Requirements: Fix critical memory issues preventing game execution_

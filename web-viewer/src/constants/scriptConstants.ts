@@ -206,13 +206,7 @@ export const ACTION_SCRIPTS = {
    * Only works when character is touching the ground (bottom collision)
    */
   JUMP: [
-    OperatorAddress.READ_PROP,
-    0,
-    PropertyAddress.CHARACTER_COLLISION_BOTTOM, // Check if grounded
-    OperatorAddress.SKIP,
-    4,
-    0, // If grounded (var[0] = 1), skip exit and energy check
-    OperatorAddress.EXIT,
+    OperatorAddress.EXIT_IF_NOT_GROUNDED,
     5, // Exit with flag 5 if not grounded
     OperatorAddress.EXIT_IF_NO_ENERGY,
     10, // Exit if no energy with flag 10
@@ -236,7 +230,7 @@ export const ACTION_SCRIPTS = {
    * Only works when not grounded (wall sliding) and touching a wall
    */
   WALL_JUMP: [
-    // Check if grounded - if so, exit
+    // Check if grounded - if so, exit (wall jump only works when not grounded)
     OperatorAddress.READ_PROP,
     0,
     PropertyAddress.CHARACTER_COLLISION_BOTTOM, // Check if grounded
