@@ -131,7 +131,7 @@
   - **Expected Outcome**: Clear documentation of where and why position jumps occur
   - _Requirements: Foundation for fixing collision detection system_
 
-- [ ] 11.1. Fix tilemap collision detection coordinate system
+- [x] 11.1. Fix tilemap collision detection coordinate system
 
   - **Problem**: Tilemap collision detection may have coordinate system issues
   - **Current Issues**:

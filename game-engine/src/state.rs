@@ -942,106 +942,37 @@ impl GameState {
         Ok(())
     }
 
-    /// Correct entity position if it's overlapping with solid tiles
+    /// Correct entity position using industry-standard Minimum Translation Vector (MTV)
+    /// This follows established game development patterns for collision resolution
     pub fn correct_entity_overlap_static(
         tile_map: &crate::tilemap::Tilemap,
         entity: &mut crate::entity::EntityCore,
     ) {
-        use crate::tilemap::CollisionRect;
+        use crate::collision::{CollisionSystem, AABB};
 
-        let current_rect = CollisionRect::from_entity(entity.pos, entity.size);
+        // Convert entity to AABB for collision detection
+        let entity_aabb = AABB::from_entity(entity.pos, entity.size);
 
-        // If not currently overlapping, no correction needed
-        if !tile_map.check_collision(current_rect) {
-            return;
-        }
+        // Check for collision and get MTV using industry-standard collision detection
+        let collision_result = CollisionSystem::check_tilemap_collision(tile_map, &entity_aabb);
 
-        // Try to push entity out of collision by moving it in each direction
-        // Priority: left > right > up > down (prefer pushing left/right for horizontal movement)
+        if collision_result.hit {
+            // Apply the Minimum Translation Vector to resolve overlap
+            // This is the industry-standard approach used by Unity, Godot, Box2D, etc.
+            entity.pos.0 = entity.pos.0.add(collision_result.mtv.0);
+            entity.pos.1 = entity.pos.1.add(collision_result.mtv.1);
 
-        const MAX_CORRECTION_DISTANCE: i32 = 32; // Maximum pixels to push
+            // Verify the correction worked (safety check)
+            let corrected_aabb = AABB::from_entity(entity.pos, entity.size);
+            let verify_result = CollisionSystem::check_tilemap_collision(tile_map, &corrected_aabb);
 
-        // Try pushing left first (for entities moving right into walls)
-        for distance in 1..=MAX_CORRECTION_DISTANCE {
-            let test_pos = (
-                entity
-                    .pos
-                    .0
-                    .sub(crate::math::Fixed::from_int(distance as i16)),
-                entity.pos.1,
-            );
-            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
-
-            if !tile_map.check_collision(test_rect) {
-                entity.pos.0 = entity
-                    .pos
-                    .0
-                    .sub(crate::math::Fixed::from_int(distance as i16));
-                return;
+            if verify_result.hit {
+                // If still overlapping after first correction, apply additional MTV
+                // This handles complex multi-tile overlaps
+                entity.pos.0 = entity.pos.0.add(verify_result.mtv.0);
+                entity.pos.1 = entity.pos.1.add(verify_result.mtv.1);
             }
         }
-
-        // Try pushing right (for entities moving left into walls)
-        for distance in 1..=MAX_CORRECTION_DISTANCE {
-            let test_pos = (
-                entity
-                    .pos
-                    .0
-                    .add(crate::math::Fixed::from_int(distance as i16)),
-                entity.pos.1,
-            );
-            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
-
-            if !tile_map.check_collision(test_rect) {
-                entity.pos.0 = entity
-                    .pos
-                    .0
-                    .add(crate::math::Fixed::from_int(distance as i16));
-                return;
-            }
-        }
-
-        // Try pushing up
-        for distance in 1..=MAX_CORRECTION_DISTANCE {
-            let test_pos = (
-                entity.pos.0,
-                entity
-                    .pos
-                    .1
-                    .sub(crate::math::Fixed::from_int(distance as i16)),
-            );
-            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
-
-            if !tile_map.check_collision(test_rect) {
-                entity.pos.1 = entity
-                    .pos
-                    .1
-                    .sub(crate::math::Fixed::from_int(distance as i16));
-                return;
-            }
-        }
-
-        // Try pushing down (last resort)
-        for distance in 1..=MAX_CORRECTION_DISTANCE {
-            let test_pos = (
-                entity.pos.0,
-                entity
-                    .pos
-                    .1
-                    .add(crate::math::Fixed::from_int(distance as i16)),
-            );
-            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
-
-            if !tile_map.check_collision(test_rect) {
-                entity.pos.1 = entity
-                    .pos
-                    .1
-                    .add(crate::math::Fixed::from_int(distance as i16));
-                return;
-            }
-        }
-
-        // If we can't find a valid position, entity remains stuck (shouldn't happen in normal gameplay)
     }
 
     fn cleanup_entities(&mut self) -> GameResult<()> {
