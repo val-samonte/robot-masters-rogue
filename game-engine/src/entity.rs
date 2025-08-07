@@ -305,30 +305,34 @@ impl EntityCore {
             pos: (Fixed::ZERO, Fixed::ZERO),
             vel: (Fixed::ZERO, Fixed::ZERO),
             size: (0, 0), // Size will be set from configuration
-            collision: (true, true, true, true),
-            dir: (1, 0),     // Default to right (1) and downward gravity (0)
+            collision: (false, false, false, false),
+            dir: (2, 0),     // Default to right (2) and downward gravity (0)
             enmity: 0,       // Default enmity
             target_id: None, // No target initially
             target_type: 0,  // No target type initially
         }
     }
 
-    /// Get facing direction as Fixed value (-1.0 for left, 1.0 for right)
+    /// Get facing direction as Fixed value (-1.0 for left, 0.0 for neutral, 1.0 for right)
     pub fn get_facing(&self) -> Fixed {
-        if self.dir.0 == 0 {
-            Fixed::from_int(-1) // Left
-        } else {
-            Fixed::from_int(1) // Right
+        match self.dir.0 {
+            0 => Fixed::from_int(-1), // Left
+            1 => Fixed::ZERO,         // Neutral
+            2 => Fixed::from_int(1),  // Right
+            _ => Fixed::ZERO,         // Invalid → Neutral
         }
     }
 
-    /// Set facing direction from Fixed value (-1.0 → left, 1.0 → right)
+    /// Set facing direction from Fixed value (-1.0 → left, 0.0 → neutral, 1.0 → right)
     pub fn set_facing(&mut self, value: Fixed) {
-        if value < Fixed::ZERO {
-            self.dir.0 = 0; // Left
+        let int_value = value.to_int();
+        self.dir.0 = if int_value < 0 {
+            0 // Left
+        } else if int_value > 0 {
+            2 // Right
         } else {
-            self.dir.0 = 1; // Right
-        }
+            1 // Neutral
+        };
     }
 
     /// Get gravity multiplier based on dir.1 value

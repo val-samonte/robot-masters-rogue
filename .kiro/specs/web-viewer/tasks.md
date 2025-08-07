@@ -110,7 +110,40 @@
   - Verify entities cannot pass through tilemap boundaries
   - _Requirements: Core physics functionality for proper game boundaries_
 
-- [ ] 11. Update movement actions to work with fixed collision detection and gravity
+- [ ] 11. Fix collision detection timing and position overlap issues
+
+  - **Problem**: Characters get stuck after turning around at walls due to collision detection timing and position overlap
+  - **Root Cause Analysis**:
+    - Frame execution order: behaviors execute → collision detection → position update → collision flags updated
+    - When character hits wall and turns around, it may overlap wall by 1px
+    - Next frame: collision detection prevents movement even in opposite direction
+    - Character has velocity but position doesn't change (stuck condition)
+  - **Investigation Results**:
+    - Direction property implementation was fixed (ENTITY_DIR_HORIZONTAL now uses Fixed arrays correctly)
+    - RUN action works correctly (character moves horizontally with proper velocity)
+    - IS_WALL_LEANING condition detects wall collisions correctly
+    - TURN_AROUND action flips direction correctly
+    - Issue occurs specifically when character overlaps wall boundary after collision
+  - **Required Fixes**:
+    - Fix `correct_position_overlap` method in `game-engine/src/state.rs` to properly push entities out of walls
+    - Ensure position correction happens BEFORE collision detection in frame processing
+    - Update collision detection timing so collision flags are updated BEFORE behavior execution
+    - Test that characters can turn around and move away from walls without getting stuck
+    - Verify position correction works for all collision directions (top, right, bottom, left)
+    - Add comprehensive tests for wall collision → turn around → movement away sequence
+  - **Testing Strategy**:
+    - Use Node.js debug scripts in `debug-node/` directory to test collision scenarios
+    - Test character starting close to walls (1-2 pixels away)
+    - Verify character hits wall → turns around → moves in opposite direction successfully
+    - Test with different wall positions (left wall, right wall, top wall, bottom wall)
+    - Ensure no stuck conditions where velocity > 0 but position doesn't change
+  - **Debug Tools Available**:
+    - `debug-node/debug-execution-order.js` - Tests collision timing with character near wall
+    - `debug-node/debug-collision-timing.js` - Comprehensive collision detection analysis
+    - `debug-node/debug-wall-hit.js` - Tests complete wall hit → turn around sequence
+  - _Requirements: Core physics functionality for proper wall collision and turn-around behavior_
+
+- [ ] 12. Update movement actions to work with fixed collision detection and gravity
 
   - Update jump action script to work properly with the new gravity system
   - Fix wall jump action to detect walls correctly using the updated collision detection
@@ -122,7 +155,7 @@
   - Ensure actions work correctly with position correction system
   - _Requirements: Core movement functionality that works with updated physics system_
 
-- [x] 12. Fix WASM memory issues and simplify web viewer interface
+- [x] 13. Fix WASM memory issues and simplify web viewer interface
   - Identify and fix multiple WASM initialization causing memory corruption
   - Ensure WASM is loaded only ONCE and properly call free() when needed
   - Simplify web interface to only show: canvas, playback controls, and COMBINATION_1 config

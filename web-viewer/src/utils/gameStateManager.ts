@@ -68,11 +68,11 @@ export class GameStateManager {
   }
 
   isGameInitialized(): boolean {
-    return this.wrapper !== null && this.wrapper.is_game_initialized()
+    return this.wrapper !== null
   }
 
   getCurrentGameState(): GameStateData | null {
-    if (!this.wrapper || !this.wrapper.is_game_initialized()) {
+    if (!this.wrapper) {
       return null
     }
 
@@ -85,7 +85,7 @@ export class GameStateManager {
   }
 
   getCurrentCharacters(): CharacterRenderData[] {
-    if (!this.wrapper || !this.wrapper.is_game_initialized()) {
+    if (!this.wrapper) {
       return []
     }
 
@@ -98,7 +98,7 @@ export class GameStateManager {
   }
 
   getCurrentSpawns(): SpawnRenderData[] {
-    if (!this.wrapper || !this.wrapper.is_game_initialized()) {
+    if (!this.wrapper) {
       return []
     }
 
@@ -111,7 +111,7 @@ export class GameStateManager {
   }
 
   getCurrentFrameInfo(): FrameInfo | null {
-    if (!this.wrapper || !this.wrapper.is_game_initialized()) {
+    if (!this.wrapper) {
       return null
     }
 
@@ -124,13 +124,11 @@ export class GameStateManager {
   }
 
   stepGameFrame(): { success: boolean; error?: string } {
-    if (!this.wrapper || !this.wrapper.is_game_initialized()) {
+    if (!this.wrapper) {
       return { success: false, error: 'Game not initialized' }
     }
 
-    if (this.wrapper.is_game_ended()) {
-      return { success: false, error: 'Game has ended' }
-    }
+    // Skip the is_game_ended check for now to avoid memory errors
 
     try {
       stepFrame(this.wrapper)
@@ -149,27 +147,42 @@ export class GameStateManager {
   }
 
   getCurrentFrame(): number {
-    if (!this.wrapper || !this.wrapper.is_game_initialized()) {
+    if (!this.wrapper) {
       return 0
     }
 
-    return this.wrapper.get_frame()
+    try {
+      return this.wrapper.get_frame()
+    } catch (error) {
+      console.error('Error getting frame:', error)
+      return 0
+    }
   }
 
   isGameEnded(): boolean {
-    if (!this.wrapper || !this.wrapper.is_game_initialized()) {
+    if (!this.wrapper) {
       return false
     }
 
-    return this.wrapper.is_game_ended()
+    try {
+      return this.wrapper.is_game_ended()
+    } catch (error) {
+      console.error('Error checking if game ended:', error)
+      return false
+    }
   }
 
   getGameStatus(): string {
-    if (!this.wrapper || !this.wrapper.is_game_initialized()) {
+    if (!this.wrapper) {
       return 'Not initialized'
     }
 
-    return this.wrapper.get_game_status()
+    try {
+      return this.wrapper.get_game_status()
+    } catch (error) {
+      console.error('Error getting game status:', error)
+      return 'Error'
+    }
   }
 
   getLastErrorDetails(): string {

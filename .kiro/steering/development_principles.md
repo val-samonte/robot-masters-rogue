@@ -63,6 +63,60 @@
 - Never convert Fixed-point to floating-point for calculations
 - All game logic must be deterministic and reproducible across platforms
 
+### 9. WASM Debugging with Node.js
+
+When debugging WASM-related issues that are hard to trace in the browser:
+
+- **Create a Node.js debug script** in `debug-node/` directory
+- **Replicate the exact game configuration** from the web viewer
+- **Load WASM directly** using `import('../wasm-wrapper/pkg/wasm_wrapper.js')`
+- **Run frame-by-frame analysis** with detailed logging of game state
+- **Test specific behaviors** by isolating conditions and actions
+- **Verify property reading/writing** by checking if script variables match expected values
+- **Use this approach for**:
+  - Script execution debugging
+  - Property access issues
+  - Behavior system problems
+  - Collision detection verification
+  - Direction/movement logic validation
+
+**Example debugging pattern:**
+
+```javascript
+// Load WASM and create game
+const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+gameWrapper.new_game()
+
+// Run frames with detailed logging
+for (let frame = 0; frame < 100; frame++) {
+  const before = JSON.parse(gameWrapper.get_characters_json())
+  gameWrapper.step_frame()
+  const after = JSON.parse(gameWrapper.get_characters_json())
+
+  // Log state changes and detect issues
+  if (before[0].dir[0] !== after[0].dir[0]) {
+    console.log(`Direction changed: ${before[0].dir[0]} → ${after[0].dir[0]}`)
+  }
+}
+```
+
+### 10. Property Implementation Consistency
+
+To prevent bugs like the collision property issue:
+
+- **Always implement properties in ALL contexts** (ConditionContext, ActionContext, etc.)
+- **Use consistent array types**: `vars[]` for u8, `fixed[]` for Fixed
+- **Check array bounds correctly**: `engine.vars.len()` for vars, `engine.fixed.len()` for fixed
+- **Document unfinished implementations** in `.kiro/steering/unfinished_implementations.md`
+- **Test property access** with Node.js debugging before assuming it works
+- **Follow the property implementation checklist**:
+  - [ ] Define constant in `constants.rs`
+  - [ ] Implement in `ConditionContext::read_property`
+  - [ ] Implement in `ActionContext::read_property`
+  - [ ] Implement write methods if needed
+  - [ ] Use correct array type and bounds check
+  - [ ] Test with isolated script
+
 ## Remember
 
 This project is in active development. We can break things, change APIs, and redesign systems freely. Use this freedom to build something great, not to maintain something old.

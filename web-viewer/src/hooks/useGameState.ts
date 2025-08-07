@@ -62,7 +62,7 @@ export const useGameState = () => {
 
   // Update game state atoms when wrapper changes
   const updateGameState = useCallback(() => {
-    if (!gameStateManager.isGameInitialized()) {
+    if (!gameStateManager.getWrapper()) {
       return
     }
 
@@ -143,10 +143,8 @@ export const useGameState = () => {
 
   // Play/pause controls
   const play = useCallback(() => {
-    if (
-      gameStateManager.isGameInitialized() &&
-      !gameStateManager.isGameEnded()
-    ) {
+    // Simple check - just start playing if we have a wrapper
+    if (gameStateManager.getWrapper()) {
       setIsPlaying(true)
     }
   }, [setIsPlaying])

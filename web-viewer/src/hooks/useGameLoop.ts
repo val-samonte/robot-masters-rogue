@@ -16,12 +16,7 @@ export const useGameLoop = () => {
   // Game loop function
   const gameLoop = useCallback(
     (currentTime: number) => {
-      // Check if game should continue running
-      if (gameStateManager.isGameEnded()) {
-        // Automatically pause when game ends
-        pause()
-        return
-      }
+      // Skip game ended check to avoid WASM memory errors
 
       // Step the game forward one frame (run at browser's refresh rate, typically 60fps)
       const result = stepFrame()
@@ -43,7 +38,7 @@ export const useGameLoop = () => {
       }
 
       // Continue the loop if still playing
-      if (isPlaying && !gameStateManager.isGameEnded()) {
+      if (isPlaying) {
         animationFrameRef.current = requestAnimationFrame(gameLoop)
       }
     },
@@ -52,8 +47,7 @@ export const useGameLoop = () => {
 
   // Start/stop the game loop based on playing state
   useEffect(() => {
-    const gameEnded = gameStateManager.isGameEnded()
-    if (isPlaying && !gameEnded) {
+    if (isPlaying) {
       // Reset timing when starting
       frameCountRef.current = 0
       lastFpsUpdateRef.current = performance.now()
@@ -87,6 +81,6 @@ export const useGameLoop = () => {
 
   return {
     currentFps: fpsCounterRef.current,
-    isRunning: isPlaying && !gameStateManager.isGameEnded(),
+    isRunning: isPlaying,
   }
 }

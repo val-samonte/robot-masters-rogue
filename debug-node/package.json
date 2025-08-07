@@ -1,0 +1,11 @@
+{
+  "name": "wasm-debug",
+  "version": "1.0.0",
+  "description": "Debug WASM game engine",
+  "main": "debug.js",
+  "type": "module",
+  "scripts": {
+    "debug": "node debug.js"
+  },
+  "dependencies": {}
+}

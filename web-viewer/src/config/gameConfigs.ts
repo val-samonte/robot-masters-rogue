@@ -98,7 +98,7 @@ const BASIC_CHARACTER = {
   energy_regen_rate: 60,
   energy_charge: 5,
   energy_charge_rate: 30,
-  dir: [1, 0] as [number, number], // Facing right
+  dir: [2, 0] as [number, number], // Facing right (0=left, 1=neutral, 2=right)
   enmity: 0,
   target_id: null,
   target_type: 0,
@@ -116,34 +116,18 @@ const BASIC_CHARACTER = {
  */
 export const COMBINATION_1_CONFIG: GameConfig = {
   seed: 12345,
-  gravity: [3, 2], // Stronger gravity (1.5) for more realistic physics
+  gravity: [1, 2], // Normal gravity for testing
   tilemap: BASIC_TILEMAP,
   actions: [
-    // Action 0: WALL_JUMP (highest priority)
-    {
-      energy_cost: 7,
-      cooldown: 20,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.WALL_JUMP],
-    },
-    // Action 1: JUMP (second priority)
-    {
-      energy_cost: 3,
-      cooldown: 30,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.JUMP],
-    },
-    // Action 2: TURN_AROUND (third priority)
+    // Action 0: TURN_AROUND (highest priority)
     {
       energy_cost: 0,
-      cooldown: 10,
+      cooldown: 0, // No cooldown - allow immediate turn-around
       args: [0, 0, 0, 0, 0, 0, 0, 0],
       spawns: [0, 0, 0, 0],
       script: [...ACTION_SCRIPTS.TURN_AROUND],
     },
-    // Action 3: RUN (lowest priority - always)
+    // Action 1: RUN (lowest priority - always)
     {
       energy_cost: 0,
       cooldown: 0,
@@ -153,85 +137,13 @@ export const COMBINATION_1_CONFIG: GameConfig = {
     },
   ],
   conditions: [
-    // Condition 0: Wall leaning and NOT on ground (for WALL_JUMP)
+    // Condition 0: Wall leaning (for TURN_AROUND)
     {
       energy_mul: 32,
       args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [
-        // Check if NOT grounded (bottom collision = 0)
-        15,
-        0,
-        40, // READ_PROP var[0] CHARACTER_COLLISION_BOTTOM
-        60,
-        1,
-        0, // NOT var[1] = !var[0] (true if not grounded)
-
-        // Check if touching left or right wall
-        15,
-        2,
-        41, // READ_PROP var[2] CHARACTER_COLLISION_LEFT
-        15,
-        3,
-        39, // READ_PROP var[3] CHARACTER_COLLISION_RIGHT
-        61,
-        4,
-        2,
-        3, // OR var[4] = var[2] OR var[3] (touching any wall)
-
-        // Wall jump condition: NOT grounded AND touching wall
-        62,
-        5,
-        1,
-        4, // AND var[5] = var[1] AND var[4] (not grounded AND wall)
-        91,
-        5, // EXIT_WITH_VAR var[5]
-      ],
+      script: [...CONDITION_SCRIPTS.IS_WALL_LEANING],
     },
-    // Condition 1: On ground (for JUMP)
-    {
-      energy_mul: 32,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [
-        // Check if grounded (bottom collision = 1)
-        15,
-        0,
-        40, // READ_PROP var[0] CHARACTER_COLLISION_BOTTOM
-        91,
-        0, // EXIT_WITH_VAR var[0] (true if grounded)
-      ],
-    },
-    // Condition 2: Wall leaning AND on ground (for TURN_AROUND)
-    {
-      energy_mul: 32,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [
-        // Check if grounded
-        15,
-        0,
-        40, // READ_PROP var[0] CHARACTER_COLLISION_BOTTOM
-
-        // Check if touching left or right wall
-        15,
-        1,
-        41, // READ_PROP var[1] CHARACTER_COLLISION_LEFT
-        15,
-        2,
-        39, // READ_PROP var[2] CHARACTER_COLLISION_RIGHT
-        61,
-        3,
-        1,
-        2, // OR var[3] = var[1] OR var[2] (touching any wall)
-
-        // Turn around condition: grounded AND touching wall
-        62,
-        4,
-        0,
-        3, // AND var[4] = var[0] AND var[3] (grounded AND wall)
-        91,
-        4, // EXIT_WITH_VAR var[4]
-      ],
-    },
-    // Condition 3: Always (for RUN)
+    // Condition 1: Always (for RUN)
     {
       energy_mul: 32,
       args: [0, 0, 0, 0, 0, 0, 0, 0],
@@ -241,12 +153,9 @@ export const COMBINATION_1_CONFIG: GameConfig = {
   characters: [
     {
       ...BASIC_CHARACTER,
-      jump_force: [240, 32], // Increased jump force for good visibility
       behaviors: [
-        [0, 0], // Wall leaning + not grounded -> WALL_JUMP (highest priority)
-        [1, 1], // Grounded -> JUMP (second priority)
-        [2, 2], // Wall leaning + grounded -> TURN_AROUND (third priority)
-        [3, 3], // Always -> RUN (lowest priority)
+        [0, 0], // Wall leaning -> TURN_AROUND (highest priority)
+        [1, 1], // Always -> RUN (lowest priority)
       ],
     },
   ],

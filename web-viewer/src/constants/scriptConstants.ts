@@ -4,16 +4,25 @@
  * Predefined script templates for common actions and conditions.
  * These constants provide easy-to-use bytecode arrays for testing different character behaviors.
  *
- * GRAVITY DIRECTION SYSTEM:
- * The ENTITY_DIR_VERTICAL property controls how gravity affects entities:
- * - dir.1 = 0: Downward gravity (multiply game_gravity by +1.0) - DEFAULT for characters
- * - dir.1 = 1: Neutral gravity (multiply game_gravity by 0.0 - no gravity effect) - DEFAULT for spawns
- * - dir.1 = 2: Upward gravity (multiply game_gravity by -1.0 - inverted)
+ * DIRECTION SYSTEM (UPDATED):
+ * Both horizontal and vertical directions use the 0,1,2 pattern for consistency:
  *
- * Gravity calculation: entity_velocity.y += game_state.gravity * gravity_multiplier
+ * HORIZONTAL DIRECTION (ENTITY_DIR_HORIZONTAL):
+ * - Game State: dir.0 = 0 (left), 1 (neutral), 2 (right)
+ * - Script Access: Fixed values -1.0 (left), 0.0 (neutral), +1.0 (right)
+ * - Conversion: script_value = game_state_value - 1, game_state_value = script_value + 1
+ * - Usage: Multiply by move_speed for velocity calculation
  *
- * Characters default to dir.1 = 0 (affected by downward gravity)
- * Spawns default to dir.1 = 1 (neutral - not affected by gravity)
+ * VERTICAL DIRECTION (ENTITY_DIR_VERTICAL):
+ * - Game State: dir.1 = 0 (downward), 1 (neutral), 2 (upward)
+ * - Script Access: Fixed values for gravity multiplier
+ * - Usage: Multiply by game_gravity for gravity effect
+ *
+ * COLLISION PROPERTIES:
+ * All collision properties are now properly implemented in both ConditionContext and ActionContext:
+ * - CHARACTER_COLLISION_TOP, CHARACTER_COLLISION_RIGHT, CHARACTER_COLLISION_BOTTOM, CHARACTER_COLLISION_LEFT
+ * - Return u8 values: 0 (not colliding), 1 (colliding)
+ * - Accessible via READ_PROP in both conditions and actions
  */
 
 // Constants imported from wasm-wrapper project to avoid magic numbers
@@ -129,395 +138,206 @@ const PropertyAddress = {
 } as const
 
 /**
- * Action script templates for common character behaviors
+ * Action script templates - FRESH START
  */
 export const ACTION_SCRIPTS = {
   /**
-   * Run action - moves character horizontally based on facing direction
-   * Uses CHARACTER_MOVE_SPEED * facing direction for movement
-   * Properly handles left (0) and right (1) facing directions
-   */
-  RUN: [
-    OperatorAddress.READ_PROP,
-    0,
-    PropertyAddress.CHARACTER_MOVE_SPEED, // Read character's move speed (fixed-point)
-    OperatorAddress.READ_PROP,
-    1,
-    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read facing direction (0=left, 1=right)
-    OperatorAddress.EQUAL,
-    2,
-    1,
-    1, // Check if facing right (1) -> var[2] = 1 if facing right
-    OperatorAddress.SKIP,
-    3,
-    2, // If facing right, skip to positive velocity write
-    // Facing left - use negative speed
-    OperatorAddress.NEGATE,
-    0, // Negate the speed for left movement
-    OperatorAddress.WRITE_PROP,
-    PropertyAddress.CHARACTER_VEL_X,
-    0, // Write negative speed for left movement
-    OperatorAddress.EXIT,
-    0,
-    // Facing right - use positive speed
-    OperatorAddress.WRITE_PROP,
-    PropertyAddress.CHARACTER_VEL_X,
-    0, // Write positive speed for right movement
-    OperatorAddress.EXIT,
-    0,
-  ],
-
-  /**
    * Turn around action - flips the character's facing direction
-   * If facing right (1), turn left (0), and vice versa
+   * Simple approach: negate the current direction
    */
   TURN_AROUND: [
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read horizontal direction
-    OperatorAddress.EQUAL,
-    1,
-    0,
-    0, // Check if facing left (0) -> var[1] = 1 if facing left
-    OperatorAddress.SKIP,
-    3,
-    1, // If facing left, skip to set right
-    // Facing right - set to left (0)
-    OperatorAddress.ASSIGN_BYTE,
-    2,
-    0, // Set to left (0)
-    OperatorAddress.SKIP,
-    2,
-    0, // Skip the set right section
-    // Facing left - set to right (1)
-    OperatorAddress.ASSIGN_BYTE,
-    2,
-    1, // Set to right (1)
+    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read current direction into fixed[0] (as Fixed)
+    OperatorAddress.NEGATE,
+    0, // Negate fixed[0] (flip direction)
     OperatorAddress.WRITE_PROP,
     PropertyAddress.ENTITY_DIR_HORIZONTAL,
-    2, // Write new facing direction
+    0, // Write fixed[0] back to direction
     OperatorAddress.EXIT,
-    0,
+    1, // Exit with success
   ],
 
   /**
-   * Jump action - applies upward velocity if character has energy and is grounded
-   * Uses CHARACTER_JUMP_FORCE property, applies energy cost
-   * Only works when character is touching the ground (bottom collision)
+   * Run action - moves character using movespeed * horizontal_dir
+   * New system: direction is Fixed (-1.0=left, 0.0=neutral, +1.0=right)
    */
-  JUMP: [
-    OperatorAddress.EXIT_IF_NOT_GROUNDED,
-    5, // Exit with flag 5 if not grounded
-    OperatorAddress.EXIT_IF_NO_ENERGY,
-    10, // Exit if no energy with flag 10
-    OperatorAddress.READ_PROP,
-    1,
-    PropertyAddress.CHARACTER_JUMP_FORCE, // Read character's jump force (fixed-point)
-    OperatorAddress.NEGATE,
-    1, // Make it negative for upward velocity
-    OperatorAddress.WRITE_PROP,
-    PropertyAddress.CHARACTER_VEL_Y,
-    1, // Write jump velocity to Y
-    OperatorAddress.APPLY_ENERGY_COST,
-    OperatorAddress.EXIT,
-    0,
-  ],
-
-  /**
-   * Wall jump action - jumps off walls when touching them
-   * Uses 75% of CHARACTER_JUMP_FORCE for vertical force, CHARACTER_MOVE_SPEED for horizontal force
-   * Pushes away from the wall being touched (left wall = jump right, right wall = jump left)
-   * Only works when not grounded (wall sliding) and touching a wall
-   */
-  WALL_JUMP: [
-    // Check if grounded - if so, exit (wall jump only works when not grounded)
+  RUN: [
+    // Read current horizontal direction
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.CHARACTER_COLLISION_BOTTOM, // Check if grounded
-    OperatorAddress.SKIP,
-    2,
-    0, // If not grounded (0), continue
-    OperatorAddress.EXIT,
-    20, // Exit with flag 20 if grounded
-
-    // Check if touching left or right wall
+    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read direction into fixed[0]
+    // Read move speed
     OperatorAddress.READ_PROP,
     1,
-    PropertyAddress.CHARACTER_COLLISION_LEFT, // Check left wall collision
-    OperatorAddress.READ_PROP,
-    2,
-    PropertyAddress.CHARACTER_COLLISION_RIGHT, // Check right wall collision
-    OperatorAddress.OR,
-    3,
-    1,
-    2, // Check if touching either wall
-    OperatorAddress.SKIP,
-    2,
-    3, // If touching wall, continue
-    OperatorAddress.EXIT,
-    21, // Exit with flag 21 if not touching wall
-
-    OperatorAddress.EXIT_IF_NO_ENERGY,
-    15, // Exit if no energy with flag 15
-
-    // Calculate and apply vertical velocity (75% of jump force)
-    OperatorAddress.READ_PROP,
-    0,
-    PropertyAddress.CHARACTER_JUMP_FORCE, // Read character's jump force (fixed-point)
-    OperatorAddress.ASSIGN_FIXED,
-    1,
-    3,
-    4, // Assign 0.75 (3/4) to fixed[1]
+    PropertyAddress.CHARACTER_MOVE_SPEED, // Read move speed into fixed[1]
+    // Multiply direction * move speed
     OperatorAddress.MUL,
     2,
     0,
-    1, // Multiply jump force by 0.75 -> fixed[2]
-    OperatorAddress.NEGATE,
-    2, // Make negative for upward velocity
-    OperatorAddress.WRITE_PROP,
-    PropertyAddress.CHARACTER_VEL_Y,
-    2, // Write vertical velocity (upward)
-
-    // Calculate horizontal velocity based on which wall is touched
-    OperatorAddress.READ_PROP,
-    3,
-    PropertyAddress.CHARACTER_MOVE_SPEED, // Read character's move speed (fixed-point)
-    OperatorAddress.READ_PROP,
-    4,
-    PropertyAddress.CHARACTER_COLLISION_LEFT, // Check left wall collision
-    OperatorAddress.SKIP,
-    4,
-    4, // If not touching left wall, check right wall
-    // Touching left wall - jump right (positive velocity)
+    1, // fixed[2] = fixed[0] * fixed[1] (direction * speed)
+    // Write result to velocity
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_X,
-    3, // Write positive horizontal velocity
-    OperatorAddress.SKIP,
-    3,
-    0, // Skip the negative velocity section
-    // Touching right wall - jump left (negative velocity)
-    OperatorAddress.NEGATE,
-    3, // Make speed negative for left movement
-    OperatorAddress.WRITE_PROP,
-    PropertyAddress.CHARACTER_VEL_X,
-    3, // Write negative horizontal velocity
-
-    OperatorAddress.APPLY_ENERGY_COST,
+    2, // Write fixed[2] to velocity
     OperatorAddress.EXIT,
-    0,
+    1, // Exit with success
   ],
 
   /**
-   * Charge action - recovers energy when below energy cap
-   * Uses CHARACTER_ENERGY_CHARGE and CHARACTER_ENERGY_CHARGE_RATE for timed energy recovery
+   * Jump action - applies upward velocity using jump_force
+   * Works with gravity system - gravity will pull character back down
    */
-  CHARGE: [
-    // Check if energy is below cap
+  JUMP: [
+    OperatorAddress.EXIT_IF_NO_ENERGY,
+    10, // Exit if not enough energy for jump
+    // Read jump force
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.CHARACTER_ENERGY,
+    PropertyAddress.CHARACTER_JUMP_FORCE, // Read jump force into fixed[0]
+    // Apply negative jump force (upward velocity)
+    OperatorAddress.NEGATE,
+    0, // Negate jump force for upward movement
+    // Write to vertical velocity
+    OperatorAddress.WRITE_PROP,
+    PropertyAddress.CHARACTER_VEL_Y,
+    0, // Write negated jump force to velocity
+    // Apply energy cost
+    OperatorAddress.APPLY_ENERGY_COST,
+    OperatorAddress.EXIT,
+    1, // Exit with success
+  ],
+
+  /**
+   * Wall jump action - jumps away from wall with both vertical and horizontal velocity
+   * Detects which wall is being touched and jumps in opposite direction
+   */
+  WALL_JUMP: [
+    OperatorAddress.EXIT_IF_NO_ENERGY,
+    15, // Exit if not enough energy
+    // Check if touching right wall
+    OperatorAddress.READ_PROP,
+    0,
+    PropertyAddress.CHARACTER_COLLISION_RIGHT,
+    // Check if touching left wall
     OperatorAddress.READ_PROP,
     1,
-    PropertyAddress.CHARACTER_ENERGY_CAP,
-    OperatorAddress.LESS_THAN,
+    PropertyAddress.CHARACTER_COLLISION_LEFT,
+    // Must be touching at least one wall
+    OperatorAddress.OR,
     2,
     0,
-    1, // var[2] = energy < cap
-
-    // Check if it's time to charge (frame % charge_rate == 0)
-    OperatorAddress.READ_PROP,
+    1, // vars[2] = touching any wall
+    // Exit if not touching wall
+    OperatorAddress.NOT,
     3,
-    PropertyAddress.GAME_FRAME, // Read current game frame
-    OperatorAddress.READ_PROP,
-    4,
-    PropertyAddress.CHARACTER_ENERGY_CHARGE_RATE, // Read charge rate
-    OperatorAddress.MOD_BYTE,
-    5,
+    2, // vars[3] = NOT touching wall
+    // Skip if not touching wall (jump to exit)
+    OperatorAddress.GOTO,
     3,
-    4, // var[5] = frame % charge_rate
-    OperatorAddress.EQUAL,
-    6,
-    5,
-    0, // var[6] = (frame % charge_rate == 0)
-
-    // Check both conditions: energy < cap AND time to charge
-    OperatorAddress.AND,
-    7,
-    2,
-    6, // var[7] = energy_below_cap AND time_to_charge
-
-    // If conditions met, calculate new energy
+    25, // Jump to exit if not touching wall
+    // Apply upward velocity (jump force)
     OperatorAddress.READ_PROP,
-    8,
-    PropertyAddress.CHARACTER_ENERGY_CHARGE, // Read charge amount
-    OperatorAddress.ADD_BYTE,
-    9,
-    0,
-    8, // var[9] = current_energy + charge_amount
-    OperatorAddress.MIN,
-    10,
-    9,
-    1, // var[10] = min(new_energy, energy_cap)
-
-    // Only write if conditions are met (this is simplified - in real implementation
-    // we'd need conditional branching, but this will charge every frame when conditions are met)
+    4, // Use fixed[4] for jump force
+    PropertyAddress.CHARACTER_JUMP_FORCE,
+    OperatorAddress.NEGATE,
+    4, // Negate for upward movement
     OperatorAddress.WRITE_PROP,
-    PropertyAddress.CHARACTER_ENERGY,
-    10, // Write the calculated energy value
-    OperatorAddress.EXIT,
+    PropertyAddress.CHARACTER_VEL_Y,
+    4, // Apply upward velocity
+    // Determine horizontal direction (away from wall)
+    // If touching right wall, go left (-1.0)
+    // If touching left wall, go right (+1.0)
+    OperatorAddress.ASSIGN_FIXED,
+    5,
+    -1,
+    1, // fixed[5] = -1.0 (left direction)
+    OperatorAddress.ASSIGN_FIXED,
+    6,
+    1,
+    1, // fixed[6] = +1.0 (right direction)
+    // Choose direction based on wall collision
+    OperatorAddress.ASSIGN_FIXED,
+    7,
     0,
+    1, // fixed[7] = 0.0 (default)
+    // If right collision, use left direction
+    OperatorAddress.ASSIGN_FIXED,
+    8,
+    0,
+    1, // fixed[8] = 0.0 for comparison
+    OperatorAddress.NOT_EQUAL,
+    9,
+    0,
+    8, // vars[9] = (right_collision != 0)
+    OperatorAddress.MUL,
+    10,
+    5,
+    9, // fixed[10] = left_dir * right_collision_flag
+    // If left collision, use right direction
+    OperatorAddress.NOT_EQUAL,
+    11,
+    1,
+    8, // vars[11] = (left_collision != 0)
+    OperatorAddress.MUL,
+    12,
+    6,
+    11, // fixed[12] = right_dir * left_collision_flag
+    // Combine directions
+    OperatorAddress.ADD,
+    13,
+    10,
+    12, // fixed[13] = final horizontal direction
+    // Apply horizontal velocity (reduced speed for wall jump)
+    OperatorAddress.READ_PROP,
+    14,
+    PropertyAddress.CHARACTER_MOVE_SPEED,
+    OperatorAddress.MUL,
+    15,
+    13,
+    14, // fixed[15] = direction * move_speed
+    OperatorAddress.WRITE_PROP,
+    PropertyAddress.CHARACTER_VEL_X,
+    15, // Apply horizontal velocity
+    // Apply energy cost
+    OperatorAddress.APPLY_ENERGY_COST,
+    OperatorAddress.EXIT,
+    1, // Exit with success
   ],
 } as const
 
 /**
- * Condition script templates for common behavior triggers
+ * Condition script templates - FRESH START
  */
 export const CONDITION_SCRIPTS = {
   /**
    * Always condition - always returns true
-   * Simple condition that always triggers
    */
-  ALWAYS: [OperatorAddress.ASSIGN_BYTE, 0, 1, OperatorAddress.EXIT_WITH_VAR, 0],
-
-  /**
-   * 10% chance condition - randomly triggers 10% of the time
-   * Uses random number generation with threshold of 25 (out of 255)
-   */
-  CHANCE_10: [
-    OperatorAddress.ASSIGN_RANDOM,
-    0,
+  ALWAYS: [
     OperatorAddress.ASSIGN_BYTE,
-    1,
-    25, // ~10% of 255
-    OperatorAddress.LESS_THAN,
-    2,
     0,
-    1,
+    1, // Set var[0] = 1 (true)
     OperatorAddress.EXIT_WITH_VAR,
-    2,
+    0, // Exit with var[0] (true)
   ],
 
   /**
-   * 20% chance condition - randomly triggers 20% of the time
-   * Uses random number generation with threshold of 51 (out of 255)
+   * Is wall leaning condition - simplified to just check if touching any wall
+   * This should trigger when character hits left or right walls
    */
-  CHANCE_20: [
-    OperatorAddress.ASSIGN_RANDOM,
-    0,
-    OperatorAddress.ASSIGN_BYTE,
-    1,
-    51, // ~20% of 255
-    OperatorAddress.LESS_THAN,
-    2,
-    0,
-    1,
-    OperatorAddress.EXIT_WITH_VAR,
-    2,
-  ],
-
-  /**
-   * 50% chance condition - randomly triggers 50% of the time
-   * Uses random number generation with threshold of 128 (out of 255)
-   */
-  CHANCE_50: [
-    OperatorAddress.ASSIGN_RANDOM,
-    0,
-    OperatorAddress.ASSIGN_BYTE,
-    1,
-    128, // 50% of 255
-    OperatorAddress.LESS_THAN,
-    2,
-    0,
-    1,
-    OperatorAddress.EXIT_WITH_VAR,
-    2,
-  ],
-
-  /**
-   * Energy low 10% condition - triggers when energy is below 10% of cap
-   * Compares current energy to 10% of energy cap
-   */
-  ENERGY_LOW_10: [
+  IS_WALL_LEANING: [
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.CHARACTER_ENERGY,
+    PropertyAddress.CHARACTER_COLLISION_RIGHT, // Read right collision
     OperatorAddress.READ_PROP,
     1,
-    PropertyAddress.CHARACTER_ENERGY_CAP,
-    OperatorAddress.DIV_BYTE,
-    2,
-    1,
-    10, // Divide cap by 10 for 10% threshold
-    OperatorAddress.LESS_THAN,
-    3,
-    0,
-    2,
-    OperatorAddress.EXIT_WITH_VAR,
-    3,
-  ],
-
-  /**
-   * Energy low 20% condition - triggers when energy is below 20% of cap
-   * Compares current energy to 20% of energy cap
-   */
-  ENERGY_LOW_20: [
-    OperatorAddress.READ_PROP,
-    0,
-    PropertyAddress.CHARACTER_ENERGY,
-    OperatorAddress.READ_PROP,
-    1,
-    PropertyAddress.CHARACTER_ENERGY_CAP,
-    OperatorAddress.DIV_BYTE,
-    2,
-    1,
-    5, // Divide cap by 5 for 20% threshold
-    OperatorAddress.LESS_THAN,
-    3,
-    0,
-    2,
-    OperatorAddress.EXIT_WITH_VAR,
-    3,
-  ],
-
-  /**
-   * Is grounded condition - triggers when character is touching the ground
-   * Checks bottom collision flag
-   */
-  IS_GROUNDED: [
-    OperatorAddress.READ_PROP,
-    0,
-    PropertyAddress.CHARACTER_COLLISION_BOTTOM,
-    OperatorAddress.EXIT_WITH_VAR,
-    0,
-  ],
-
-  /**
-   * Is wall sliding condition - triggers when character is sliding against a wall
-   * Checks if not grounded AND touching left or right wall
-   */
-  IS_WALL_SLIDING: [
-    OperatorAddress.READ_PROP,
-    0,
-    PropertyAddress.CHARACTER_COLLISION_BOTTOM,
-    OperatorAddress.NOT,
-    1,
-    0, // Not grounded
-    OperatorAddress.READ_PROP,
-    2,
-    PropertyAddress.CHARACTER_COLLISION_LEFT,
-    OperatorAddress.READ_PROP,
-    3,
-    PropertyAddress.CHARACTER_COLLISION_RIGHT,
+    PropertyAddress.CHARACTER_COLLISION_LEFT, // Read left collision
     OperatorAddress.OR,
-    4,
     2,
-    3, // Touching left OR right wall
-    OperatorAddress.AND,
-    5,
-    1,
-    4, // Not grounded AND touching wall
+    0,
+    1, // vars[2] = right_collision OR left_collision
     OperatorAddress.EXIT_WITH_VAR,
-    5,
+    2, // Exit with result (true if touching any wall)
   ],
 } as const
 
