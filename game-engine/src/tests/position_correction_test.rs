@@ -27,7 +27,7 @@ fn test_position_correction_directly() {
     );
 
     // Apply position correction
-    GameState::correct_position_overlap(&tilemap, &mut entity);
+    GameState::correct_entity_overlap_static(&tilemap, &mut entity);
 
     // Verify entity is no longer overlapping
     let corrected_rect = crate::tilemap::CollisionRect::from_entity(entity.pos, entity.size);

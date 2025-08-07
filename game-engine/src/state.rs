@@ -719,8 +719,8 @@ impl GameState {
 
         // Process characters
         for character in &mut self.characters {
-            // First, check if character is currently overlapping with solid tiles and correct position
-            Self::correct_position_overlap(&self.tile_map, &mut character.core);
+            // First, check if character is overlapping with walls and correct position
+            Self::correct_entity_overlap_static(&self.tile_map, &mut character.core);
 
             // Create collision rectangle for current position (after position correction)
             let current_rect = CollisionRect::from_entity(character.core.pos, character.core.size);
@@ -830,8 +830,8 @@ impl GameState {
 
         // Process spawns
         for spawn in &mut self.spawn_instances {
-            // First, check if spawn is currently overlapping with solid tiles and correct position
-            Self::correct_position_overlap(&self.tile_map, &mut spawn.core);
+            // First, check if spawn is overlapping with walls and correct position
+            Self::correct_entity_overlap_static(&self.tile_map, &mut spawn.core);
 
             // Create collision rectangle for current position (after position correction)
             let current_rect = CollisionRect::from_entity(spawn.core.pos, spawn.core.size);
@@ -942,15 +942,9 @@ impl GameState {
         Ok(())
     }
 
-    fn cleanup_entities(&mut self) -> GameResult<()> {
-        // Remove expired spawn instances
-        self.spawn_instances.retain(|spawn| spawn.life_span > 0);
-        Ok(())
-    }
-
     /// Correct entity position if it's overlapping with solid tiles
-    pub fn correct_position_overlap(
-        tilemap: &crate::tilemap::Tilemap,
+    pub fn correct_entity_overlap_static(
+        tile_map: &crate::tilemap::Tilemap,
         entity: &mut crate::entity::EntityCore,
     ) {
         use crate::tilemap::CollisionRect;
@@ -958,14 +952,54 @@ impl GameState {
         let current_rect = CollisionRect::from_entity(entity.pos, entity.size);
 
         // If not currently overlapping, no correction needed
-        if !tilemap.check_collision(current_rect) {
+        if !tile_map.check_collision(current_rect) {
             return;
         }
 
         // Try to push entity out of collision by moving it in each direction
-        // Priority: up > left > right > down (prefer pushing up to prevent sinking)
+        // Priority: left > right > up > down (prefer pushing left/right for horizontal movement)
 
         const MAX_CORRECTION_DISTANCE: i32 = 32; // Maximum pixels to push
+
+        // Try pushing left first (for entities moving right into walls)
+        for distance in 1..=MAX_CORRECTION_DISTANCE {
+            let test_pos = (
+                entity
+                    .pos
+                    .0
+                    .sub(crate::math::Fixed::from_int(distance as i16)),
+                entity.pos.1,
+            );
+            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
+
+            if !tile_map.check_collision(test_rect) {
+                entity.pos.0 = entity
+                    .pos
+                    .0
+                    .sub(crate::math::Fixed::from_int(distance as i16));
+                return;
+            }
+        }
+
+        // Try pushing right (for entities moving left into walls)
+        for distance in 1..=MAX_CORRECTION_DISTANCE {
+            let test_pos = (
+                entity
+                    .pos
+                    .0
+                    .add(crate::math::Fixed::from_int(distance as i16)),
+                entity.pos.1,
+            );
+            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
+
+            if !tile_map.check_collision(test_rect) {
+                entity.pos.0 = entity
+                    .pos
+                    .0
+                    .add(crate::math::Fixed::from_int(distance as i16));
+                return;
+            }
+        }
 
         // Try pushing up
         for distance in 1..=MAX_CORRECTION_DISTANCE {
@@ -978,51 +1012,11 @@ impl GameState {
             );
             let test_rect = CollisionRect::from_entity(test_pos, entity.size);
 
-            if !tilemap.check_collision(test_rect) {
+            if !tile_map.check_collision(test_rect) {
                 entity.pos.1 = entity
                     .pos
                     .1
                     .sub(crate::math::Fixed::from_int(distance as i16));
-                return;
-            }
-        }
-
-        // Try pushing left
-        for distance in 1..=MAX_CORRECTION_DISTANCE {
-            let test_pos = (
-                entity
-                    .pos
-                    .0
-                    .sub(crate::math::Fixed::from_int(distance as i16)),
-                entity.pos.1,
-            );
-            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
-
-            if !tilemap.check_collision(test_rect) {
-                entity.pos.0 = entity
-                    .pos
-                    .0
-                    .sub(crate::math::Fixed::from_int(distance as i16));
-                return;
-            }
-        }
-
-        // Try pushing right
-        for distance in 1..=MAX_CORRECTION_DISTANCE {
-            let test_pos = (
-                entity
-                    .pos
-                    .0
-                    .add(crate::math::Fixed::from_int(distance as i16)),
-                entity.pos.1,
-            );
-            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
-
-            if !tilemap.check_collision(test_rect) {
-                entity.pos.0 = entity
-                    .pos
-                    .0
-                    .add(crate::math::Fixed::from_int(distance as i16));
                 return;
             }
         }
@@ -1038,7 +1032,7 @@ impl GameState {
             );
             let test_rect = CollisionRect::from_entity(test_pos, entity.size);
 
-            if !tilemap.check_collision(test_rect) {
+            if !tile_map.check_collision(test_rect) {
                 entity.pos.1 = entity
                     .pos
                     .1
@@ -1048,6 +1042,12 @@ impl GameState {
         }
 
         // If we can't find a valid position, entity remains stuck (shouldn't happen in normal gameplay)
+    }
+
+    fn cleanup_entities(&mut self) -> GameResult<()> {
+        // Remove expired spawn instances
+        self.spawn_instances.retain(|spawn| spawn.life_span > 0);
+        Ok(())
     }
 }
 /// Context for condition script execution
