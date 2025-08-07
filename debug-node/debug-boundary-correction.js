@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 
-// Test position correction algorithm directly
+// Test boundary correction specifically
 const gameConfig = {
   seed: 12345,
   gravity: [1, 2],
@@ -19,7 +19,7 @@ const gameConfig = {
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
   actions: [
@@ -46,7 +46,7 @@ const gameConfig = {
         [208, 1], // Y position (13*16 = 208, just above ground)
       ],
       group: 1,
-      size: [16, 16],
+      size: [16, 16], // 16x16 character
       health: 100,
       health_cap: 100,
       energy: 100,
@@ -85,66 +85,43 @@ async function loadWasm() {
     const wasmBuffer = fs.readFileSync(wasmPath)
     await init(wasmBuffer)
 
-    console.log('=== POSITION CORRECTION DEBUG TEST ===')
-    console.log('Character at x=230 with width=16 overlaps wall at x=240')
-    console.log('Expected: character should be pushed LEFT to x=224')
-    console.log('Actual: character gets pushed to x=256 (wrong direction!)')
+    console.log('=== BOUNDARY CORRECTION TEST ===')
+    console.log('Testing position correction with 16x16 character')
+    console.log('Character at x=230, right edge at x=246')
+    console.log('Wall at x=240, so character overlaps by 6 pixels')
+    console.log('Expected: character should be pushed to x=224')
     console.log('')
 
     const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
     gameWrapper.new_game()
 
-    // Get initial state
-    const before = JSON.parse(gameWrapper.get_characters_json())
-    const char = before[0]
-    const posX = char.position[0][0] / char.position[0][1]
-    const posY = char.position[1][0] / char.position[1][1]
+    // Test multiple frames to see what happens
+    for (let frame = 0; frame < 5; frame++) {
+      const chars = JSON.parse(gameWrapper.get_characters_json())
+      const char = chars[0]
+      const posX = char.position[0][0] / char.position[0][1]
+      const posY = char.position[1][0] / char.position[1][1]
+      const velX = char.velocity[0][0] / char.velocity[0][1]
+      const velY = char.velocity[1][0] / char.velocity[1][1]
+      const rightEdge = posX + char.size[0]
 
-    console.log('BEFORE position correction:')
-    console.log(`  Position: (${posX}, ${posY})`)
-    console.log(`  Character bounds: x=${posX} to x=${posX + char.size[0]}`)
-    console.log(`  Right edge: ${posX + char.size[0]} (should be <= 240)`)
-    console.log(`  Overlap: ${posX + char.size[0] - 240} pixels into wall`)
-    console.log('')
+      console.log(`Frame ${frame}:`)
+      console.log(`  Position: (${posX}, ${posY})`)
+      console.log(`  Velocity: (${velX}, ${velY})`)
+      console.log(`  Right edge: ${rightEdge}`)
+      console.log(`  Within boundaries: ${rightEdge <= 240 ? '✅' : '❌'}`)
 
-    // Step one frame to trigger position correction
-    gameWrapper.step_frame()
+      if (rightEdge > 240) {
+        console.log(
+          `  ❌ Character extends ${rightEdge - 240} pixels outside boundary`
+        )
+      }
 
-    const after = JSON.parse(gameWrapper.get_characters_json())
-    const afterChar = after[0]
-    const afterPosX = afterChar.position[0][0] / afterChar.position[0][1]
-    const afterPosY = afterChar.position[1][0] / afterChar.position[1][1]
+      console.log('')
 
-    console.log('AFTER position correction:')
-    console.log(`  Position: (${afterPosX}, ${afterPosY})`)
-    console.log(
-      `  Character bounds: x=${afterPosX} to x=${afterPosX + afterChar.size[0]}`
-    )
-    console.log(`  Right edge: ${afterPosX + afterChar.size[0]}`)
-
-    const deltaX = afterPosX - posX
-    console.log(`  Position change: ${deltaX} pixels`)
-
-    if (deltaX > 0) {
-      console.log('  ❌ MOVED RIGHT - This is wrong! Should move LEFT')
-    } else if (deltaX < 0) {
-      console.log('  ✅ MOVED LEFT - This is correct direction')
-    } else {
-      console.log(
-        '  ⚠️  NO MOVEMENT - Position correction may not have triggered'
-      )
-    }
-
-    if (afterPosX + afterChar.size[0] <= 240) {
-      console.log('  ✅ Character is now inside game boundaries')
-    } else {
-      console.log('  ❌ Character is still outside game boundaries!')
-    }
-
-    if (afterPosX >= 16) {
-      console.log('  ✅ Character is not overlapping left wall')
-    } else {
-      console.log('  ❌ Character is now overlapping left wall!')
+      if (frame < 4) {
+        gameWrapper.step_frame()
+      }
     }
 
     gameWrapper.free()

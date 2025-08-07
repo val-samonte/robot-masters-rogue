@@ -942,37 +942,150 @@ impl GameState {
         Ok(())
     }
 
-    /// Correct entity position using industry-standard Minimum Translation Vector (MTV)
-    /// This follows established game development patterns for collision resolution
+    /// Correct entity position overlap with robust algorithm
+    /// Uses velocity direction preference and minimal movement distance
     pub fn correct_entity_overlap_static(
         tile_map: &crate::tilemap::Tilemap,
         entity: &mut crate::entity::EntityCore,
     ) {
-        use crate::collision::{CollisionSystem, AABB};
+        use crate::tilemap::CollisionRect;
 
-        // Convert entity to AABB for collision detection
-        let entity_aabb = AABB::from_entity(entity.pos, entity.size);
+        // Maximum correction distance (8 pixels = half a tile)
+        const MAX_CORRECTION_DISTANCE: i16 = 8;
 
-        // Check for collision and get MTV using industry-standard collision detection
-        let collision_result = CollisionSystem::check_tilemap_collision(tile_map, &entity_aabb);
+        // Create collision rectangle for current position
+        let current_rect = CollisionRect::from_entity(entity.pos, entity.size);
 
-        if collision_result.hit {
-            // Apply the Minimum Translation Vector to resolve overlap
-            // This is the industry-standard approach used by Unity, Godot, Box2D, etc.
-            entity.pos.0 = entity.pos.0.add(collision_result.mtv.0);
-            entity.pos.1 = entity.pos.1.add(collision_result.mtv.1);
+        // Check if entity is currently overlapping with walls
+        if !tile_map.check_collision(current_rect) {
+            return; // No overlap, no correction needed
+        }
 
-            // Verify the correction worked (safety check)
-            let corrected_aabb = AABB::from_entity(entity.pos, entity.size);
-            let verify_result = CollisionSystem::check_tilemap_collision(tile_map, &corrected_aabb);
+        // Store original position for boundary checking
+        let original_pos = entity.pos;
 
-            if verify_result.hit {
-                // If still overlapping after first correction, apply additional MTV
-                // This handles complex multi-tile overlaps
-                entity.pos.0 = entity.pos.0.add(verify_result.mtv.0);
-                entity.pos.1 = entity.pos.1.add(verify_result.mtv.1);
+        // Determine push direction preference based on velocity
+        let velocity_x = entity.vel.0.to_int();
+        let velocity_y = entity.vel.1.to_int();
+
+        // Try correction in order of preference based on velocity direction
+        let mut correction_applied = false;
+
+        // For rightward movement, prefer pushing left (back to valid position)
+        if velocity_x > 0 && !correction_applied {
+            correction_applied = Self::try_push_direction(
+                tile_map,
+                entity,
+                (-1, 0), // Push left
+                MAX_CORRECTION_DISTANCE,
+                original_pos,
+            );
+        }
+
+        // For leftward movement, prefer pushing right
+        if velocity_x < 0 && !correction_applied {
+            correction_applied = Self::try_push_direction(
+                tile_map,
+                entity,
+                (1, 0), // Push right
+                MAX_CORRECTION_DISTANCE,
+                original_pos,
+            );
+        }
+
+        // For downward movement, prefer pushing up
+        if velocity_y > 0 && !correction_applied {
+            correction_applied = Self::try_push_direction(
+                tile_map,
+                entity,
+                (0, -1), // Push up
+                MAX_CORRECTION_DISTANCE,
+                original_pos,
+            );
+        }
+
+        // For upward movement, prefer pushing down
+        if velocity_y < 0 && !correction_applied {
+            correction_applied = Self::try_push_direction(
+                tile_map,
+                entity,
+                (0, 1), // Push down
+                MAX_CORRECTION_DISTANCE,
+                original_pos,
+            );
+        }
+
+        // If velocity-based correction failed, try all directions with minimal distance
+        if !correction_applied {
+            // Try horizontal directions first (usually more important for platformers)
+            let directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]; // left, right, up, down
+
+            for &direction in &directions {
+                if Self::try_push_direction(
+                    tile_map,
+                    entity,
+                    direction,
+                    MAX_CORRECTION_DISTANCE,
+                    original_pos,
+                ) {
+                    break;
+                }
             }
         }
+    }
+
+    /// Try to push entity in a specific direction to resolve overlap
+    fn try_push_direction(
+        tile_map: &crate::tilemap::Tilemap,
+        entity: &mut crate::entity::EntityCore,
+        direction: (i16, i16), // (x_dir, y_dir) where -1, 0, 1
+        max_distance: i16,
+        original_pos: (crate::math::Fixed, crate::math::Fixed),
+    ) -> bool {
+        use crate::tilemap::CollisionRect;
+
+        // Try pushing in the given direction with minimal distance
+        for distance in 1..=max_distance {
+            let test_pos = (
+                entity
+                    .pos
+                    .0
+                    .add(crate::math::Fixed::from_int(direction.0 * distance)),
+                entity
+                    .pos
+                    .1
+                    .add(crate::math::Fixed::from_int(direction.1 * distance)),
+            );
+
+            // Check if this position is valid (no collision)
+            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
+            if !tile_map.check_collision(test_rect) {
+                // Check if position is within game boundaries
+                if Self::is_position_within_boundaries(test_pos, entity.size) {
+                    // Valid position found - apply correction
+                    entity.pos = test_pos;
+                    return true;
+                }
+            }
+        }
+
+        // If no valid position found, restore original position
+        entity.pos = original_pos;
+        false
+    }
+
+    /// Check if position is within game boundaries
+    fn is_position_within_boundaries(
+        pos: (crate::math::Fixed, crate::math::Fixed),
+        size: (u8, u8),
+    ) -> bool {
+        // Game boundaries: 0 <= x <= 240, 0 <= y <= 224 (16x15 tilemap, 16 pixels per tile)
+        let left_edge = pos.0.to_int();
+        let right_edge = pos.0.to_int() + (size.0 as i32);
+        let top_edge = pos.1.to_int();
+        let bottom_edge = pos.1.to_int() + (size.1 as i32);
+
+        left_edge >= 0 && right_edge <= 240 && top_edge >= 0 && bottom_edge <= 224
     }
 
     fn cleanup_entities(&mut self) -> GameResult<()> {
