@@ -207,6 +207,109 @@ if collision_flags.2 {
 
 **Next Steps**: Complete tasks 12-14 to fix these core collision system issues.
 
+## ❌ CRITICAL: Turn-Around Behavior Velocity Bug (December 2024)
+
+### Problem Summary
+
+**Status**: ACTIVE BUG - Requires immediate fix
+
+**Core Issue**: Characters can detect wall collisions and change direction correctly, but **cannot move away from walls** after turning around. The `WRITE_PROP CHARACTER_VEL_X` operation fails or gets immediately overridden when characters are overlapping with walls.
+
+### Detailed Investigation Results
+
+**What Works**:
+
+- ✅ Wall collision detection: `collision=[false, true, true, false]` correctly set
+- ✅ IS_WALL_LEANING condition: Triggers correctly when touching walls
+- ✅ TURN_AROUND action: Direction flips correctly (2→0→2→0...)
+- ✅ Script execution: Both separate and combined scripts execute without errors
+- ✅ Property reads: All property reading operations work correctly
+
+**What Fails**:
+
+- ❌ **Velocity setting**: `WRITE_PROP CHARACTER_VEL_X` doesn't set velocity when character is against wall
+- ❌ **Movement away from wall**: Character stays at same position with velocity=0.0
+- ❌ **Turn-around completion**: Character oscillates directions but never moves away
+
+### Root Cause Analysis
+
+**Frame Processing Pipeline Issue**:
+
+1. **Step 4**: Execute character behaviors → Script sets `character.core.vel.0 = -2.0` ✅
+2. **Step 5**: Apply gravity to velocity → Modifies velocity ⚠️
+3. **Step 6**: `check_and_constrain_velocity_only()` → **RESETS VELOCITY TO 0.0** ❌
+
+**The collision constraint system prevents movement away from walls because**:
+
+- Character is overlapping with wall after position correction
+- `check_horizontal_movement()` detects immediate collision for any movement
+- Swept collision detection returns distance=0 for overlapping entities
+- Velocity gets constrained to 0 regardless of direction
+
+### Failed Fix Attempts
+
+1. **Collision Escape Logic**: Added logic to allow movement away from walls - didn't work
+2. **Combined TURN_AROUND_AND_RUN Script**: Single action to flip direction + set velocity - didn't work
+3. **Position Push Strategy**: Push character away from wall before setting velocity - didn't work
+4. **Cooldown Adjustments**: Prevent rapid oscillation - didn't work
+
+### Debug Evidence
+
+**Node.js Test Results** (300 frames):
+
+```
+Frame 96: pos=224.0, vel=2.0, dir=2, collision=[false, false, true, false]  // Moving right, about to hit wall
+Frame 97: pos=224.0, vel=0.0, dir=0, collision=[false, true, true, false]   // Hit wall, turned left, velocity=0
+Frame 98: pos=224.0, vel=0.0, dir=2, collision=[false, true, true, false]   // Turned right, velocity=0
+Frame 99: pos=224.0, vel=0.0, dir=0, collision=[false, true, true, false]   // Turned left, velocity=0
+// Infinite oscillation with zero velocity
+```
+
+**Key Observation**: Direction changes work perfectly, but velocity never gets set to non-zero when character is against wall.
+
+### Technical Details
+
+**Affected Components**:
+
+- `game-engine/src/state.rs`: `check_and_constrain_velocity_only()` method
+- `game-engine/src/tilemap.rs`: `check_horizontal_movement()` method
+- `game-engine/src/collision.rs`: Swept collision detection system
+- Action script execution: `WRITE_PROP CHARACTER_VEL_X` operation
+
+**Frame Processing Order**:
+
+```rust
+// Current problematic order:
+1. process_character_behaviors()     // ✅ Sets velocity correctly
+2. apply_gravity()                   // ⚠️ Modifies velocity
+3. check_and_constrain_velocity_only() // ❌ Resets velocity to 0
+4. apply_velocity_to_position()      // ❌ No movement (velocity=0)
+```
+
+### Required Solution
+
+**The collision constraint system needs to be modified to**:
+
+1. **Detect when character is overlapping with wall**
+2. **Allow movement in directions that reduce overlap**
+3. **Only constrain movement that increases overlap**
+4. **Preserve script-set velocities for wall escape**
+
+**Alternative approach**: Modify the frame processing order to handle wall escape scenarios differently.
+
+### Test Files Created
+
+**Comprehensive debugging suite in `debug-node/`**:
+
+- `test-300-frames.js` - Main reproduction test
+- `test-combined-turn-around-run.js` - Combined script approach
+- `test-combined-script-isolated.js` - Isolated script testing
+- `debug-run-script-values.js` - Property value verification
+- `debug-action-execution-order.js` - Behavior execution analysis
+- `debug-force-wall-collision.js` - Collision state testing
+
+**All tests consistently reproduce the bug**: Direction changes work, velocity setting fails.
+
 ## Prevention Strategies
 
 ### 1. Property Implementation Checklist

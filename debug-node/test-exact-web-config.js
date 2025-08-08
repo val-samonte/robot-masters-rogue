@@ -414,7 +414,7 @@ async function testExactWebConfig() {
     let wallHit = false
     let turnDetected = false
 
-    for (let frame = 0; frame < 100; frame++) {
+    for (let frame = 0; frame < 300; frame++) {
       const state = JSON.parse(gameWrapper.get_characters_json())
       const char = state[0]
       const posX = char.position[0][0] / char.position[0][1]

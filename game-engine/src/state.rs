@@ -746,18 +746,49 @@ impl GameState {
             // Create collision rectangle for current position (position correction already done)
             let current_rect = CollisionRect::from_entity(character.core.pos, character.core.size);
 
-            // Check horizontal movement
-            let allowed_horizontal = self
-                .tile_map
-                .check_horizontal_movement(current_rect, character.core.vel.0);
+            // COLLISION CONSTRAINT WITH WALL ESCAPE LOGIC
+            // Allow movement away from walls even when overlapping
 
-            // Check vertical movement
+            // Check if character is currently overlapping with walls
+            let is_overlapping = self.tile_map.check_collision(current_rect);
+
+            if is_overlapping {
+                // Character is overlapping with wall - allow movement away from walls
+                // Only constrain movement that would move further into walls
+
+                // For horizontal movement: allow movement away from walls
+                let horizontal_constraint = if character.core.vel.0.is_zero() {
+                    character.core.vel.0 // No movement, no constraint needed
+                } else {
+                    // Test if movement reduces overlap by checking collision in opposite direction
+                    let test_vel = character.core.vel.0.neg(); // Opposite direction
+                    let opposite_allowed = self
+                        .tile_map
+                        .check_horizontal_movement(current_rect, test_vel);
+
+                    if opposite_allowed.abs() < test_vel.abs() {
+                        // Movement in opposite direction is blocked, so current direction is away from wall
+                        character.core.vel.0 // Allow movement away from wall
+                    } else {
+                        // Movement in opposite direction is not blocked, so current direction might be into wall
+                        self.tile_map
+                            .check_horizontal_movement(current_rect, character.core.vel.0)
+                    }
+                };
+
+                character.core.vel.0 = horizontal_constraint;
+            } else {
+                // Character is not overlapping - use normal collision constraint
+                let allowed_horizontal = self
+                    .tile_map
+                    .check_horizontal_movement(current_rect, character.core.vel.0);
+                character.core.vel.0 = allowed_horizontal;
+            }
+
+            // Check vertical movement (normal constraint for now)
             let allowed_vertical = self
                 .tile_map
                 .check_vertical_movement(current_rect, character.core.vel.1);
-
-            // Apply the allowed movement (constrain velocity)
-            character.core.vel.0 = allowed_horizontal;
             character.core.vel.1 = allowed_vertical;
         }
 

@@ -398,7 +398,106 @@
   - Ensure actions work correctly with position correction system
   - _Requirements: Core movement functionality that works with updated physics system_
 
-- [ ] 17. Optimize collision detection performance
+- [ ] 17. **CRITICAL: Fix Turn-Around Velocity Bug - Wall Escape System**
+
+  - **Problem**: Characters can detect wall collisions and change direction correctly, but **cannot move away from walls** after turning around. The `WRITE_PROP CHARACTER_VEL_X` operation fails or gets immediately overridden when characters are overlapping with walls.
+
+  - **Root Cause**: The collision constraint system (`check_and_constrain_velocity_only`) resets velocity to 0 when characters are overlapping with walls, preventing movement away from walls even after turning around.
+
+  - **Current Behavior**:
+
+    ```
+    Frame 96: pos=224.0, vel=2.0, dir=2, collision=[false, false, true, false]  // Moving right
+    Frame 97: pos=224.0, vel=0.0, dir=0, collision=[false, true, true, false]   // Hit wall, turned left, velocity=0
+    Frame 98: pos=224.0, vel=0.0, dir=2, collision=[false, true, true, false]   // Turned right, velocity=0
+    // Infinite oscillation with zero velocity
+    ```
+
+  - **Investigation Results**:
+
+    - ✅ Wall collision detection works: `collision=[false, true, true, false]` correctly set
+    - ✅ IS_WALL_LEANING condition triggers correctly when touching walls
+    - ✅ TURN_AROUND action works: Direction flips correctly (2→0→2→0...)
+    - ✅ Script execution works: Both separate and combined scripts execute without errors
+    - ❌ **Velocity setting fails**: `WRITE_PROP CHARACTER_VEL_X` doesn't set velocity when character is against wall
+    - ❌ **Movement blocked**: Character stays at same position with velocity=0.0
+
+  - **Frame Processing Pipeline Issue**:
+
+    1. **Step 4**: Execute character behaviors → Script sets `character.core.vel.0 = -2.0` ✅
+    2. **Step 5**: Apply gravity to velocity → Modifies velocity ⚠️
+    3. **Step 6**: `check_and_constrain_velocity_only()` → **RESETS VELOCITY TO 0.0** ❌
+    4. **Step 7**: Apply velocity to position → No movement (velocity=0) ❌
+
+  - **Technical Analysis**:
+
+    - `check_horizontal_movement()` detects immediate collision for overlapping entities
+    - Swept collision detection returns distance=0 for any movement when overlapping
+    - Velocity gets constrained to 0 regardless of direction (even away from wall)
+    - Position correction creates overlapping state, but collision system can't handle escape
+
+  - **Solution Requirements**:
+
+    1. **Detect wall overlap state**: Identify when character is overlapping with wall
+    2. **Allow escape movement**: Permit velocity in directions that reduce overlap
+    3. **Preserve script velocities**: Don't override script-set velocities for wall escape
+    4. **Maintain collision safety**: Still prevent movement that increases overlap
+
+  - **Implementation Tasks**:
+
+    - **Modify `check_and_constrain_velocity_only()` in `game-engine/src/state.rs`**:
+      ```rust
+      // Add wall escape logic
+      if entity_overlaps_wall {
+          if velocity_direction_reduces_overlap {
+              // Allow movement away from wall - preserve script-set velocity
+              allow_escape_velocity();
+          } else {
+              // Constrain movement that increases overlap
+              constrain_velocity_to_zero();
+          }
+      } else {
+          // Normal collision constraint for non-overlapping entities
+          apply_normal_collision_constraint();
+      }
+      ```
+    - **Add overlap detection method**: `is_entity_overlapping_wall()`
+    - **Add escape direction detection**: `does_velocity_reduce_overlap()`
+    - **Test wall escape in all directions**: left, right, up, down
+
+  - **Alternative Approaches** (if primary solution fails):
+
+    1. **Modify frame processing order**: Move collision constraint before behavior execution
+    2. **Add position push in scripts**: Make TURN_AROUND script push character away from wall
+    3. **Implement collision-aware velocity setting**: Special velocity write for overlapping entities
+
+  - **Testing Requirements**:
+
+    - **Primary Test**: Character hits right wall → turns left → moves away with velocity=-2.0
+    - **Secondary Test**: Character hits left wall → turns right → moves away with velocity=+2.0
+    - **Edge Cases**: Character in corner, multiple collision directions, different entity sizes
+    - **Performance**: Ensure fix doesn't impact 60 FPS performance
+    - **Regression**: Verify normal collision detection still works for non-overlapping entities
+
+  - **Debug Tools Available**:
+
+    - `debug-node/test-300-frames.js` - Main reproduction test (consistently reproduces bug)
+    - `debug-node/test-combined-turn-around-run.js` - Combined script approach testing
+    - `debug-node/debug-run-script-values.js` - Property value verification
+    - `debug-node/debug-action-execution-order.js` - Behavior execution analysis
+
+  - **Success Criteria**:
+
+    - Character bounces between walls continuously without getting stuck
+    - Direction changes result in immediate movement away from walls
+    - Velocity is preserved when moving away from walls
+    - No infinite oscillation with zero velocity
+    - Turn-around behavior works as intended: hit wall → turn around → move away
+
+  - **Priority**: **CRITICAL** - This bug prevents core turn-around behavior from working
+  - _Requirements: Functional AI behavior system for character movement_
+
+- [ ] 18. Optimize collision detection performance
 
   - **Problem**: Collision detection may be inefficient with current implementation
   - **Performance Considerations**:
