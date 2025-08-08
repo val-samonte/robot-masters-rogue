@@ -36,6 +36,10 @@ This document tracks incomplete implementations to prevent bugs like the collisi
 - CHARACTER_COLLISION_TOP, CHARACTER_COLLISION_RIGHT, CHARACTER_COLLISION_BOTTOM, CHARACTER_COLLISION_LEFT
 - GAME_GRAVITY
 
+✅ **Recently Implemented:**
+
+- CHARACTER_COLLISION_TOP, CHARACTER_COLLISION_RIGHT, CHARACTER_COLLISION_BOTTOM, CHARACTER_COLLISION_LEFT
+
 ❌ **Missing Properties:**
 
 - CHARACTER_VEL_X, CHARACTER_VEL_Y (only in ActionContext)
@@ -118,29 +122,19 @@ property_address::OTHER_U8_PROP => {
 }
 ```
 
-## CRITICAL BUG: ENTITY_DIR_HORIZONTAL Inconsistency
+## ✅ FIXED: ENTITY_DIR_HORIZONTAL Inconsistency
 
-**Status**: BROKEN - Multiple inconsistent implementations
+**Status**: RESOLVED - All implementations now consistent
 
-**Problem**: ENTITY_DIR_HORIZONTAL has multiple implementations across different contexts:
+**Problem**: ENTITY_DIR_HORIZONTAL had multiple inconsistent implementations across different contexts.
 
-- Some write to `vars[]` array (u8 values)
-- Some write to `fixed[]` array (Fixed values)
-- Some use `vars.len()` bounds check but write to `fixed[]`
-- This causes scripts to read wrong values or get bounds errors
+**Solution Applied**: Made all implementations consistent:
 
-**Expected Behavior**:
-
-- Game State: `dir.0 = 0` (left), `1` (neutral), `2` (right) - u8 storage
-- Script Access: Fixed values `-1.0` (left), `0.0` (neutral), `+1.0` (right) - fixed[] array
+- Read operations: Convert u8 → Fixed, store in `fixed[]`, use `fixed.len()` bounds check
+- Write operations: Read Fixed from `fixed[]`, convert Fixed → u8, use `fixed.len()` bounds check
 - Conversion: `script_value = game_state_value - 1`
 
-**Required Fix**: Make ALL implementations consistent:
-
-1. Read operations: Convert u8 → Fixed, store in `fixed[]`, use `fixed.len()` bounds check
-2. Write operations: Read Fixed from `fixed[]`, convert Fixed → u8, use `fixed.len()` bounds check
-
-**Impact**: RUN action fails because it can't read direction properly, causing character to not move.
+**Impact**: RUN action now works correctly, characters can move properly.
 
 ## Current Known Issues (From Task 11.5 Testing)
 

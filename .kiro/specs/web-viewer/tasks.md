@@ -334,7 +334,7 @@
   - Test that the simplified interface works without memory access errors
   - _Requirements: Fix critical memory issues preventing game execution_
 
-- [ ] 14. Fix turn-around behavior system
+- [x] 14. Fix turn-around behavior system
 
   - **Problem**: Characters hit walls and collision flags are set, but turn-around behavior never triggers
   - **Current Issues**:

@@ -1226,6 +1226,30 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                         engine.vars[var_index] = character.core.dir.1;
                     }
                 }
+                property_address::CHARACTER_COLLISION_TOP => {
+                    // Top collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.0 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_RIGHT => {
+                    // Right collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.1 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_BOTTOM => {
+                    // Bottom collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.2 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_LEFT => {
+                    // Left collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.3 { 1 } else { 0 };
+                    }
+                }
                 _ => {}
             }
         }
@@ -1602,6 +1626,30 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                     // Vertical direction (u8) - store in vars array
                     if var_index < engine.vars.len() {
                         engine.vars[var_index] = character.core.dir.1;
+                    }
+                }
+                property_address::CHARACTER_COLLISION_TOP => {
+                    // Top collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.0 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_RIGHT => {
+                    // Right collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.1 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_BOTTOM => {
+                    // Bottom collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.2 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_LEFT => {
+                    // Left collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.3 { 1 } else { 0 };
                     }
                 }
                 _ => {}
