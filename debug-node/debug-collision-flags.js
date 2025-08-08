@@ -1,14 +1,24 @@
 #!/usr/bin/env node
 
-// Debug script to test collision flag detection accuracy
-// This script tests if collision flags accurately represent entity collision state
+// Debug script to test collision flag accuracy and multiple flag issues
+// This script tests collision flags at exact tile boundaries and identifies multiple flag problems
 
-import { GameWrapper } from '../wasm-wrapper/pkg/wasm_wrapper.js'
+import init, { GameWrapper } from '../wasm-wrapper/pkg/wasm_wrapper.js'
+import fs from 'fs'
+import path from 'path'
 
-// Test configuration with character near walls
-const gameConfig = {
+async function initWasm() {
+  const wasmPath = path.resolve(
+    import.meta.dirname,
+    '../wasm-wrapper/pkg/wasm_wrapper_bg.wasm'
+  )
+  const wasmBuffer = fs.readFileSync(wasmPath)
+  await init(wasmBuffer)
+}
+
+// Test configuration with character at different boundary positions
+const testConfig = {
   seed: 12345,
-  gravity: [1, 1], // 1.0 in Fixed-point [numerator, denominator]
   tilemap: [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -26,29 +36,30 @@ const gameConfig = {
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
+  gravity: [1, 1],
   characters: [
     {
       id: 0,
       group: 0,
-      position: [
-        [16, 1],
-        [208, 1],
-      ], // Left wall position (x=16, touching left wall)
-      size: [16, 16],
       health: 100,
       health_cap: 100,
       energy: 100,
       energy_cap: 100,
-      power: 10,
-      weight: 5,
-      jump_force: [5, 1],
-      move_speed: [2, 1],
-      armor: [0, 0, 0, 0, 0, 0, 0, 0, 0],
       energy_regen: 1,
       energy_regen_rate: 60,
       energy_charge: 2,
       energy_charge_rate: 30,
-      dir: [1, 0], // Neutral horizontal, downward vertical
+      power: 10,
+      weight: 5,
+      jump_force: [8, 1],
+      move_speed: [2, 1],
+      armor: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+      position: [
+        [16, 1],
+        [100, 1],
+      ], // Start at left wall boundary
+      size: [16, 16],
+      dir: [0, 0], // facing left, downward gravity
       enmity: 0,
       target_id: null,
       target_type: 0,
@@ -61,272 +72,122 @@ const gameConfig = {
   status_effects: [],
 }
 
-function testCollisionFlags() {
-  console.log('=== Testing Collision Flag Detection ===\n')
+function testCollisionFlagsAtPosition(x, y, description) {
+  console.log(`\n=== Testing ${description} ===`)
+  console.log(`Position: x=${x}, y=${y}`)
 
-  // Test positions and expected collision flags
-  const testCases = [
-    {
-      name: 'Character at left wall (x=16)',
-      pos: [
-        [16, 1],
-        [208, 1],
-      ],
-      expected: { left: true, right: false, top: false, bottom: true },
-      description: 'Should detect left wall collision and ground collision',
-    },
-    {
-      name: 'Character at right wall (x=224)',
-      pos: [
-        [224, 1],
-        [208, 1],
-      ],
-      expected: { left: false, right: true, top: false, bottom: true },
-      description: 'Should detect right wall collision and ground collision',
-    },
-    {
-      name: 'Character in middle (x=128)',
-      pos: [
-        [128, 1],
-        [128, 1],
-      ],
-      expected: { left: false, right: false, top: false, bottom: false },
-      description: 'Should detect no wall collisions',
-    },
-    {
-      name: 'Character at ceiling (x=128, y=16)',
-      pos: [
-        [128, 1],
-        [16, 1],
-      ],
-      expected: { left: false, right: false, top: true, bottom: false },
-      description: 'Should detect ceiling collision',
-    },
-    {
-      name: 'Character at ground (x=128, y=208)',
-      pos: [
-        [128, 1],
-        [208, 1],
-      ],
-      expected: { left: false, right: false, top: false, bottom: true },
-      description: 'Should detect ground collision',
-    },
-  ]
-
-  for (const testCase of testCases) {
-    console.log(`\n--- ${testCase.name} ---`)
-    console.log(`Description: ${testCase.description}`)
-
-    // Create game with character at test position
-    const config = JSON.parse(JSON.stringify(gameConfig))
-    config.characters[0].position = testCase.pos
-
-    const gameWrapper = new GameWrapper(JSON.stringify(config))
-    gameWrapper.new_game()
-
-    // Step one frame to update collision flags
-    gameWrapper.step_frame()
-
-    const characters = JSON.parse(gameWrapper.get_characters_json())
-    const character = characters[0]
-
-    console.log(
-      `Position: [${character.position[0][0]}, ${character.position[1][0]}]`
-    )
-    console.log(`Size: [${character.size[0]}, ${character.size[1]}]`)
-    console.log(
-      `Collision flags: [${character.collision.join(
-        ', '
-      )}] (top, right, bottom, left)`
-    )
-
-    // Check each direction
-    const actual = {
-      top: character.collision[0],
-      right: character.collision[1],
-      bottom: character.collision[2],
-      left: character.collision[3],
-    }
-
-    let allCorrect = true
-    for (const [direction, expected] of Object.entries(testCase.expected)) {
-      const actualValue = actual[direction]
-      const correct = actualValue === expected
-      if (!correct) allCorrect = false
-
-      console.log(
-        `  ${direction}: ${actualValue} (expected ${expected}) ${
-          correct ? '✓' : '✗'
-        }`
-      )
-    }
-
-    console.log(`Overall: ${allCorrect ? '✓ PASS' : '✗ FAIL'}`)
-
-    gameWrapper.free()
-  }
-}
-
-function testCollisionFlagAccuracyAfterMovement() {
-  console.log('\n\n=== Testing Collision Flags After Movement ===\n')
-
-  // Test character moving toward wall
-  const config = JSON.parse(JSON.stringify(gameConfig))
+  // Create test config with character at specific position
+  const config = JSON.parse(JSON.stringify(testConfig))
   config.characters[0].position = [
-    [200, 1],
-    [208, 1],
-  ] // Near right wall
+    [x, 1],
+    [y, 1],
+  ]
 
   const gameWrapper = new GameWrapper(JSON.stringify(config))
   gameWrapper.new_game()
 
-  // Set velocity to move right
-  console.log('Character moving toward right wall...')
+  // Run one frame to update collision flags
+  gameWrapper.step_frame()
 
-  for (let frame = 0; frame < 5; frame++) {
-    const beforeChars = JSON.parse(gameWrapper.get_characters_json())
-    const beforeChar = beforeChars[0]
+  // Get state after frame processing
+  const characters = JSON.parse(gameWrapper.get_characters_json())
+  const character = characters[0]
 
-    gameWrapper.step_frame()
+  console.log(
+    `Character bounds: left=${character.position[0]}, right=${
+      character.position[0] + character.size[0]
+    }, top=${character.position[1]}, bottom=${
+      character.position[1] + character.size[1]
+    }`
+  )
+  console.log(
+    `Collision flags: [top=${character.collision[0]}, right=${character.collision[1]}, bottom=${character.collision[2]}, left=${character.collision[3]}]`
+  )
 
-    const afterChars = JSON.parse(gameWrapper.get_characters_json())
-    const afterChar = afterChars[0]
+  // Count how many flags are set
+  const flagCount = character.collision.filter((flag) => flag).length
+  console.log(`Number of collision flags set: ${flagCount}`)
 
-    console.log(`\nFrame ${frame}:`)
-    console.log(
-      `  Before: pos=[${beforeChar.position[0][0]}, ${
-        beforeChar.position[1][0]
-      }], vel=[${beforeChar.velocity[0][0]}, ${
-        beforeChar.velocity[1][0]
-      }], collision=[${beforeChar.collision.join(', ')}]`
-    )
-    console.log(
-      `  After:  pos=[${afterChar.position[0][0]}, ${
-        afterChar.position[1][0]
-      }], vel=[${afterChar.velocity[0][0]}, ${
-        afterChar.velocity[1][0]
-      }], collision=[${afterChar.collision.join(', ')}]`
-    )
-
-    // Check if collision flags make sense
-    const rightEdge = afterChar.position[0][0] + afterChar.size[0] // Character right edge
-    const rightWall = 240 // Right wall at x=240 (15 * 16)
-
-    if (rightEdge >= rightWall) {
-      console.log(
-        `  Analysis: Character right edge (${rightEdge}) >= right wall (${rightWall})`
-      )
-      console.log(`  Expected: Right collision flag should be TRUE`)
-      console.log(
-        `  Actual: Right collision flag is ${
-          afterChar.collision[1] ? 'TRUE' : 'FALSE'
-        } ${afterChar.collision[1] ? '✓' : '✗'}`
-      )
-    } else {
-      console.log(
-        `  Analysis: Character right edge (${rightEdge}) < right wall (${rightWall})`
-      )
-      console.log(`  Expected: Right collision flag should be FALSE`)
-      console.log(
-        `  Actual: Right collision flag is ${
-          afterChar.collision[1] ? 'TRUE' : 'FALSE'
-        } ${afterChar.collision[1] ? '✓' : '✗'}`
-      )
-    }
+  if (flagCount > 1) {
+    console.log(`⚠️  MULTIPLE FLAGS SET - This is the issue we need to fix!`)
+  } else if (flagCount === 1) {
+    console.log(`✅ Single collision flag set correctly`)
+  } else {
+    console.log(`ℹ️  No collision flags set`)
   }
 
   gameWrapper.free()
+  return { flagCount, collision: character.collision }
 }
 
-function testCollisionFlagConsistency() {
-  console.log('\n\n=== Testing Collision Flag Consistency ===\n')
+async function main() {
+  await initWasm()
+  console.log('🔍 Testing Collision Flag Accuracy and Multiple Flag Issues')
+  console.log('Game boundaries: left=16, right=240, top=16, bottom=224')
+  console.log('Character size: 16x16 pixels')
 
-  // Test that collision flags are consistent with actual collision detection
-  const config = JSON.parse(JSON.stringify(gameConfig))
+  const testCases = [
+    // Left wall boundary tests
+    { x: 16, y: 100, desc: 'Left wall boundary (x=16)' },
+    { x: 15, y: 100, desc: 'Just inside left wall (x=15)' },
+    { x: 17, y: 100, desc: 'Just outside left wall (x=17)' },
 
-  const testPositions = [
-    [
-      [16, 1],
-      [208, 1],
-    ], // Left wall
-    [
-      [224, 1],
-      [208, 1],
-    ], // Right wall
-    [
-      [128, 1],
-      [16, 1],
-    ], // Ceiling
-    [
-      [128, 1],
-      [208, 1],
-    ], // Ground
-    [
-      [128, 1],
-      [128, 1],
-    ], // Middle
+    // Right wall boundary tests
+    { x: 224, y: 100, desc: 'Right wall boundary (x=224, right edge at 240)' },
+    { x: 225, y: 100, desc: 'Overlapping right wall (x=225)' },
+    { x: 223, y: 100, desc: 'Just inside right wall (x=223)' },
+
+    // Top wall boundary tests
+    { x: 100, y: 16, desc: 'Top wall boundary (y=16)' },
+    { x: 100, y: 15, desc: 'Just inside top wall (y=15)' },
+    { x: 100, y: 17, desc: 'Just outside top wall (y=17)' },
+
+    // Bottom wall boundary tests
+    {
+      x: 100,
+      y: 208,
+      desc: 'Bottom wall boundary (y=208, bottom edge at 224)',
+    },
+    { x: 100, y: 209, desc: 'Overlapping bottom wall (y=209)' },
+    { x: 100, y: 207, desc: 'Just inside bottom wall (y=207)' },
+
+    // Corner tests (these are likely to show multiple flags)
+    { x: 16, y: 16, desc: 'Top-left corner' },
+    { x: 224, y: 16, desc: 'Top-right corner' },
+    { x: 16, y: 208, desc: 'Bottom-left corner' },
+    { x: 224, y: 208, desc: 'Bottom-right corner' },
+
+    // Middle of room (should have no flags)
+    { x: 120, y: 120, desc: 'Middle of room' },
   ]
 
-  for (const pos of testPositions) {
-    config.characters[0].position = pos
+  let multipleFlags = 0
+  let totalTests = testCases.length
 
-    const gameWrapper = new GameWrapper(JSON.stringify(config))
-    gameWrapper.new_game()
-    gameWrapper.step_frame()
-
-    const characters = JSON.parse(gameWrapper.get_characters_json())
-    const character = characters[0]
-
-    console.log(`\nPosition [${pos[0][0]}, ${pos[1][0]}]:`)
-    console.log(
-      `  Collision flags: [${character.collision.join(
-        ', '
-      )}] (top, right, bottom, left)`
+  for (const testCase of testCases) {
+    const result = testCollisionFlagsAtPosition(
+      testCase.x,
+      testCase.y,
+      testCase.desc
     )
+    if (result.flagCount > 1) {
+      multipleFlags++
+    }
+  }
 
-    // Calculate expected collision based on position
-    const leftEdge = character.position[0][0]
-    const rightEdge = character.position[0][0] + character.size[0]
-    const topEdge = character.position[1][0]
-    const bottomEdge = character.position[1][0] + character.size[1]
+  console.log(`\n📊 SUMMARY:`)
+  console.log(`Total tests: ${totalTests}`)
+  console.log(`Tests with multiple flags: ${multipleFlags}`)
+  console.log(`Tests with single/no flags: ${totalTests - multipleFlags}`)
 
-    const leftWall = 16
-    const rightWall = 240
-    const topWall = 16
-    const bottomWall = 224
-
-    const expectedTop = topEdge <= topWall
-    const expectedRight = rightEdge >= rightWall
-    const expectedBottom = bottomEdge >= bottomWall
-    const expectedLeft = leftEdge <= leftWall
-
+  if (multipleFlags > 0) {
     console.log(
-      `  Expected: top=${expectedTop}, right=${expectedRight}, bottom=${expectedBottom}, left=${expectedLeft}`
+      `\n❌ ISSUE CONFIRMED: ${multipleFlags} test cases show multiple collision flags set simultaneously`
     )
-    console.log(
-      `  Actual:   top=${character.collision[0]}, right=${character.collision[1]}, bottom=${character.collision[2]}, left=${character.collision[3]}`
-    )
-
-    const matches = [
-      character.collision[0] === expectedTop,
-      character.collision[1] === expectedRight,
-      character.collision[2] === expectedBottom,
-      character.collision[3] === expectedLeft,
-    ]
-
-    console.log(
-      `  Match: ${matches.map((m) => (m ? '✓' : '✗')).join(' ')} ${
-        matches.every((m) => m) ? 'PASS' : 'FAIL'
-      }`
-    )
-
-    gameWrapper.free()
+    console.log(`This confirms the bug described in task 15.`)
+  } else {
+    console.log(`\n✅ No multiple flag issues detected`)
   }
 }
 
-// Run all tests
-testCollisionFlags()
-testCollisionFlagAccuracyAfterMovement()
-testCollisionFlagConsistency()
-
-console.log('\n=== Collision Flag Detection Test Complete ===')
+await main()

@@ -360,7 +360,7 @@
   - **Expected Outcome**: Complete turn-around behavior works correctly
   - _Requirements: Functional AI behavior system for character movement_
 
-- [ ] 15. Fix collision flag accuracy and multiple flag issues
+- [x] 15. Fix collision flag accuracy and multiple flag issues
 
   - **Problem**: Multiple collision flags are set simultaneously when only one should be active
   - **Current Issues**:

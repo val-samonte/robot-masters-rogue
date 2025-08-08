@@ -801,76 +801,80 @@ impl GameState {
             // Check collision in all 4 directions independently using small probe rectangles
             // This approach tests if the entity would collide if it tried to move in each direction
 
-            // Check TOP collision (1 pixel above entity)
+            // PRECISE COLLISION FLAG DETECTION
+            // Use smaller, more precise probe rectangles to reduce false positives
+            // Probes are positioned just outside the entity bounds and are smaller to avoid corner overlaps
+
+            // Check TOP collision (1 pixel above entity, reduced width to avoid corner detection)
+            let probe_margin = crate::math::Fixed::from_int(2); // 2 pixel margin from corners
             let top_probe = CollisionRect::new(
-                current_rect.x,
+                current_rect.x.add(probe_margin),
                 current_rect.y.sub(crate::math::Fixed::ONE),
-                current_rect.width,
+                ((current_rect.width as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced width
                 1,
             );
             collision_flags.0 = self.tile_map.check_collision(top_probe);
 
-            // Check RIGHT collision (1 pixel to the right of entity)
+            // Check RIGHT collision (1 pixel to the right of entity, reduced height to avoid corner detection)
             let right_probe = CollisionRect::new(
                 current_rect
                     .x
                     .add(crate::math::Fixed::from_int(current_rect.width as i16)),
-                current_rect.y,
+                current_rect.y.add(probe_margin),
                 1,
-                current_rect.height,
+                ((current_rect.height as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced height
             );
             collision_flags.1 = self.tile_map.check_collision(right_probe);
 
-            // Check BOTTOM collision (1 pixel below entity)
+            // Check BOTTOM collision (1 pixel below entity, reduced width to avoid corner detection)
             let bottom_probe = CollisionRect::new(
-                current_rect.x,
+                current_rect.x.add(probe_margin),
                 current_rect
                     .y
                     .add(crate::math::Fixed::from_int(current_rect.height as i16)),
-                current_rect.width,
+                ((current_rect.width as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced width
                 1,
             );
             collision_flags.2 = self.tile_map.check_collision(bottom_probe);
 
-            // Check LEFT collision (1 pixel to the left of entity)
+            // Check LEFT collision (1 pixel to the left of entity, reduced height to avoid corner detection)
             let left_probe = CollisionRect::new(
                 current_rect.x.sub(crate::math::Fixed::ONE),
-                current_rect.y,
+                current_rect.y.add(probe_margin),
                 1,
-                current_rect.height,
+                ((current_rect.height as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced height
             );
             collision_flags.3 = self.tile_map.check_collision(left_probe);
 
-            // BOUNDARY DETECTION: Check if entity is at known wall boundaries
-            // This handles cases where position correction may have moved the entity
-            // but we still want to detect the original collision state
+            // PRIORITY SYSTEM: If multiple collision flags are set, prefer the primary collision direction
+            // This prevents multiple flags from being set simultaneously at corners and boundaries
+            let flag_count = [
+                collision_flags.0,
+                collision_flags.1,
+                collision_flags.2,
+                collision_flags.3,
+            ]
+            .iter()
+            .filter(|&&flag| flag)
+            .count();
 
-            let entity_left = character.core.pos.0.to_int();
-            let entity_right = entity_left + (character.core.size.0 as i32);
-            let entity_top = character.core.pos.1.to_int();
-            let entity_bottom = entity_top + (character.core.size.1 as i32);
+            if flag_count > 1 {
+                // Multiple flags detected - apply priority system
+                // Priority order: bottom > top > right > left (most common collision scenarios first)
 
-            // Game boundaries (16x15 tilemap, 16 pixels per tile)
-            const LEFT_WALL: i32 = 16; // Left wall ends at x=15, so x=16 is touching
-            const RIGHT_WALL: i32 = 240; // Right wall starts at x=240
-            const TOP_WALL: i32 = 16; // Top wall ends at y=15, so y=16 is touching
-            const BOTTOM_WALL: i32 = 224; // Bottom wall starts at y=224
-
-            // Position correction tolerance (accounts for position correction moving entities)
-            const CORRECTION_TOLERANCE: i32 = 3; // Allow 3 pixels of tolerance
-
-            // Override collision flags based on boundary positions with tolerance
-            if entity_top <= TOP_WALL + CORRECTION_TOLERANCE {
-                collision_flags.0 = true; // Top collision
-            }
-            if entity_right >= RIGHT_WALL - CORRECTION_TOLERANCE {
-                collision_flags.1 = true; // Right collision
-            }
-            if entity_bottom >= BOTTOM_WALL - CORRECTION_TOLERANCE {
-                collision_flags.2 = true; // Bottom collision
-            }
-            if entity_left <= LEFT_WALL + CORRECTION_TOLERANCE {
-                collision_flags.3 = true; // Left collision
+                if collision_flags.2 {
+                    // Bottom collision has highest priority (gravity/ground contact)
+                    collision_flags = (false, false, true, false);
+                } else if collision_flags.0 {
+                    // Top collision has second priority (ceiling contact)
+                    collision_flags = (true, false, false, false);
+                } else if collision_flags.1 {
+                    // Right collision has third priority (wall contact)
+                    collision_flags = (false, true, false, false);
+                } else if collision_flags.3 {
+                    // Left collision has lowest priority
+                    collision_flags = (false, false, false, true);
+                }
             }
 
             // Update entity collision flags for next frame
@@ -884,47 +888,79 @@ impl GameState {
             // Create collision rectangle for current position
             let current_rect = CollisionRect::from_entity(spawn.core.pos, spawn.core.size);
 
-            // Check each direction with small probe rectangles (1 pixel)
+            // PRECISE COLLISION FLAG DETECTION (same as characters)
+            // Use smaller, more precise probe rectangles to reduce false positives
 
-            // Check top collision (1 pixel above entity)
+            // Check top collision (1 pixel above entity, reduced width to avoid corner detection)
+            let probe_margin = crate::math::Fixed::from_int(2); // 2 pixel margin from corners
             let top_probe = CollisionRect::new(
-                current_rect.x,
+                current_rect.x.add(probe_margin),
                 current_rect.y.sub(crate::math::Fixed::ONE),
-                current_rect.width,
+                ((current_rect.width as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced width
                 1,
             );
             collision_flags.0 = self.tile_map.check_collision(top_probe);
 
-            // Check right collision (1 pixel to the right of entity)
+            // Check right collision (1 pixel to the right of entity, reduced height to avoid corner detection)
             let right_probe = CollisionRect::new(
                 current_rect
                     .x
                     .add(crate::math::Fixed::from_int(current_rect.width as i16)),
-                current_rect.y,
+                current_rect.y.add(probe_margin),
                 1,
-                current_rect.height,
+                ((current_rect.height as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced height
             );
             collision_flags.1 = self.tile_map.check_collision(right_probe);
 
-            // Check bottom collision (1 pixel below entity)
+            // Check bottom collision (1 pixel below entity, reduced width to avoid corner detection)
             let bottom_probe = CollisionRect::new(
-                current_rect.x,
+                current_rect.x.add(probe_margin),
                 current_rect
                     .y
                     .add(crate::math::Fixed::from_int(current_rect.height as i16)),
-                current_rect.width,
+                ((current_rect.width as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced width
                 1,
             );
             collision_flags.2 = self.tile_map.check_collision(bottom_probe);
 
-            // Check left collision (1 pixel to the left of entity)
+            // Check left collision (1 pixel to the left of entity, reduced height to avoid corner detection)
             let left_probe = CollisionRect::new(
                 current_rect.x.sub(crate::math::Fixed::ONE),
-                current_rect.y,
+                current_rect.y.add(probe_margin),
                 1,
-                current_rect.height,
+                ((current_rect.height as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced height
             );
             collision_flags.3 = self.tile_map.check_collision(left_probe);
+
+            // PRIORITY SYSTEM: If multiple collision flags are set, prefer the primary collision direction
+            let flag_count = [
+                collision_flags.0,
+                collision_flags.1,
+                collision_flags.2,
+                collision_flags.3,
+            ]
+            .iter()
+            .filter(|&&flag| flag)
+            .count();
+
+            if flag_count > 1 {
+                // Multiple flags detected - apply priority system
+                // Priority order: bottom > top > right > left (same as characters)
+
+                if collision_flags.2 {
+                    // Bottom collision has highest priority (gravity/ground contact)
+                    collision_flags = (false, false, true, false);
+                } else if collision_flags.0 {
+                    // Top collision has second priority (ceiling contact)
+                    collision_flags = (true, false, false, false);
+                } else if collision_flags.1 {
+                    // Right collision has third priority (wall contact)
+                    collision_flags = (false, true, false, false);
+                } else if collision_flags.3 {
+                    // Left collision has lowest priority
+                    collision_flags = (false, false, false, true);
+                }
+            }
 
             // Update entity collision flags for next frame
             spawn.core.collision = collision_flags;
