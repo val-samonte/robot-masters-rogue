@@ -296,7 +296,7 @@
   - **Expected Outcome**: Robust collision system that handles all game scenarios
   - _Requirements: Reliable physics system for game functionality_
 
-- [ ] 12. Fix horizontal collision detection during movement
+- [x] 12. Fix horizontal collision detection during movement
 
   - **Problem**: Characters never hit left/right walls during movement (only when stationary)
   - **Current Issues**:

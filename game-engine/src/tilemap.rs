@@ -148,11 +148,8 @@ impl Tilemap {
         );
 
         if collision_result.hit {
-            // Calculate how far we can move before collision
-            let safe_distance = delta_x
-                .mul(collision_result.distance)
-                .div(velocity.length_squared());
-            safe_distance
+            // collision_result.distance is the time fraction (t), multiply by delta_x to get actual distance
+            delta_x.mul(collision_result.distance)
         } else {
             delta_x
         }
@@ -177,11 +174,8 @@ impl Tilemap {
         );
 
         if collision_result.hit {
-            // Calculate how far we can move before collision
-            let safe_distance = delta_y
-                .mul(collision_result.distance)
-                .div(velocity.length_squared());
-            safe_distance
+            // collision_result.distance is the time fraction (t), multiply by delta_y to get actual distance
+            delta_y.mul(collision_result.distance)
         } else {
             delta_y
         }

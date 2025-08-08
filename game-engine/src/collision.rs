@@ -168,12 +168,12 @@ impl CollisionSystem {
     /// Swept AABB collision detection - finds the time of impact
     /// Returns the fraction of movement (0.0 to 1.0) before collision
     pub fn sweep_aabb(moving: &AABB, velocity: Vec2, stationary: &AABB) -> Option<Fixed> {
-        // Expand the stationary AABB by the moving AABB's size
+        // Expand the stationary AABB by the moving AABB's size (Minkowski sum)
         let expanded = AABB {
-            x: stationary.x.sub(moving.width.div(Fixed::from_int(2))),
-            y: stationary.y.sub(moving.height.div(Fixed::from_int(2))),
-            width: stationary.width.add(moving.width),
-            height: stationary.height.add(moving.height),
+            x: stationary.x.sub(moving.width),
+            y: stationary.y.sub(moving.height),
+            width: stationary.width.add(moving.width.mul(Fixed::from_int(2))),
+            height: stationary.height.add(moving.height.mul(Fixed::from_int(2))),
         };
 
         // Treat moving AABB as a point at its center
@@ -391,7 +391,7 @@ impl CollisionSystem {
                                 CollisionResult {
                                     hit: true,
                                     normal,
-                                    distance: velocity.length_squared().mul(t),
+                                    distance: t, // Return the time fraction, let caller calculate actual distance
                                     point: collision_point,
                                     mtv: (Fixed::ZERO, Fixed::ZERO), // MTV not applicable for swept collision
                                 },
