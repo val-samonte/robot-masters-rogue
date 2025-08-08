@@ -109,6 +109,7 @@ const BASIC_CHARACTER = {
 /**
  * Configuration for testing updated movement actions with fixed collision detection and gravity
  * Tests: RUN, JUMP, WALL_JUMP, TURN_AROUND actions with proper physics
+ * Priority system: Wall leaning -> TURN_AROUND, Always -> RUN
  */
 export const COMBINATION_1_CONFIG: GameConfig = {
   seed: 12345,
@@ -161,6 +162,18 @@ export const COMBINATION_1_CONFIG: GameConfig = {
       args: [0, 0, 0, 0, 0, 0, 0, 0],
       script: [...CONDITION_SCRIPTS.ALWAYS],
     },
+    // Condition 2: Is grounded (for JUMP)
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [
+        15,
+        0,
+        0x28, // READ_PROP vars[0] = CHARACTER_COLLISION_BOTTOM
+        91,
+        0, // EXIT_WITH_VAR vars[0]
+      ],
+    },
   ],
   characters: [
     {
@@ -176,15 +189,134 @@ export const COMBINATION_1_CONFIG: GameConfig = {
 }
 
 /**
- * Available configuration presets - simplified to only COMBINATION_1
+ * Advanced configuration demonstrating all movement actions with proper priority
+ * Priority (highest to lowest):
+ * 1. Wall leaning + not grounded -> WALL_JUMP
+ * 2. Wall leaning + grounded -> TURN_AROUND
+ * 3. Grounded -> JUMP (occasionally)
+ * 4. Always -> RUN
+ */
+export const ADVANCED_MOVEMENT_CONFIG: GameConfig = {
+  seed: 12345,
+  gravity: [32, 64], // 0.5 gravity for testing
+  tilemap: BASIC_TILEMAP,
+  actions: [
+    // Action 0: TURN_AROUND
+    {
+      energy_cost: 0,
+      cooldown: 0,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.TURN_AROUND],
+    },
+    // Action 1: RUN
+    {
+      energy_cost: 0,
+      cooldown: 0,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.RUN],
+    },
+    // Action 2: JUMP
+    {
+      energy_cost: 10,
+      cooldown: 120, // Longer cooldown for occasional jumping
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.JUMP],
+    },
+    // Action 3: WALL_JUMP
+    {
+      energy_cost: 15,
+      cooldown: 60,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.WALL_JUMP],
+    },
+  ],
+  conditions: [
+    // Condition 0: Wall leaning
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [...CONDITION_SCRIPTS.IS_WALL_LEANING],
+    },
+    // Condition 1: Always
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [...CONDITION_SCRIPTS.ALWAYS],
+    },
+    // Condition 2: Is grounded
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [
+        15,
+        0,
+        0x28, // READ_PROP vars[0] = CHARACTER_COLLISION_BOTTOM
+        91,
+        0, // EXIT_WITH_VAR vars[0]
+      ],
+    },
+    // Condition 3: Wall leaning AND not grounded (for wall jump)
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [
+        15,
+        0,
+        0x27, // READ_PROP vars[0] = CHARACTER_COLLISION_RIGHT
+        15,
+        1,
+        0x29, // READ_PROP vars[1] = CHARACTER_COLLISION_LEFT
+        61,
+        2,
+        0,
+        1, // OR vars[2] = vars[0] OR vars[1] (touching wall)
+        15,
+        3,
+        0x28, // READ_PROP vars[3] = CHARACTER_COLLISION_BOTTOM
+        60,
+        4,
+        3, // NOT vars[4] = NOT vars[3] (not grounded)
+        62,
+        5,
+        2,
+        4, // AND vars[5] = touching_wall AND not_grounded
+        91,
+        5, // EXIT_WITH_VAR vars[5]
+      ],
+    },
+  ],
+  characters: [
+    {
+      ...BASIC_CHARACTER,
+      behaviors: [
+        [3, 3], // Wall leaning + not grounded -> WALL_JUMP (highest priority)
+        [0, 0], // Wall leaning -> TURN_AROUND (high priority)
+        [2, 2], // Grounded -> JUMP (medium priority)
+        [1, 1], // Always -> RUN (lowest priority)
+      ],
+    },
+  ],
+  spawns: [],
+  status_effects: [],
+}
+
+/**
+ * Available configuration presets
  */
 export const GAME_CONFIGS = {
   COMBINATION_1: COMBINATION_1_CONFIG,
+  ADVANCED_MOVEMENT: ADVANCED_MOVEMENT_CONFIG,
 } as const
 
 /**
- * Get the COMBINATION_1 configuration
+ * Get a game configuration by name
  */
-export function getGameConfig(configName: 'COMBINATION_1'): GameConfig {
-  return COMBINATION_1_CONFIG
+export function getGameConfig(
+  configName: 'COMBINATION_1' | 'ADVANCED_MOVEMENT'
+): GameConfig {
+  return GAME_CONFIGS[configName]
 }

@@ -117,6 +117,34 @@ To prevent bugs like the collision property issue:
   - [ ] Use correct array type and bounds check
   - [ ] Test with isolated script
 
+### 11. Comprehensive Code Documentation
+
+To prevent circular debugging and repeated work:
+
+- **ALWAYS add comprehensive comments** to every critical piece of code
+- **Document WHY decisions were made**, not just what the code does
+- **Mark fixed bugs with detailed comments** explaining the problem and solution
+- **Use clear section headers** in complex functions to identify different logic blocks
+- **Comment any non-obvious logic** or workarounds
+- **Include references to related tasks/issues** in comments
+- **Document expected behavior** for complex systems like collision detection
+- **Add TODO comments** for known limitations or future improvements
+
+**Example of proper commenting:**
+
+```rust
+// COLLISION DETECTION SYSTEM - FIXED IN TASK 12
+// Problem: Priority system was clearing wall collision flags when grounded
+// Solution: Allow multiple collision flags simultaneously for proper turn-around behavior
+// Related: Tasks 12-14, movement actions in Task 16
+if flag_count > 1 {
+    // KEEP ALL COLLISION FLAGS - DO NOT USE PRIORITY SYSTEM
+    // This allows wall+ground collision for turn-around behavior
+    // Previous bug: collision_flags = (false, false, true, false) cleared wall flags
+    // Fixed: Keep original collision_flags with multiple flags set
+}
+```
+
 ## Remember
 
 This project is in active development. We can break things, change APIs, and redesign systems freely. Use this freedom to build something great, not to maintain something old.

@@ -136,6 +136,38 @@ property_address::OTHER_U8_PROP => {
 
 **Impact**: RUN action now works correctly, characters can move properly.
 
+## ✅ FIXED: Collision Detection Priority System
+
+**Status**: RESOLVED - Wall collision flags now work correctly
+
+**Problem**: Priority system in collision detection was clearing wall collision flags when bottom collision was detected. This prevented turn-around behavior because IS_WALL_LEANING condition always returned false when character was grounded.
+
+**Root Cause**: In `game-engine/src/state.rs` lines 866-878 and 951-963, the collision system used a priority system:
+
+```rust
+if collision_flags.2 {
+    // Bottom collision has highest priority (gravity/ground contact)
+    collision_flags = (false, false, true, false);  // ← THIS CLEARED WALL FLAGS!
+}
+```
+
+**Solution Applied**: Removed the priority system entirely to allow multiple collision flags simultaneously:
+
+- Characters can now have both bottom collision (grounded) AND wall collision (touching wall)
+- Example: `collision = [false, true, true, false]` for character at bottom-right corner
+- This enables proper turn-around behavior when character hits wall while grounded
+
+**Impact**:
+
+- ✅ Wall collision flags are now set correctly: `[false, true, true, false]` when hitting right wall
+- ✅ IS_WALL_LEANING condition now returns true when touching walls
+- ✅ TURN_AROUND action now triggers when hitting walls
+- ✅ Movement actions work correctly with collision detection
+
+**Files Modified**: `game-engine/src/state.rs` (collision detection for both characters and spawns)
+
+**Testing**: Verified with Node.js debugging that collision flags are now set correctly and turn-around behavior triggers.
+
 ## Current Known Issues (From Task 11.5 Testing)
 
 ### Collision System Issues Identified

@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useGameState } from '../hooks/useGameState'
 import { getGameConfig } from '../config/gameConfigs'
 
+type ConfigName = 'COMBINATION_1' | 'ADVANCED_MOVEMENT'
+
 export const ConfigurationLoader: React.FC = () => {
+  const [selectedConfig, setSelectedConfig] =
+    useState<ConfigName>('COMBINATION_1')
   const [loadError, setLoadError] = useState<string>('')
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
   const { loadConfiguration, isGameInitialized, isWasmInitialized } =
@@ -29,20 +33,43 @@ export const ConfigurationLoader: React.FC = () => {
     }
   }, [hasAutoLoaded, isWasmInitialized, loadConfiguration]) // Wait for WASM to be initialized
 
-  // Simplified - no complex UI needed
+  // Handle configuration change
+  const handleConfigChange = (configName: ConfigName) => {
+    setSelectedConfig(configName)
+    console.log(`Loading ${configName} configuration...`)
+
+    const config = getGameConfig(configName)
+    const configJson = JSON.stringify(config, null, 2)
+
+    const result = loadConfiguration(configJson)
+    if (result.success) {
+      console.log(`✅ Loaded ${configName} configuration successfully`)
+      setLoadError('')
+    } else {
+      console.error(`❌ Failed to load ${configName}:`, result.error)
+      setLoadError(result.error || `Failed to load ${configName}`)
+    }
+  }
 
   return (
     <div className="mb-4">
       <label className="block text-sm font-medium mb-2">Configuration:</label>
       <select
         className="px-3 py-2 border border-gray-300 rounded"
-        value="COMBINATION_1"
-        disabled
+        value={selectedConfig}
+        onChange={(e) => handleConfigChange(e.target.value as ConfigName)}
+        disabled={!isWasmInitialized}
       >
-        <option value="COMBINATION_1">COMBINATION_1</option>
+        <option value="COMBINATION_1">Basic Movement (Turn + Run)</option>
+        <option value="ADVANCED_MOVEMENT">
+          Advanced Movement (All Actions)
+        </option>
       </select>
       {loadError && (
         <div className="text-red-600 text-sm mt-1">{loadError}</div>
+      )}
+      {!isWasmInitialized && (
+        <div className="text-gray-500 text-sm mt-1">Loading WASM...</div>
       )}
     </div>
   )

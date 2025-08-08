@@ -858,23 +858,25 @@ impl GameState {
             .filter(|&&flag| flag)
             .count();
 
+            // COLLISION DETECTION SYSTEM - FIXED IN TASK 12/16
+            // Problem: Priority system was clearing wall collision flags when grounded
+            // Solution: Allow multiple collision flags simultaneously for proper turn-around behavior
+            // Related: Tasks 12-14, movement actions in Task 16
+            //
+            // REMOVED PRIORITY SYSTEM - Keep all collision flags active
+            // This allows wall+ground collision detection needed for:
+            // - Turn-around behavior when character hits wall while grounded
+            // - Wall jump detection when character is against wall
+            // - Proper IS_WALL_LEANING condition evaluation
+            //
+            // Previous bug: if collision_flags.2 { collision_flags = (false, false, true, false); }
+            // This cleared wall flags (index 1,3) when bottom collision (index 2) was detected
+            // Fixed: Keep original collision_flags with multiple flags set simultaneously
             if flag_count > 1 {
-                // Multiple flags detected - apply priority system
-                // Priority order: bottom > top > right > left (most common collision scenarios first)
-
-                if collision_flags.2 {
-                    // Bottom collision has highest priority (gravity/ground contact)
-                    collision_flags = (false, false, true, false);
-                } else if collision_flags.0 {
-                    // Top collision has second priority (ceiling contact)
-                    collision_flags = (true, false, false, false);
-                } else if collision_flags.1 {
-                    // Right collision has third priority (wall contact)
-                    collision_flags = (false, true, false, false);
-                } else if collision_flags.3 {
-                    // Left collision has lowest priority
-                    collision_flags = (false, false, false, true);
-                }
+                // KEEP ALL COLLISION FLAGS - DO NOT CLEAR ANY FLAGS
+                // Multiple simultaneous collisions are valid and necessary for proper behavior
+                // Example: character at bottom-right corner should have collision = [false, true, true, false]
+                // This allows both grounded detection AND wall collision detection to work together
             }
 
             // Update entity collision flags for next frame
@@ -943,23 +945,17 @@ impl GameState {
             .filter(|&&flag| flag)
             .count();
 
+            // COLLISION DETECTION SYSTEM - FIXED IN TASK 12/16 (SPAWN VERSION)
+            // Problem: Priority system was clearing wall collision flags when grounded
+            // Solution: Allow multiple collision flags simultaneously for proper behavior
+            // Same fix as character collision detection above
+            //
+            // REMOVED PRIORITY SYSTEM - Keep all collision flags active for spawns too
+            // This ensures consistent collision behavior between characters and spawns
             if flag_count > 1 {
-                // Multiple flags detected - apply priority system
-                // Priority order: bottom > top > right > left (same as characters)
-
-                if collision_flags.2 {
-                    // Bottom collision has highest priority (gravity/ground contact)
-                    collision_flags = (false, false, true, false);
-                } else if collision_flags.0 {
-                    // Top collision has second priority (ceiling contact)
-                    collision_flags = (true, false, false, false);
-                } else if collision_flags.1 {
-                    // Right collision has third priority (wall contact)
-                    collision_flags = (false, true, false, false);
-                } else if collision_flags.3 {
-                    // Left collision has lowest priority
-                    collision_flags = (false, false, false, true);
-                }
+                // KEEP ALL COLLISION FLAGS - DO NOT CLEAR ANY FLAGS
+                // Multiple simultaneous collisions are valid for spawns as well
+                // Spawns should have same collision behavior as characters
             }
 
             // Update entity collision flags for next frame
