@@ -107,19 +107,15 @@ const BASIC_CHARACTER = {
 // All other configurations removed - only COMBINATION_1 is needed
 
 /**
- * Configuration for testing combination behaviors with priority system
- * Priority (highest to lowest):
- * 1. If wall leaning and not on ground - WALL JUMP
- * 2. If on ground - JUMP
- * 3. If wall leaning but on ground - TURN AROUND
- * 4. Always - RUN
+ * Configuration for testing updated movement actions with fixed collision detection and gravity
+ * Tests: RUN, JUMP, WALL_JUMP, TURN_AROUND actions with proper physics
  */
 export const COMBINATION_1_CONFIG: GameConfig = {
   seed: 12345,
-  gravity: [1, 2], // Normal gravity for testing
+  gravity: [32, 64], // 0.5 gravity for testing
   tilemap: BASIC_TILEMAP,
   actions: [
-    // Action 0: TURN_AROUND (highest priority)
+    // Action 0: TURN_AROUND (working)
     {
       energy_cost: 0,
       cooldown: 0, // No cooldown - allow immediate turn-around
@@ -127,7 +123,7 @@ export const COMBINATION_1_CONFIG: GameConfig = {
       spawns: [0, 0, 0, 0],
       script: [...ACTION_SCRIPTS.TURN_AROUND],
     },
-    // Action 1: RUN (lowest priority - always)
+    // Action 1: RUN (updated)
     {
       energy_cost: 0,
       cooldown: 0,
@@ -135,9 +131,25 @@ export const COMBINATION_1_CONFIG: GameConfig = {
       spawns: [0, 0, 0, 0],
       script: [...ACTION_SCRIPTS.RUN],
     },
+    // Action 2: JUMP (updated)
+    {
+      energy_cost: 10,
+      cooldown: 30, // 30 frame cooldown for jump
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.JUMP],
+    },
+    // Action 3: WALL_JUMP (updated)
+    {
+      energy_cost: 15,
+      cooldown: 60, // 60 frame cooldown for wall jump
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.WALL_JUMP],
+    },
   ],
   conditions: [
-    // Condition 0: Wall leaning (for TURN_AROUND)
+    // Condition 0: Wall leaning (for TURN_AROUND and WALL_JUMP)
     {
       energy_mul: 32,
       args: [0, 0, 0, 0, 0, 0, 0, 0],

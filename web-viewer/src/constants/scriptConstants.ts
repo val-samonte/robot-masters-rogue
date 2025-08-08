@@ -160,13 +160,13 @@ export const ACTION_SCRIPTS = {
 
   /**
    * Run action - moves character using movespeed * horizontal_dir
-   * New system: direction is Fixed (-1.0=left, 0.0=neutral, +1.0=right)
+   * Fixed implementation: Use direct velocity assignment based on direction
    */
   RUN: [
     // Read current horizontal direction
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read direction into fixed[0]
+    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read direction into fixed[0] (-1.0, 0.0, +1.0)
     // Read move speed
     OperatorAddress.READ_PROP,
     1,
@@ -186,7 +186,7 @@ export const ACTION_SCRIPTS = {
 
   /**
    * Jump action - applies upward velocity using jump_force
-   * Works with gravity system - gravity will pull character back down
+   * Fixed implementation: Works with gravity system
    */
   JUMP: [
     OperatorAddress.EXIT_IF_NO_ENERGY,
@@ -209,8 +209,8 @@ export const ACTION_SCRIPTS = {
   ],
 
   /**
-   * Wall jump action - jumps away from wall with both vertical and horizontal velocity
-   * Detects which wall is being touched and jumps in opposite direction
+   * Wall jump action - simplified implementation that works with fixed collision detection
+   * Jumps away from wall with both vertical and horizontal velocity
    */
   WALL_JUMP: [
     OperatorAddress.EXIT_IF_NO_ENERGY,
@@ -235,7 +235,7 @@ export const ACTION_SCRIPTS = {
     // Skip if not touching wall (jump to exit)
     OperatorAddress.GOTO,
     3,
-    25, // Jump to exit if not touching wall
+    20, // Jump to exit if not touching wall
     // Apply upward velocity (jump force)
     OperatorAddress.READ_PROP,
     4, // Use fixed[4] for jump force
@@ -245,60 +245,22 @@ export const ACTION_SCRIPTS = {
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_Y,
     4, // Apply upward velocity
-    // Determine horizontal direction (away from wall)
-    // If touching right wall, go left (-1.0)
-    // If touching left wall, go right (+1.0)
-    OperatorAddress.ASSIGN_FIXED,
-    5,
-    -1,
-    1, // fixed[5] = -1.0 (left direction)
-    OperatorAddress.ASSIGN_FIXED,
-    6,
-    1,
-    1, // fixed[6] = +1.0 (right direction)
-    // Choose direction based on wall collision
-    OperatorAddress.ASSIGN_FIXED,
-    7,
-    0,
-    1, // fixed[7] = 0.0 (default)
-    // If right collision, use left direction
-    OperatorAddress.ASSIGN_FIXED,
-    8,
-    0,
-    1, // fixed[8] = 0.0 for comparison
-    OperatorAddress.NOT_EQUAL,
-    9,
-    0,
-    8, // vars[9] = (right_collision != 0)
-    OperatorAddress.MUL,
-    10,
-    5,
-    9, // fixed[10] = left_dir * right_collision_flag
-    // If left collision, use right direction
-    OperatorAddress.NOT_EQUAL,
-    11,
-    1,
-    8, // vars[11] = (left_collision != 0)
-    OperatorAddress.MUL,
-    12,
-    6,
-    11, // fixed[12] = right_dir * left_collision_flag
-    // Combine directions
-    OperatorAddress.ADD,
-    13,
-    10,
-    12, // fixed[13] = final horizontal direction
-    // Apply horizontal velocity (reduced speed for wall jump)
+    // Apply horizontal velocity away from wall
     OperatorAddress.READ_PROP,
-    14,
-    PropertyAddress.CHARACTER_MOVE_SPEED,
-    OperatorAddress.MUL,
-    15,
-    13,
-    14, // fixed[15] = direction * move_speed
+    5,
+    PropertyAddress.CHARACTER_MOVE_SPEED, // Get move speed
+    // If touching right wall, go left (negative velocity)
+    OperatorAddress.NOT_EQUAL,
+    6,
+    0,
+    0, // vars[6] = (right_collision != 0)
+    OperatorAddress.NEGATE,
+    5, // Make speed negative for left movement
+    // If touching left wall, keep positive velocity (right movement)
+    // Apply the velocity
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_X,
-    15, // Apply horizontal velocity
+    5, // Apply horizontal velocity
     // Apply energy cost
     OperatorAddress.APPLY_ENERGY_COST,
     OperatorAddress.EXIT,

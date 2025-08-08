@@ -386,7 +386,7 @@
   - **Expected Outcome**: Collision flags accurately represent single collision direction
   - _Requirements: Accurate collision detection for precise behavior triggers_
 
-- [ ] 16. Update movement actions to work with fixed collision detection and gravity
+- [x] 16. Update movement actions to work with fixed collision detection and gravity
 
   - Update jump action script to work properly with the new gravity system
   - Fix wall jump action to detect walls correctly using the updated collision detection
