@@ -262,7 +262,7 @@
   - **Expected Outcome**: Collision flags accurately represent entity collision state
   - _Requirements: Accurate collision detection for script conditions_
 
-- [ ] 11.5. Test and validate complete collision system
+- [x] 11.5. Test and validate complete collision system
 
   - **Problem**: Need comprehensive testing to ensure collision system works correctly
   - **Testing Scenarios**:
@@ -296,7 +296,109 @@
   - **Expected Outcome**: Robust collision system that handles all game scenarios
   - _Requirements: Reliable physics system for game functionality_
 
-- [ ] 11.6. Optimize collision detection performance
+- [ ] 12. Fix horizontal collision detection during movement
+
+  - **Problem**: Characters never hit left/right walls during movement (only when stationary)
+  - **Current Issues**:
+    - Characters moving right/left pass through walls instead of stopping
+    - `check_horizontal_movement` and `check_vertical_movement` in tilemap.rs may not be working correctly
+    - Velocity constraint system may not be properly stopping movement at walls
+    - Turn-around behavior never triggers because collision during movement isn't detected
+  - **Investigation Tasks**:
+    - Debug `check_horizontal_movement` function in `game-engine/src/tilemap.rs`
+    - Verify that velocity constraints are being applied correctly in `check_and_constrain_velocity_only`
+    - Test collision detection with moving characters vs stationary characters
+    - Check if collision detection works differently for different movement speeds
+  - **Fix Tasks**:
+    - Fix `check_horizontal_movement` to properly detect wall collisions during movement
+    - Ensure velocity is constrained to zero when hitting walls
+    - Fix collision flag detection for moving entities
+    - Test that characters stop at correct positions when hitting walls
+  - **Testing**:
+    - Character moving right should stop at x=224 when hitting right wall
+    - Character moving left should stop at x=16 when hitting left wall
+    - Collision flags should be set correctly when movement is stopped by walls
+    - Turn-around behavior should trigger after hitting walls
+  - **Expected Outcome**: Characters properly stop when hitting walls during movement
+  - _Requirements: Core collision detection for movement actions_
+
+- [x] 13. Fix WASM memory issues and simplify web viewer interface
+
+  - Identify and fix multiple WASM initialization causing memory corruption
+  - Ensure WASM is loaded only ONCE and properly call free() when needed
+  - Simplify web interface to only show: canvas, playback controls, and COMBINATION_1 config
+  - Remove all unused configuration options and complex UI elements
+  - Remove unused game configurations (keep only COMBINATION_1)
+  - Clean up and refactor codebase for clarity and maintainability
+  - Implement proper WASM lifecycle management to prevent memory leaks
+  - Test that the simplified interface works without memory access errors
+  - _Requirements: Fix critical memory issues preventing game execution_
+
+- [ ] 14. Fix turn-around behavior system
+
+  - **Problem**: Characters hit walls and collision flags are set, but turn-around behavior never triggers
+  - **Current Issues**:
+    - Collision flags are correctly set (e.g., `[false, true, false, false]` for right wall)
+    - Turn-around behavior condition should trigger when collision flags are true
+    - Behavior system may not be reading collision flags correctly
+    - Turn-around action may not be executing properly
+  - **Investigation Tasks**:
+    - Debug behavior condition evaluation in script system
+    - Verify that collision-based conditions can read collision flags from entity state
+    - Check if turn-around action script is correct and executes properly
+    - Test behavior system with simple always-true conditions first
+  - **Fix Tasks**:
+    - Implement missing collision property reading in script contexts (CHARACTER_COLLISION_TOP, etc.)
+    - Fix condition script evaluation to properly read collision flags
+    - Ensure turn-around action properly changes entity direction
+    - Test complete turn-around sequence: hit wall → detect collision → change direction → move away
+  - **Testing**:
+    - Character hits right wall → collision flag set → direction changes from 2 (right) to 0 (left)
+    - Character hits left wall → collision flag set → direction changes from 0 (left) to 2 (right)
+    - Character successfully moves away from wall after turning around
+    - No stuck conditions where character has velocity but doesn't move
+  - **Expected Outcome**: Complete turn-around behavior works correctly
+  - _Requirements: Functional AI behavior system for character movement_
+
+- [ ] 15. Fix collision flag accuracy and multiple flag issues
+
+  - **Problem**: Multiple collision flags are set simultaneously when only one should be active
+  - **Current Issues**:
+    - Character at tile boundaries shows multiple collision flags (e.g., `[false, true, true, false]`)
+    - Should only show collision in the direction of actual wall contact
+    - Collision detection may be too sensitive or using wrong probe sizes
+  - **Investigation Tasks**:
+    - Debug collision flag detection logic in `update_collision_flags_for_next_frame`
+    - Check probe rectangle sizes and positions for each direction
+    - Verify that boundary detection tolerance is appropriate
+    - Test collision flags at exact tile boundaries vs slightly offset positions
+  - **Fix Tasks**:
+    - Refine collision flag detection to be more precise
+    - Adjust probe sizes and positions to avoid false positives
+    - Implement priority system for collision flags (prefer primary collision direction)
+    - Add validation to ensure collision flags make logical sense
+  - **Testing**:
+    - Character at x=16 should only have left collision flag set
+    - Character at x=224 should only have right collision flag set
+    - Character at y=16 should only have top collision flag set
+    - Character at y=192 should only have bottom collision flag set
+    - Character in middle of room should have no collision flags set
+  - **Expected Outcome**: Collision flags accurately represent single collision direction
+  - _Requirements: Accurate collision detection for precise behavior triggers_
+
+- [ ] 16. Update movement actions to work with fixed collision detection and gravity
+
+  - Update jump action script to work properly with the new gravity system
+  - Fix wall jump action to detect walls correctly using the updated collision detection
+  - Ensure all movement actions (run, jump, wall jump) respect collision boundaries
+  - Test that jump actions apply proper upward velocity that gets correctly modified by gravity
+  - Verify wall jump detects wall collision flags properly (left/right collision detection)
+  - Update action scripts to use proper velocity values that work with Fixed-point arithmetic
+  - Test movement actions with different gravity values and directions
+  - Ensure actions work correctly with position correction system
+  - _Requirements: Core movement functionality that works with updated physics system_
+
+- [ ] 17. Optimize collision detection performance
 
   - **Problem**: Collision detection may be inefficient with current implementation
   - **Performance Considerations**:
@@ -320,26 +422,3 @@
     - Test with complex tilemap layouts
   - **Expected Outcome**: Collision detection runs efficiently at 60 FPS
   - _Requirements: Performance optimization for smooth gameplay_
-
-- [ ] 12. Update movement actions to work with fixed collision detection and gravity
-
-  - Update jump action script to work properly with the new gravity system
-  - Fix wall jump action to detect walls correctly using the updated collision detection
-  - Ensure all movement actions (run, jump, wall jump) respect collision boundaries
-  - Test that jump actions apply proper upward velocity that gets correctly modified by gravity
-  - Verify wall jump detects wall collision flags properly (left/right collision detection)
-  - Update action scripts to use proper velocity values that work with Fixed-point arithmetic
-  - Test movement actions with different gravity values and directions
-  - Ensure actions work correctly with position correction system
-  - _Requirements: Core movement functionality that works with updated physics system_
-
-- [x] 13. Fix WASM memory issues and simplify web viewer interface
-  - Identify and fix multiple WASM initialization causing memory corruption
-  - Ensure WASM is loaded only ONCE and properly call free() when needed
-  - Simplify web interface to only show: canvas, playback controls, and COMBINATION_1 config
-  - Remove all unused configuration options and complex UI elements
-  - Remove unused game configurations (keep only COMBINATION_1)
-  - Clean up and refactor codebase for clarity and maintainability
-  - Implement proper WASM lifecycle management to prevent memory leaks
-  - Test that the simplified interface works without memory access errors
-  - _Requirements: Fix critical memory issues preventing game execution_

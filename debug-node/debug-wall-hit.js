@@ -1,3 +1,10 @@
+#!/usr/bin/env node
+
+/**
+ * Enhanced Wall Hit Test - Complete Turn-Around Sequence
+ * Tests the complete sequence: hit wall → collision flag set → turn around → move away
+ */
+
 import fs from 'fs'
 import path from 'path'
 
@@ -98,18 +105,23 @@ async function loadWasm() {
     const wasmBuffer = fs.readFileSync(wasmPath)
     await init(wasmBuffer)
 
-    console.log('=== WALL HIT TEST ===')
     console.log(
-      'Character should move right until hitting wall, then turn around'
+      '=== ENHANCED WALL HIT TEST - COMPLETE TURN-AROUND SEQUENCE ==='
     )
+    console.log(
+      'Testing: hit wall → collision flag set → turn around → move away'
+    )
+    console.log('Expected: No stuck conditions, smooth turn-around behavior\n')
 
     const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
     gameWrapper.new_game()
 
     let hitWall = false
     let turnedAround = false
+    let movedAwayFromWall = false
+    let testComplete = false
 
-    for (let frame = 0; frame < 100; frame++) {
+    for (let frame = 0; frame < 150; frame++) {
       const before = JSON.parse(gameWrapper.get_characters_json())
       gameWrapper.step_frame()
       const after = JSON.parse(gameWrapper.get_characters_json())
@@ -157,27 +169,40 @@ async function loadWasm() {
         console.log(`  Velocity: (${velX.toFixed(1)}, ${velY.toFixed(1)})`)
       }
 
-      // Check for stuck condition after turning around
-      if (turnedAround && Math.abs(velX) > 0.1) {
+      // Check for successful movement away from wall after turning around
+      if (turnedAround && !movedAwayFromWall && Math.abs(velX) > 0.1) {
         const posChange = Math.abs(
           posX - prevChar.position[0][0] / prevChar.position[0][1]
         )
-        if (posChange < 0.1) {
-          console.log(`\n⚠️  STUCK DETECTED AT FRAME ${frame}!`)
+
+        if (posChange > 0.5) {
+          movedAwayFromWall = true
+          testComplete = true
+          console.log(`\n✅ COMPLETE TURN-AROUND SEQUENCE SUCCESSFUL!`)
+          console.log(`  Frame ${frame}: Character moving away from wall`)
+          console.log(`  Position change: ${posChange.toFixed(1)} pixels`)
+          console.log(`  Velocity: ${velX.toFixed(1)}`)
+          console.log(`  Direction: ${char.dir[0]} (0=left, 2=right)`)
+          console.log(`  Collision flags: [${char.collision.join(', ')}]`)
+          break
+        } else if (frame > 100) {
+          // Check for stuck condition after sufficient time
+          console.log(`\n❌ STUCK CONDITION DETECTED AT FRAME ${frame}!`)
           console.log(
             `  Velocity: ${velX.toFixed(
               1
             )} but position change: ${posChange.toFixed(1)}`
           )
-          console.log(`  This confirms the collision overlap issue`)
+          console.log(`  This indicates a collision system issue`)
 
-          // Check overlap
+          // Detailed analysis
+          console.log(`\n  DETAILED ANALYSIS:`)
           console.log(
             `  Character bounds: x=${posX.toFixed(1)} to x=${(
               posX + 16
             ).toFixed(1)}`
           )
-          console.log(`  Left wall at x=16, right wall at x=240`)
+          console.log(`  Game boundaries: x=16 to x=240`)
 
           if (posX <= 16) {
             console.log(
@@ -189,12 +214,33 @@ async function loadWasm() {
                 1
               )} pixels`
             )
+          } else {
+            console.log(`  ✓ Position within bounds, but character not moving`)
+            console.log(
+              `  This suggests velocity constraint or other physics issue`
+            )
           }
+
+          testComplete = true
           break
-        } else {
-          console.log(`\n✅ CHARACTER MOVING SUCCESSFULLY AFTER TURN AROUND`)
-          console.log(`  Position change: ${posChange.toFixed(1)} pixels`)
-          break
+        }
+      }
+
+      // Timeout check
+      if (frame >= 149 && !testComplete) {
+        console.log(`\n⚠️  TEST TIMEOUT AT FRAME ${frame}`)
+        console.log(`  Hit wall: ${hitWall}`)
+        console.log(`  Turned around: ${turnedAround}`)
+        console.log(`  Moved away: ${movedAwayFromWall}`)
+
+        if (hitWall && turnedAround && !movedAwayFromWall) {
+          console.log(
+            `  ❌ Character turned around but never moved away (stuck)`
+          )
+        } else if (hitWall && !turnedAround) {
+          console.log(`  ❌ Character hit wall but never turned around`)
+        } else if (!hitWall) {
+          console.log(`  ❌ Character never hit wall`)
         }
       }
     }

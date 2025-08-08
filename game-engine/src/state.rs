@@ -784,12 +784,6 @@ impl GameState {
         Ok(())
     }
 
-    /// Legacy method kept for compatibility - now just calls the new methods
-    fn check_and_constrain_movement(&mut self) -> GameResult<()> {
-        // This method is kept for any remaining references but now uses the new approach
-        self.check_and_constrain_velocity_only()
-    }
-
     /// Update collision flags for next frame based on final entity positions
     /// This method implements comprehensive collision flag detection that accurately
     /// represents entity collision state for script conditions
@@ -1076,13 +1070,19 @@ impl GameState {
         pos: (crate::math::Fixed, crate::math::Fixed),
         size: (u8, u8),
     ) -> bool {
-        // Game boundaries: 0 <= x <= 240, 0 <= y <= 224 (16x15 tilemap, 16 pixels per tile)
+        // Game boundaries based on tilemap: playable area is tiles (1,1) to (14,12)
+        // In pixels: x=16 to x=224, y=16 to y=192
+        // But we need to account for entity size, so:
+        // - Left edge must be >= 16 (inside left wall)
+        // - Right edge must be <= 240 (inside right wall at tile 15)
+        // - Top edge must be >= 16 (inside top wall)
+        // - Bottom edge must be <= 208 (inside bottom wall at tile 13)
         let left_edge = pos.0.to_int();
         let right_edge = pos.0.to_int() + (size.0 as i32);
         let top_edge = pos.1.to_int();
         let bottom_edge = pos.1.to_int() + (size.1 as i32);
 
-        left_edge >= 0 && right_edge <= 240 && top_edge >= 0 && bottom_edge <= 224
+        left_edge >= 16 && right_edge <= 240 && top_edge >= 16 && bottom_edge <= 208
     }
 
     fn cleanup_entities(&mut self) -> GameResult<()> {
