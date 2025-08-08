@@ -191,7 +191,7 @@
   - **Expected Outcome**: Position correction moves entities minimally to valid positions
   - _Requirements: Prevent entities from getting stuck in walls_
 
-- [ ] 11.3. Fix frame processing order and timing
+- [x] 11.3. Fix frame processing order and timing
 
   - **Problem**: Frame processing order may cause collision detection timing issues
   - **Current Frame Order** (in `advance_frame()`):
@@ -224,7 +224,7 @@
   - **Expected Outcome**: Behaviors see accurate collision state and can respond correctly
   - _Requirements: Proper timing for collision-based behaviors_
 
-- [ ] 11.4. Implement comprehensive collision flag detection
+- [x] 11.4. Implement comprehensive collision flag detection
 
   - **Problem**: Collision flags may not accurately represent entity collision state
   - **Current Issues**:

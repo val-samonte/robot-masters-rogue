@@ -151,26 +151,33 @@ impl GameState {
             return Ok(());
         }
 
-        // Frame processing pipeline:
+        // NEW Frame processing pipeline with improved timing:
         // 1. Process status effects
         self.process_status_effects()?;
 
-        // 2. Execute character behaviors
+        // 2. Update collision flags FIRST (before any movement or correction)
+        // This ensures scripts see accurate collision state
+        self.update_collision_flags_for_next_frame()?;
+
+        // 3. Correct position overlaps (after collision flags are set)
+        self.correct_position_overlaps()?;
+
+        // 4. Execute character behaviors (sets velocity based on current collision flags)
         self.process_character_behaviors()?;
 
-        // 3. Apply gravity to velocity
+        // 5. Apply gravity to velocity
         self.apply_gravity()?;
 
-        // 4. Check collisions and constrain velocity
-        self.check_and_constrain_movement()?;
+        // 6. Check collisions and constrain velocity (without position correction)
+        self.check_and_constrain_velocity_only()?;
 
-        // 5. Apply velocity to position
+        // 7. Apply constrained velocity to position
         self.apply_velocity_to_position()?;
 
-        // 6. Clean up expired entities
+        // 8. Clean up expired entities
         self.cleanup_entities()?;
 
-        // 7. Validate and recover game state if needed
+        // 9. Validate and recover game state if needed
         crate::error::ErrorRecovery::validate_and_recover_game_state(
             &mut self.characters,
             &mut self.spawn_instances,
@@ -452,6 +459,22 @@ impl GameState {
     }
 
     // Private methods for frame processing
+
+    /// Correct position overlaps at the beginning of frame processing
+    fn correct_position_overlaps(&mut self) -> GameResult<()> {
+        // Correct position overlaps for all characters
+        for character in &mut self.characters {
+            Self::correct_entity_overlap_static(&self.tile_map, &mut character.core);
+        }
+
+        // Correct position overlaps for all spawns
+        for spawn in &mut self.spawn_instances {
+            Self::correct_entity_overlap_static(&self.tile_map, &mut spawn.core);
+        }
+
+        Ok(())
+    }
+
     fn process_status_effects(&mut self) -> GameResult<()> {
         // Process status effects for each character
         for character_idx in 0..self.characters.len() {
@@ -714,228 +737,202 @@ impl GameState {
         Ok(())
     }
 
-    fn check_and_constrain_movement(&mut self) -> GameResult<()> {
+    /// Check collisions and constrain velocity only (no position correction)
+    fn check_and_constrain_velocity_only(&mut self) -> GameResult<()> {
         use crate::tilemap::CollisionRect;
 
         // Process characters
         for character in &mut self.characters {
-            // First, check if character is overlapping with walls and correct position
-            Self::correct_entity_overlap_static(&self.tile_map, &mut character.core);
-
-            // Create collision rectangle for current position (after position correction)
+            // Create collision rectangle for current position (position correction already done)
             let current_rect = CollisionRect::from_entity(character.core.pos, character.core.size);
-
-            // Store original velocity for collision detection
-            let original_vel_x = character.core.vel.0;
-            let original_vel_y = character.core.vel.1;
 
             // Check horizontal movement
             let allowed_horizontal = self
                 .tile_map
                 .check_horizontal_movement(current_rect, character.core.vel.0);
-            let horizontal_collision = allowed_horizontal.raw() != character.core.vel.0.raw();
 
             // Check vertical movement
             let allowed_vertical = self
                 .tile_map
                 .check_vertical_movement(current_rect, character.core.vel.1);
-            let vertical_collision = allowed_vertical.raw() != character.core.vel.1.raw();
 
-            // Apply the allowed movement
+            // Apply the allowed movement (constrain velocity)
             character.core.vel.0 = allowed_horizontal;
             character.core.vel.1 = allowed_vertical;
-
-            // Update collision flags based on movement direction and collision detection
-            let mut collision_flags = (false, false, false, false); // top, right, bottom, left
-
-            // Check specific collision directions if movement was constrained
-            if horizontal_collision {
-                if original_vel_x.to_int() > 0 {
-                    // Was trying to move right but got stopped
-                    collision_flags.1 = true; // right collision
-                } else if original_vel_x.to_int() < 0 {
-                    // Was trying to move left but got stopped
-                    collision_flags.3 = true; // left collision
-                }
-            }
-
-            if vertical_collision {
-                if original_vel_y.to_int() > 0 {
-                    // Was trying to move down but got stopped
-                    collision_flags.2 = true; // bottom collision
-                } else if original_vel_y.to_int() < 0 {
-                    // Was trying to move up but got stopped
-                    collision_flags.0 = true; // top collision
-                }
-            }
-
-            // Also check if entity is currently touching walls (for grounded detection, etc.)
-            let next_pos = (
-                character.core.pos.0.add(character.core.vel.0),
-                character.core.pos.1.add(character.core.vel.1),
-            );
-            let next_rect = CollisionRect::from_entity(next_pos, character.core.size);
-
-            // Check top collision (entity trying to move up into a wall)
-            let top_check_rect = CollisionRect::new(
-                next_rect.x,
-                next_rect.y.sub(crate::math::Fixed::ONE),
-                next_rect.width,
-                1,
-            );
-            if self.tile_map.check_collision(top_check_rect) {
-                collision_flags.0 = true;
-            }
-
-            // Check right collision (entity trying to move right into a wall)
-            let right_check_rect = CollisionRect::new(
-                next_rect
-                    .x
-                    .add(crate::math::Fixed::from_int(next_rect.width as i16)),
-                next_rect.y,
-                1,
-                next_rect.height,
-            );
-            if self.tile_map.check_collision(right_check_rect) {
-                collision_flags.1 = true;
-            }
-
-            // Check bottom collision (entity standing on ground)
-            let bottom_check_rect = CollisionRect::new(
-                next_rect.x,
-                next_rect
-                    .y
-                    .add(crate::math::Fixed::from_int(next_rect.height as i16)),
-                next_rect.width,
-                1,
-            );
-            if self.tile_map.check_collision(bottom_check_rect) {
-                collision_flags.2 = true;
-            }
-
-            // Check left collision (entity trying to move left into a wall)
-            let left_check_rect = CollisionRect::new(
-                next_rect.x.sub(crate::math::Fixed::ONE),
-                next_rect.y,
-                1,
-                next_rect.height,
-            );
-            if self.tile_map.check_collision(left_check_rect) {
-                collision_flags.3 = true;
-            }
-
-            // Update entity collision flags
-            character.core.collision = collision_flags;
         }
 
         // Process spawns
         for spawn in &mut self.spawn_instances {
-            // First, check if spawn is overlapping with walls and correct position
-            Self::correct_entity_overlap_static(&self.tile_map, &mut spawn.core);
-
-            // Create collision rectangle for current position (after position correction)
+            // Create collision rectangle for current position (position correction already done)
             let current_rect = CollisionRect::from_entity(spawn.core.pos, spawn.core.size);
-
-            // Store original velocity for collision detection
-            let original_vel_x = spawn.core.vel.0;
-            let original_vel_y = spawn.core.vel.1;
 
             // Check horizontal movement
             let allowed_horizontal = self
                 .tile_map
                 .check_horizontal_movement(current_rect, spawn.core.vel.0);
-            let horizontal_collision = allowed_horizontal.raw() != spawn.core.vel.0.raw();
 
             // Check vertical movement
             let allowed_vertical = self
                 .tile_map
                 .check_vertical_movement(current_rect, spawn.core.vel.1);
-            let vertical_collision = allowed_vertical.raw() != spawn.core.vel.1.raw();
 
-            // Apply the allowed movement
+            // Apply the allowed movement (constrain velocity)
             spawn.core.vel.0 = allowed_horizontal;
             spawn.core.vel.1 = allowed_vertical;
+        }
 
-            // Update collision flags based on movement direction and collision detection
+        Ok(())
+    }
+
+    /// Legacy method kept for compatibility - now just calls the new methods
+    fn check_and_constrain_movement(&mut self) -> GameResult<()> {
+        // This method is kept for any remaining references but now uses the new approach
+        self.check_and_constrain_velocity_only()
+    }
+
+    /// Update collision flags for next frame based on final entity positions
+    /// This method implements comprehensive collision flag detection that accurately
+    /// represents entity collision state for script conditions
+    fn update_collision_flags_for_next_frame(&mut self) -> GameResult<()> {
+        use crate::tilemap::CollisionRect;
+
+        // Update collision flags for all characters
+        for character in &mut self.characters {
             let mut collision_flags = (false, false, false, false); // top, right, bottom, left
 
-            // Check specific collision directions if movement was constrained
-            if horizontal_collision {
-                if original_vel_x.to_int() > 0 {
-                    // Was trying to move right but got stopped
-                    collision_flags.1 = true; // right collision
-                } else if original_vel_x.to_int() < 0 {
-                    // Was trying to move left but got stopped
-                    collision_flags.3 = true; // left collision
-                }
-            }
+            // Create collision rectangle for current position
+            let current_rect = CollisionRect::from_entity(character.core.pos, character.core.size);
 
-            if vertical_collision {
-                if original_vel_y.to_int() > 0 {
-                    // Was trying to move down but got stopped
-                    collision_flags.2 = true; // bottom collision
-                } else if original_vel_y.to_int() < 0 {
-                    // Was trying to move up but got stopped
-                    collision_flags.0 = true; // top collision
-                }
-            }
+            // COMPREHENSIVE COLLISION FLAG DETECTION
+            // Check collision in all 4 directions independently using small probe rectangles
+            // This approach tests if the entity would collide if it tried to move in each direction
 
-            // Also check if entity is currently touching walls (for grounded detection, etc.)
-            let next_pos = (
-                spawn.core.pos.0.add(spawn.core.vel.0),
-                spawn.core.pos.1.add(spawn.core.vel.1),
-            );
-            let next_rect = CollisionRect::from_entity(next_pos, spawn.core.size);
-
-            // Check top collision (entity trying to move up into a wall)
-            let top_check_rect = CollisionRect::new(
-                next_rect.x,
-                next_rect.y.sub(crate::math::Fixed::ONE),
-                next_rect.width,
+            // Check TOP collision (1 pixel above entity)
+            let top_probe = CollisionRect::new(
+                current_rect.x,
+                current_rect.y.sub(crate::math::Fixed::ONE),
+                current_rect.width,
                 1,
             );
-            if self.tile_map.check_collision(top_check_rect) {
-                collision_flags.0 = true;
-            }
+            collision_flags.0 = self.tile_map.check_collision(top_probe);
 
-            // Check right collision (entity trying to move right into a wall)
-            let right_check_rect = CollisionRect::new(
-                next_rect
+            // Check RIGHT collision (1 pixel to the right of entity)
+            let right_probe = CollisionRect::new(
+                current_rect
                     .x
-                    .add(crate::math::Fixed::from_int(next_rect.width as i16)),
-                next_rect.y,
+                    .add(crate::math::Fixed::from_int(current_rect.width as i16)),
+                current_rect.y,
                 1,
-                next_rect.height,
+                current_rect.height,
             );
-            if self.tile_map.check_collision(right_check_rect) {
-                collision_flags.1 = true;
-            }
+            collision_flags.1 = self.tile_map.check_collision(right_probe);
 
-            // Check bottom collision (entity standing on ground)
-            let bottom_check_rect = CollisionRect::new(
-                next_rect.x,
-                next_rect
+            // Check BOTTOM collision (1 pixel below entity)
+            let bottom_probe = CollisionRect::new(
+                current_rect.x,
+                current_rect
                     .y
-                    .add(crate::math::Fixed::from_int(next_rect.height as i16)),
-                next_rect.width,
+                    .add(crate::math::Fixed::from_int(current_rect.height as i16)),
+                current_rect.width,
                 1,
             );
-            if self.tile_map.check_collision(bottom_check_rect) {
-                collision_flags.2 = true;
-            }
+            collision_flags.2 = self.tile_map.check_collision(bottom_probe);
 
-            // Check left collision (entity trying to move left into a wall)
-            let left_check_rect = CollisionRect::new(
-                next_rect.x.sub(crate::math::Fixed::ONE),
-                next_rect.y,
+            // Check LEFT collision (1 pixel to the left of entity)
+            let left_probe = CollisionRect::new(
+                current_rect.x.sub(crate::math::Fixed::ONE),
+                current_rect.y,
                 1,
-                next_rect.height,
+                current_rect.height,
             );
-            if self.tile_map.check_collision(left_check_rect) {
-                collision_flags.3 = true;
+            collision_flags.3 = self.tile_map.check_collision(left_probe);
+
+            // BOUNDARY DETECTION: Check if entity is at known wall boundaries
+            // This handles cases where position correction may have moved the entity
+            // but we still want to detect the original collision state
+
+            let entity_left = character.core.pos.0.to_int();
+            let entity_right = entity_left + (character.core.size.0 as i32);
+            let entity_top = character.core.pos.1.to_int();
+            let entity_bottom = entity_top + (character.core.size.1 as i32);
+
+            // Game boundaries (16x15 tilemap, 16 pixels per tile)
+            const LEFT_WALL: i32 = 16; // Left wall ends at x=15, so x=16 is touching
+            const RIGHT_WALL: i32 = 240; // Right wall starts at x=240
+            const TOP_WALL: i32 = 16; // Top wall ends at y=15, so y=16 is touching
+            const BOTTOM_WALL: i32 = 224; // Bottom wall starts at y=224
+
+            // Position correction tolerance (accounts for position correction moving entities)
+            const CORRECTION_TOLERANCE: i32 = 3; // Allow 3 pixels of tolerance
+
+            // Override collision flags based on boundary positions with tolerance
+            if entity_top <= TOP_WALL + CORRECTION_TOLERANCE {
+                collision_flags.0 = true; // Top collision
+            }
+            if entity_right >= RIGHT_WALL - CORRECTION_TOLERANCE {
+                collision_flags.1 = true; // Right collision
+            }
+            if entity_bottom >= BOTTOM_WALL - CORRECTION_TOLERANCE {
+                collision_flags.2 = true; // Bottom collision
+            }
+            if entity_left <= LEFT_WALL + CORRECTION_TOLERANCE {
+                collision_flags.3 = true; // Left collision
             }
 
-            // Update entity collision flags
+            // Update entity collision flags for next frame
+            character.core.collision = collision_flags;
+        }
+
+        // Update collision flags for all spawns
+        for spawn in &mut self.spawn_instances {
+            let mut collision_flags = (false, false, false, false); // top, right, bottom, left
+
+            // Create collision rectangle for current position
+            let current_rect = CollisionRect::from_entity(spawn.core.pos, spawn.core.size);
+
+            // Check each direction with small probe rectangles (1 pixel)
+
+            // Check top collision (1 pixel above entity)
+            let top_probe = CollisionRect::new(
+                current_rect.x,
+                current_rect.y.sub(crate::math::Fixed::ONE),
+                current_rect.width,
+                1,
+            );
+            collision_flags.0 = self.tile_map.check_collision(top_probe);
+
+            // Check right collision (1 pixel to the right of entity)
+            let right_probe = CollisionRect::new(
+                current_rect
+                    .x
+                    .add(crate::math::Fixed::from_int(current_rect.width as i16)),
+                current_rect.y,
+                1,
+                current_rect.height,
+            );
+            collision_flags.1 = self.tile_map.check_collision(right_probe);
+
+            // Check bottom collision (1 pixel below entity)
+            let bottom_probe = CollisionRect::new(
+                current_rect.x,
+                current_rect
+                    .y
+                    .add(crate::math::Fixed::from_int(current_rect.height as i16)),
+                current_rect.width,
+                1,
+            );
+            collision_flags.2 = self.tile_map.check_collision(bottom_probe);
+
+            // Check left collision (1 pixel to the left of entity)
+            let left_probe = CollisionRect::new(
+                current_rect.x.sub(crate::math::Fixed::ONE),
+                current_rect.y,
+                1,
+                current_rect.height,
+            );
+            collision_flags.3 = self.tile_map.check_collision(left_probe);
+
+            // Update entity collision flags for next frame
             spawn.core.collision = collision_flags;
         }
 

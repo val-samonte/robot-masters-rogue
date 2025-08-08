@@ -1,10 +1,14 @@
-import fs from 'fs'
-import path from 'path'
+#!/usr/bin/env node
 
-// Detailed collision debug script to trace frame processing steps
+// Debug script to understand collision detection in detail
+// This script analyzes the exact collision detection logic
+
+import { GameWrapper } from '../wasm-wrapper/pkg/wasm_wrapper.js'
+
+// Test configuration with character at ceiling
 const gameConfig = {
   seed: 12345,
-  gravity: [1, 2],
+  gravity: [1, 1],
   tilemap: [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -19,244 +23,228 @@ const gameConfig = {
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  ],
-  actions: [
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [20, 0, 1, 91, 0], // ALWAYS condition - just return true
-    },
-  ],
-  conditions: [
-    {
-      energy_mul: 32,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [20, 0, 1, 91, 0], // ALWAYS condition
-    },
   ],
   characters: [
     {
-      id: 1,
+      id: 0,
+      group: 0,
       position: [
-        [230, 1], // Start close to right wall (240 - 16 = 224 is wall boundary)
-        [208, 1], // Y position (13*16 = 208, just above ground)
-      ],
-      group: 1,
-      size: [16, 32],
+        [128, 1],
+        [16, 1],
+      ], // At ceiling
+      size: [16, 16],
       health: 100,
       health_cap: 100,
       energy: 100,
       energy_cap: 100,
       power: 10,
       weight: 5,
-      jump_force: [160, 32],
-      move_speed: [64, 32],
+      jump_force: [5, 1],
+      move_speed: [2, 1],
       armor: [0, 0, 0, 0, 0, 0, 0, 0, 0],
       energy_regen: 1,
       energy_regen_rate: 60,
-      energy_charge: 5,
+      energy_charge: 2,
       energy_charge_rate: 30,
-      dir: [2, 0], // Moving right
+      dir: [1, 0],
       enmity: 0,
       target_id: null,
       target_type: 0,
-      behaviors: [
-        [0, 0], // Always do nothing - just test collision
-      ],
+      behaviors: [],
     },
   ],
+  actions: [],
+  conditions: [],
   spawns: [],
   status_effects: [],
 }
 
-async function loadWasm() {
-  try {
-    const wasmModule = await import('../wasm-wrapper/pkg/wasm_wrapper.js')
-    const { default: init, GameWrapper } = wasmModule
+function analyzeCollisionDetection() {
+  console.log('=== Detailed Collision Detection Analysis ===\n')
 
-    const wasmPath = path.join(
-      process.cwd(),
-      '../wasm-wrapper/pkg/wasm_wrapper_bg.wasm'
-    )
-    const wasmBuffer = fs.readFileSync(wasmPath)
-    await init(wasmBuffer)
+  const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+  gameWrapper.new_game()
+  gameWrapper.step_frame()
 
-    console.log('=== DETAILED COLLISION DEBUG ANALYSIS ===')
-    console.log(
-      'Tracing frame processing steps to identify where position jump occurs'
-    )
-    console.log('')
-    console.log('COORDINATE SYSTEM:')
-    console.log('- Tilemap: 16x15 tiles, 16 pixels per tile')
-    console.log('- Game area: 0 ≤ x ≤ 240, 0 ≤ y ≤ 224')
-    console.log('- Left wall: x=0, Right wall: x=240')
-    console.log('- Character: 16x32 pixels, starts at x=230')
-    console.log(
-      '- Expected: Character right edge (230+16=246) overlaps wall at x=240'
-    )
-    console.log(
-      '- Expected: Position correction should push character to x=224'
-    )
-    console.log('')
+  const characters = JSON.parse(gameWrapper.get_characters_json())
+  const character = characters[0]
 
-    const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+  console.log('Character at ceiling position:')
+  console.log(
+    `  Position (raw): [${character.position[0][0]}, ${character.position[1][0]}]`
+  )
+  console.log(
+    `  Position (pixel): [${character.position[0][0] / 32}, ${
+      character.position[1][0] / 32
+    }]`
+  )
+  console.log(`  Size: [${character.size[0]}, ${character.size[1]}]`)
+  console.log(
+    `  Collision flags: [${character.collision.join(
+      ', '
+    )}] (top, right, bottom, left)`
+  )
+
+  // Calculate entity bounds
+  const entityLeft = character.position[0][0] / 32
+  const entityRight = entityLeft + character.size[0]
+  const entityTop = character.position[1][0] / 32
+  const entityBottom = entityTop + character.size[1]
+
+  console.log('\nEntity bounds:')
+  console.log(`  Left edge: ${entityLeft}`)
+  console.log(`  Right edge: ${entityRight}`)
+  console.log(`  Top edge: ${entityTop}`)
+  console.log(`  Bottom edge: ${entityBottom}`)
+
+  // Analyze tilemap
+  console.log('\nTilemap analysis:')
+  console.log('  Top wall: tiles at y=0 (pixels 0-15)')
+  console.log('  Left wall: tiles at x=0 (pixels 0-15)')
+  console.log('  Right wall: tiles at x=15 (pixels 240-255)')
+  console.log('  Bottom wall: tiles at y=14 (pixels 224-239)')
+
+  // Calculate probe positions (as they would be in the Rust code)
+  console.log('\nProbe positions (as calculated in Rust):')
+  console.log(
+    `  Top probe: y=${entityTop - 1} (should check pixel ${entityTop - 1})`
+  )
+  console.log(
+    `  Right probe: x=${entityRight} (should check pixel ${entityRight})`
+  )
+  console.log(
+    `  Bottom probe: y=${entityBottom} (should check pixel ${entityBottom})`
+  )
+  console.log(
+    `  Left probe: x=${entityLeft - 1} (should check pixel ${entityLeft - 1})`
+  )
+
+  // Expected collision results
+  console.log('\nExpected collision results:')
+  console.log(
+    `  Top: ${
+      entityTop <= 16 ? 'TRUE' : 'FALSE'
+    } (entity top ${entityTop} <= wall bottom 16)`
+  )
+  console.log(
+    `  Right: ${
+      entityRight >= 240 ? 'TRUE' : 'FALSE'
+    } (entity right ${entityRight} >= wall left 240)`
+  )
+  console.log(
+    `  Bottom: ${
+      entityBottom >= 224 ? 'TRUE' : 'FALSE'
+    } (entity bottom ${entityBottom} >= wall top 224)`
+  )
+  console.log(
+    `  Left: ${
+      entityLeft <= 16 ? 'TRUE' : 'FALSE'
+    } (entity left ${entityLeft} <= wall right 16)`
+  )
+
+  // Actual collision results
+  console.log('\nActual collision results:')
+  console.log(`  Top: ${character.collision[0] ? 'TRUE' : 'FALSE'}`)
+  console.log(`  Right: ${character.collision[1] ? 'TRUE' : 'FALSE'}`)
+  console.log(`  Bottom: ${character.collision[2] ? 'TRUE' : 'FALSE'}`)
+  console.log(`  Left: ${character.collision[3] ? 'TRUE' : 'FALSE'}`)
+
+  gameWrapper.free()
+}
+
+function testSpecificPositions() {
+  console.log('\n\n=== Testing Specific Problematic Positions ===\n')
+
+  const testCases = [
+    {
+      name: 'Character exactly at ceiling (y=16)',
+      pos: [
+        [128, 1],
+        [16, 1],
+      ],
+      expectedTop: true,
+      reason: 'Entity top at y=16, probe at y=15 should hit wall (y=0-15)',
+    },
+    {
+      name: 'Character just below ceiling (y=17)',
+      pos: [
+        [128, 1],
+        [17, 1],
+      ],
+      expectedTop: false,
+      reason: 'Entity top at y=17, probe at y=16 should not hit wall',
+    },
+    {
+      name: 'Character at left wall (x=16)',
+      pos: [
+        [16, 1],
+        [128, 1],
+      ],
+      expectedLeft: true,
+      reason: 'Entity left at x=16, probe at x=15 should hit wall (x=0-15)',
+    },
+    {
+      name: 'Character just right of left wall (x=17)',
+      pos: [
+        [17, 1],
+        [128, 1],
+      ],
+      expectedLeft: false,
+      reason: 'Entity left at x=17, probe at x=16 should not hit wall',
+    },
+  ]
+
+  for (const testCase of testCases) {
+    console.log(`--- ${testCase.name} ---`)
+    console.log(`Reason: ${testCase.reason}`)
+
+    const config = JSON.parse(JSON.stringify(gameConfig))
+    config.characters[0].position = testCase.pos
+
+    const gameWrapper = new GameWrapper(JSON.stringify(config))
     gameWrapper.new_game()
+    gameWrapper.step_frame()
 
-    console.log('FRAME PROCESSING ORDER (from state.rs::advance_frame):')
-    console.log('1. Process status effects')
-    console.log('2. Execute character behaviors (sets velocity)')
-    console.log('3. Apply gravity to velocity')
+    const characters = JSON.parse(gameWrapper.get_characters_json())
+    const character = characters[0]
+
+    const pixelX = character.position[0][0] / 32
+    const pixelY = character.position[1][0] / 32
+
+    console.log(`Position: [${pixelX}, ${pixelY}]`)
     console.log(
-      '4. Check collisions and constrain velocity (POSITION CORRECTION HAPPENS HERE)'
+      `Collision flags: [${character.collision.join(
+        ', '
+      )}] (top, right, bottom, left)`
     )
-    console.log('5. Apply velocity to position')
-    console.log('')
 
-    // Analyze first few frames in detail
-    for (let frame = 0; frame < 5; frame++) {
-      console.log(`=== FRAME ${frame} ANALYSIS ===`)
-
-      const before = JSON.parse(gameWrapper.get_characters_json())
-      const char_before = before[0]
-      const posX_before =
-        char_before.position[0][0] / char_before.position[0][1]
-      const posY_before =
-        char_before.position[1][0] / char_before.position[1][1]
-      const velX_before =
-        char_before.velocity[0][0] / char_before.velocity[0][1]
-      const velY_before =
-        char_before.velocity[1][0] / char_before.velocity[1][1]
-
-      console.log(`BEFORE step_frame():`)
+    if (testCase.expectedTop !== undefined) {
+      const actual = character.collision[0]
       console.log(
-        `  Position: (${posX_before.toFixed(1)}, ${posY_before.toFixed(1)})`
+        `Top collision: ${actual ? 'TRUE' : 'FALSE'} (expected ${
+          testCase.expectedTop ? 'TRUE' : 'FALSE'
+        }) ${actual === testCase.expectedTop ? '✓' : '✗'}`
       )
-      console.log(
-        `  Velocity: (${velX_before.toFixed(1)}, ${velY_before.toFixed(1)})`
-      )
-      console.log(
-        `  Character bounds: x=${posX_before.toFixed(1)} to x=${(
-          posX_before + 16
-        ).toFixed(1)}`
-      )
-      console.log(`  Collision flags: [${char_before.collision.join(', ')}]`)
-
-      // Check if character should be colliding
-      if (posX_before + 16 > 240) {
-        console.log(
-          `  ⚠️  CHARACTER OVERLAPPING RIGHT WALL BY ${(
-            posX_before +
-            16 -
-            240
-          ).toFixed(1)} PIXELS`
-        )
-        console.log(
-          `  📍 Expected position correction: push left to x=${(
-            240 - 16
-          ).toFixed(1)}`
-        )
-      } else if (posX_before + 16 === 240) {
-        console.log(`  ✅ CHARACTER EXACTLY AT WALL BOUNDARY`)
-      } else {
-        console.log(`  ✅ CHARACTER NOT OVERLAPPING WALL`)
-      }
-
-      // Step the frame
-      gameWrapper.step_frame()
-
-      const after = JSON.parse(gameWrapper.get_characters_json())
-      const char_after = after[0]
-      const posX_after = char_after.position[0][0] / char_after.position[0][1]
-      const posY_after = char_after.position[1][0] / char_after.position[1][1]
-      const velX_after = char_after.velocity[0][0] / char_after.velocity[0][1]
-      const velY_after = char_after.velocity[1][0] / char_after.velocity[1][1]
-
-      console.log(`AFTER step_frame():`)
-      console.log(
-        `  Position: (${posX_after.toFixed(1)}, ${posY_after.toFixed(1)})`
-      )
-      console.log(
-        `  Velocity: (${velX_after.toFixed(1)}, ${velY_after.toFixed(1)})`
-      )
-      console.log(
-        `  Character bounds: x=${posX_after.toFixed(1)} to x=${(
-          posX_after + 16
-        ).toFixed(1)}`
-      )
-      console.log(`  Collision flags: [${char_after.collision.join(', ')}]`)
-
-      // Analyze the changes
-      const deltaX = posX_after - posX_before
-      const deltaY = posY_after - posY_before
-      const deltaVelX = velX_after - velX_before
-      const deltaVelY = velY_after - velY_before
-
-      console.log(`CHANGES:`)
-      console.log(
-        `  Position delta: (${deltaX.toFixed(1)}, ${deltaY.toFixed(1)})`
-      )
-      console.log(
-        `  Velocity delta: (${deltaVelX.toFixed(1)}, ${deltaVelY.toFixed(1)})`
-      )
-
-      // Identify issues
-      if (Math.abs(deltaX) > 0.1 && Math.abs(velX_before) < 0.1) {
-        console.log(
-          `  🚨 BUG: Position changed by ${deltaX.toFixed(
-            1
-          )} pixels with near-zero velocity!`
-        )
-        console.log(`  🔍 This indicates position correction is broken`)
-      }
-
-      if (posX_after > 240) {
-        console.log(
-          `  🚨 BUG: Character outside game area (x=${posX_after.toFixed(
-            1
-          )} > 240)`
-        )
-      }
-
-      if (posX_after + 16 > 240 && !char_after.collision[1]) {
-        console.log(
-          `  🚨 BUG: Character overlapping right wall but no right collision flag`
-        )
-      }
-
-      if (char_after.collision[3] && posX_after > 16) {
-        console.log(
-          `  🚨 BUG: Left collision flag set but character not near left wall`
-        )
-      }
-
-      console.log('')
     }
 
-    console.log('=== ANALYSIS SUMMARY ===')
-    console.log('Key findings:')
-    console.log(
-      '1. Position jumps occur during step_frame() with zero velocity'
-    )
-    console.log('2. Character ends up outside game boundaries (x > 240)')
-    console.log(
-      '3. Collision flags show wrong direction (left instead of right)'
-    )
-    console.log('4. Position correction algorithm is fundamentally broken')
+    if (testCase.expectedLeft !== undefined) {
+      const actual = character.collision[3]
+      console.log(
+        `Left collision: ${actual ? 'TRUE' : 'FALSE'} (expected ${
+          testCase.expectedLeft ? 'TRUE' : 'FALSE'
+        }) ${actual === testCase.expectedLeft ? '✓' : '✗'}`
+      )
+    }
+
     console.log('')
-    console.log('Root cause: correct_entity_overlap_static() in state.rs')
-    console.log('- Uses MAX_CORRECTION_DISTANCE = 32 (too large)')
-    console.log(
-      '- Always tries pushing left first (wrong for right-moving entities)'
-    )
-    console.log('- No boundary checking (allows pushing outside game area)')
-    console.log('- No velocity direction consideration')
-  } catch (error) {
-    console.error('Error:', error)
+    gameWrapper.free()
   }
 }
 
-loadWasm()
+// Run analysis
+analyzeCollisionDetection()
+testSpecificPositions()
+
+console.log('=== Detailed Collision Analysis Complete ===')

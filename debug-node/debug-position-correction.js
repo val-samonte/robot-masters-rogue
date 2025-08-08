@@ -1,10 +1,14 @@
-import fs from 'fs'
-import path from 'path'
+#!/usr/bin/env node
 
-// Test position correction algorithm directly
+// Debug script to understand position correction behavior
+// This script checks if position correction is affecting collision detection
+
+import { GameWrapper } from '../wasm-wrapper/pkg/wasm_wrapper.js'
+
+// Test configuration with character exactly at ceiling
 const gameConfig = {
   seed: 12345,
-  gravity: [1, 2],
+  gravity: [1, 1],
   tilemap: [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -22,30 +26,14 @@ const gameConfig = {
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
-  actions: [
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [20, 0, 1, 91, 0], // ALWAYS condition - just return true
-    },
-  ],
-  conditions: [
-    {
-      energy_mul: 32,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [20, 0, 1, 91, 0], // ALWAYS condition
-    },
-  ],
   characters: [
     {
-      id: 1,
+      id: 0,
+      group: 0,
       position: [
-        [230, 1], // Start close to right wall (240 - 16 = 224 is wall boundary)
-        [208, 1], // Y position (13*16 = 208, just above ground)
-      ],
-      group: 1,
+        [128, 1],
+        [16, 1],
+      ], // Exactly at ceiling
       size: [16, 16],
       health: 100,
       health_cap: 100,
@@ -53,104 +41,146 @@ const gameConfig = {
       energy_cap: 100,
       power: 10,
       weight: 5,
-      jump_force: [160, 32],
-      move_speed: [64, 32],
+      jump_force: [5, 1],
+      move_speed: [2, 1],
       armor: [0, 0, 0, 0, 0, 0, 0, 0, 0],
       energy_regen: 1,
       energy_regen_rate: 60,
-      energy_charge: 5,
+      energy_charge: 2,
       energy_charge_rate: 30,
-      dir: [2, 0], // Moving right
+      dir: [1, 0],
       enmity: 0,
       target_id: null,
       target_type: 0,
-      behaviors: [
-        [0, 0], // Always do nothing - just test collision
-      ],
+      behaviors: [],
     },
   ],
+  actions: [],
+  conditions: [],
   spawns: [],
   status_effects: [],
 }
 
-async function loadWasm() {
-  try {
-    const wasmModule = await import('../wasm-wrapper/pkg/wasm_wrapper.js')
-    const { default: init, GameWrapper } = wasmModule
+function testPositionCorrection() {
+  console.log('=== Position Correction Analysis ===\n')
 
-    const wasmPath = path.join(
-      process.cwd(),
-      '../wasm-wrapper/pkg/wasm_wrapper_bg.wasm'
-    )
-    const wasmBuffer = fs.readFileSync(wasmPath)
-    await init(wasmBuffer)
+  const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+  gameWrapper.new_game()
 
-    console.log('=== POSITION CORRECTION DEBUG TEST ===')
-    console.log('Character at x=230 with width=16 overlaps wall at x=240')
-    console.log('Expected: character should be pushed LEFT to x=224')
-    console.log('Actual: character gets pushed to x=256 (wrong direction!)')
-    console.log('')
+  // Get initial position before any frame processing
+  const initialChars = JSON.parse(gameWrapper.get_characters_json())
+  const initialChar = initialChars[0]
 
-    const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+  console.log('Initial position (before frame processing):')
+  console.log(
+    `  Raw position: [${initialChar.position[0][0]}, ${initialChar.position[1][0]}]`
+  )
+  console.log(
+    `  Pixel position: [${initialChar.position[0][0] / 32}, ${
+      initialChar.position[1][0] / 32
+    }]`
+  )
+  console.log(`  Collision flags: [${initialChar.collision.join(', ')}]`)
+
+  // Step one frame and see what happens
+  gameWrapper.step_frame()
+
+  const afterChars = JSON.parse(gameWrapper.get_characters_json())
+  const afterChar = afterChars[0]
+
+  console.log('\nAfter one frame:')
+  console.log(
+    `  Raw position: [${afterChar.position[0][0]}, ${afterChar.position[1][0]}]`
+  )
+  console.log(
+    `  Pixel position: [${afterChar.position[0][0] / 32}, ${
+      afterChar.position[1][0] / 32
+    }]`
+  )
+  console.log(`  Collision flags: [${afterChar.collision.join(', ')}]`)
+
+  // Check if position changed
+  const posChanged =
+    initialChar.position[0][0] !== afterChar.position[0][0] ||
+    initialChar.position[1][0] !== afterChar.position[1][0]
+
+  console.log(`\nPosition changed: ${posChanged ? 'YES' : 'NO'}`)
+  if (posChanged) {
+    const deltaX = (afterChar.position[0][0] - initialChar.position[0][0]) / 32
+    const deltaY = (afterChar.position[1][0] - initialChar.position[1][0]) / 32
+    console.log(`  Delta: [${deltaX}, ${deltaY}] pixels`)
+    console.log('  This suggests position correction moved the character')
+  }
+
+  gameWrapper.free()
+}
+
+function testVariousPositions() {
+  console.log('\n\n=== Testing Various Ceiling Positions ===\n')
+
+  const testCases = [
+    {
+      name: 'y=15 (inside wall)',
+      pos: [
+        [128, 1],
+        [15, 1],
+      ],
+    },
+    {
+      name: 'y=16 (at wall boundary)',
+      pos: [
+        [128, 1],
+        [16, 1],
+      ],
+    },
+    {
+      name: 'y=17 (just outside wall)',
+      pos: [
+        [128, 1],
+        [17, 1],
+      ],
+    },
+    {
+      name: 'y=18 (clearly outside wall)',
+      pos: [
+        [128, 1],
+        [18, 1],
+      ],
+    },
+  ]
+
+  for (const testCase of testCases) {
+    console.log(`--- ${testCase.name} ---`)
+
+    const config = JSON.parse(JSON.stringify(gameConfig))
+    config.characters[0].position = testCase.pos
+
+    const gameWrapper = new GameWrapper(JSON.stringify(config))
     gameWrapper.new_game()
 
-    // Get initial state
-    const before = JSON.parse(gameWrapper.get_characters_json())
-    const char = before[0]
-    const posX = char.position[0][0] / char.position[0][1]
-    const posY = char.position[1][0] / char.position[1][1]
+    const beforeChars = JSON.parse(gameWrapper.get_characters_json())
+    const beforeChar = beforeChars[0]
 
-    console.log('BEFORE position correction:')
-    console.log(`  Position: (${posX}, ${posY})`)
-    console.log(`  Character bounds: x=${posX} to x=${posX + char.size[0]}`)
-    console.log(`  Right edge: ${posX + char.size[0]} (should be <= 240)`)
-    console.log(`  Overlap: ${posX + char.size[0] - 240} pixels into wall`)
-    console.log('')
-
-    // Step one frame to trigger position correction
     gameWrapper.step_frame()
 
-    const after = JSON.parse(gameWrapper.get_characters_json())
-    const afterChar = after[0]
-    const afterPosX = afterChar.position[0][0] / afterChar.position[0][1]
-    const afterPosY = afterChar.position[1][0] / afterChar.position[1][1]
+    const afterChars = JSON.parse(gameWrapper.get_characters_json())
+    const afterChar = afterChars[0]
 
-    console.log('AFTER position correction:')
-    console.log(`  Position: (${afterPosX}, ${afterPosY})`)
-    console.log(
-      `  Character bounds: x=${afterPosX} to x=${afterPosX + afterChar.size[0]}`
-    )
-    console.log(`  Right edge: ${afterPosX + afterChar.size[0]}`)
+    const beforeY = beforeChar.position[1][0] / 32
+    const afterY = afterChar.position[1][0] / 32
+    const deltaY = afterY - beforeY
 
-    const deltaX = afterPosX - posX
-    console.log(`  Position change: ${deltaX} pixels`)
-
-    if (deltaX > 0) {
-      console.log('  ❌ MOVED RIGHT - This is wrong! Should move LEFT')
-    } else if (deltaX < 0) {
-      console.log('  ✅ MOVED LEFT - This is correct direction')
-    } else {
-      console.log(
-        '  ⚠️  NO MOVEMENT - Position correction may not have triggered'
-      )
-    }
-
-    if (afterPosX + afterChar.size[0] <= 240) {
-      console.log('  ✅ Character is now inside game boundaries')
-    } else {
-      console.log('  ❌ Character is still outside game boundaries!')
-    }
-
-    if (afterPosX >= 16) {
-      console.log('  ✅ Character is not overlapping left wall')
-    } else {
-      console.log('  ❌ Character is now overlapping left wall!')
-    }
+    console.log(`  Before: y=${beforeY}, After: y=${afterY}, Delta: ${deltaY}`)
+    console.log(`  Top collision: ${afterChar.collision[0] ? 'TRUE' : 'FALSE'}`)
+    console.log(`  Position corrected: ${deltaY !== 0 ? 'YES' : 'NO'}`)
+    console.log('')
 
     gameWrapper.free()
-  } catch (error) {
-    console.error('Error:', error)
   }
 }
 
-loadWasm()
+// Run tests
+testPositionCorrection()
+testVariousPositions()
+
+console.log('=== Position Correction Analysis Complete ===')
