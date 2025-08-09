@@ -497,7 +497,7 @@
   - **Priority**: **CRITICAL** - This bug prevents core turn-around behavior from working
   - _Requirements: Functional AI behavior system for character movement_
 
-- [ ] 18. Fix energy regeneration going beyond energy cap
+- [x] 18. Fix energy regeneration going beyond energy cap
 
   - **Problem**: Character energy can exceed the energy_cap due to regeneration system
   - **Current Behavior**: Energy regeneration adds energy without checking the cap limit

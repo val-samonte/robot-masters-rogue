@@ -674,7 +674,11 @@ impl GameState {
             if character.energy_regen_rate != 0
                 && self.frame % (character.energy_regen_rate as u16) == 0
             {
-                character.energy = character.energy.saturating_add(character.energy_regen);
+                // FIXED: Respect energy_cap when regenerating energy
+                // Previous bug: character.energy.saturating_add() could exceed energy_cap
+                // Solution: Use min() to ensure energy never exceeds energy_cap
+                let new_energy = character.energy.saturating_add(character.energy_regen);
+                character.energy = new_energy.min(character.energy_cap);
             }
         }
 

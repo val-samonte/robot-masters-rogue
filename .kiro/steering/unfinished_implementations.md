@@ -207,6 +207,76 @@ if collision_flags.2 {
 
 **Next Steps**: Complete tasks 12-14 to fix these core collision system issues.
 
+## ✅ FIXED: Energy Regeneration Exceeding Cap Bug (August 2025)
+
+### Problem Summary
+
+**Status**: COMPLETELY RESOLVED - Energy regeneration now respects energy_cap
+
+**Core Issue**: Character energy could exceed energy_cap due to regeneration system using `saturating_add()` without checking the cap limit.
+
+### Detailed Investigation Results
+
+**What Was Broken**:
+
+- ❌ **Energy regeneration logic**: Used `character.energy.saturating_add(character.energy_regen)` without cap checking
+- ❌ **Cap violation**: Characters with energy=95, energy_cap=100, energy_regen=10 would reach energy=105
+- ❌ **Game balance**: Unlimited energy accumulation broke game mechanics
+
+**Root Cause**: In `game-engine/src/state.rs` line 677, the energy regeneration logic was:
+
+```rust
+character.energy = character.energy.saturating_add(character.energy_regen);
+```
+
+This prevented overflow but didn't respect the `energy_cap` field.
+
+### Solution Implemented
+
+**The Fix**: Modified energy regeneration to respect energy_cap:
+
+```rust
+// FIXED: Respect energy_cap when regenerating energy
+// Previous bug: character.energy.saturating_add() could exceed energy_cap
+// Solution: Use min() to ensure energy never exceeds energy_cap
+let new_energy = character.energy.saturating_add(character.energy_regen);
+character.energy = new_energy.min(character.energy_cap);
+```
+
+**Key Changes**:
+
+- **Modified energy regeneration logic** in `game-engine/src/state.rs` line 677
+- **Added comprehensive tests** in `game-engine/src/tests/energy_regeneration_test.rs`
+- **Preserved overflow protection** while adding cap enforcement
+- **Maintained performance** with minimal computational overhead
+
+### Test Results
+
+**Comprehensive test suite created**:
+
+- ✅ **Energy cap enforcement**: Characters with energy=95, cap=100, regen=10 → energy=100 (not 105)
+- ✅ **Normal regeneration**: Characters below cap regenerate correctly
+- ✅ **Different cap values**: Works with various energy_cap settings (25, 50, 100, etc.)
+- ✅ **Edge cases**: Multiple regeneration cycles maintain cap compliance
+- ✅ **Regression prevention**: Old vs new logic comparison test
+
+**All tests pass**: 4/4 energy regeneration tests successful
+
+### Files Modified
+
+- `game-engine/src/state.rs` - Fixed energy regeneration logic
+- `game-engine/src/tests/energy_regeneration_test.rs` - Added comprehensive test suite
+- `game-engine/src/tests/mod.rs` - Added test module reference
+
+### Impact
+
+- ✅ **Energy system balance**: Characters can no longer exceed their energy limits
+- ✅ **Game mechanics integrity**: Energy-based abilities work as designed
+- ✅ **Proper resource management**: Energy caps are now enforced consistently
+- ✅ **No performance impact**: Fix adds minimal computational overhead
+
+**This was a critical balance bug that allowed unlimited energy accumulation. It is now completely resolved.**
+
 ## ✅ FIXED: Turn-Around Behavior Velocity Bug (December 2024)
 
 ### Problem Summary

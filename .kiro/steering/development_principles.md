@@ -117,6 +117,58 @@ To prevent bugs like the collision property issue:
   - [ ] Use correct array type and bounds check
   - [ ] Test with isolated script
 
+### 11. CRITICAL: NEVER USE WEB VIEWER FOR DEBUGGING
+
+**MANDATORY RULE**: When debugging game engine issues, ALWAYS use Node.js debug scripts, NEVER the web viewer.
+
+**Why this rule exists**:
+
+- Web viewer has complex UI interactions that mask the real issues
+- Browser environment adds layers of complexity (React, PIXI, state management)
+- Web debugging is slow and unreliable for game engine logic
+- Node.js provides direct access to WASM without UI interference
+- Console logging is clearer and more detailed in Node.js
+
+**What to do instead**:
+
+- **Create Node.js debug scripts** in `debug-node/` directory
+- **Use CommonJS format** (`.cjs` files) for reliable WASM loading
+- **Test game logic directly** without UI complications
+- **Log frame-by-frame state changes** to understand behavior
+- **Isolate specific issues** with minimal test configurations
+
+**When to use web viewer**:
+
+- **ONLY for final verification** after fixing issues in Node.js
+- **ONLY for visual confirmation** that fixes work in the UI
+- **NEVER for initial debugging** or problem investigation
+
+**Example Node.js debugging pattern**:
+
+```javascript
+const { GameWrapper } = require('../wasm-wrapper/pkg/wasm_wrapper.js')
+
+// Minimal test configuration
+const gameConfig = {
+  /* minimal config */
+}
+
+const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+gameWrapper.new_game()
+
+// Frame-by-frame analysis
+for (let frame = 0; frame < 100; frame++) {
+  const before = JSON.parse(gameWrapper.get_characters_json())
+  gameWrapper.step_frame()
+  const after = JSON.parse(gameWrapper.get_characters_json())
+
+  // Log specific changes
+  console.log(`Frame ${frame}: energy ${before[0].energy} → ${after[0].energy}`)
+}
+```
+
+**VIOLATION OF THIS RULE WASTES TIME AND CREATES CONFUSION**
+
 ### 11. Comprehensive Code Documentation
 
 To prevent circular debugging and repeated work:
