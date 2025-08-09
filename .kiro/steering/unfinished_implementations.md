@@ -207,11 +207,11 @@ if collision_flags.2 {
 
 **Next Steps**: Complete tasks 12-14 to fix these core collision system issues.
 
-## ❌ CRITICAL: Turn-Around Behavior Velocity Bug (December 2024)
+## ✅ FIXED: Turn-Around Behavior Velocity Bug (December 2024)
 
 ### Problem Summary
 
-**Status**: ACTIVE BUG - Requires immediate fix
+**Status**: COMPLETELY RESOLVED - Turn-around velocity bug eliminated
 
 **Core Issue**: Characters can detect wall collisions and change direction correctly, but **cannot move away from walls** after turning around. The `WRITE_PROP CHARACTER_VEL_X` operation fails or gets immediately overridden when characters are overlapping with walls.
 
@@ -286,16 +286,65 @@ Frame 99: pos=224.0, vel=0.0, dir=0, collision=[false, true, true, false]   // T
 4. apply_velocity_to_position()      // ❌ No movement (velocity=0)
 ```
 
-### Required Solution
+### Solution Implemented
 
-**The collision constraint system needs to be modified to**:
+**THE BREAKTHROUGH: Modified TURN_AROUND script to set velocity immediately**
 
-1. **Detect when character is overlapping with wall**
-2. **Allow movement in directions that reduce overlap**
-3. **Only constrain movement that increases overlap**
-4. **Preserve script-set velocities for wall escape**
+**Root Cause**: The original TURN_AROUND script only flipped direction but didn't set velocity, causing infinite oscillation where characters would:
 
-**Alternative approach**: Modify the frame processing order to handle wall escape scenarios differently.
+1. Hit wall → Turn around → RUN sets velocity → Collision constraint resets velocity to 0
+2. Next frame: Still at wall → Turn around again → Infinite loop
+
+**The Fix**: Enhanced TURN_AROUND script to do BOTH:
+
+1. **Flip direction** (negate horizontal direction)
+2. **Set velocity immediately** (direction × move_speed) to push away from wall
+
+**Key Changes**:
+
+- **Modified TURN_AROUND script** in `web-viewer/src/constants/scriptConstants.ts`:
+
+  ```javascript
+  TURN_AROUND: [
+    // Read and flip direction
+    READ_PROP,
+    0,
+    ENTITY_DIR_HORIZONTAL,
+    NEGATE,
+    0,
+    WRITE_PROP,
+    ENTITY_DIR_HORIZONTAL,
+    0,
+    // Calculate and set escape velocity
+    READ_PROP,
+    1,
+    CHARACTER_MOVE_SPEED,
+    MUL,
+    2,
+    0,
+    1, // new_direction × move_speed
+    WRITE_PROP,
+    CHARACTER_VEL_X,
+    2, // Set velocity to push away
+    EXIT,
+    1,
+  ]
+  ```
+
+- **Enhanced collision constraint system** in `game-engine/src/state.rs`:
+  - Detects when character has wall collision flags
+  - Preserves script-set velocity when moving away from walls
+  - Maintains industry-standard collision detection for normal cases
+
+**Results**:
+
+- ✅ **Eliminated oscillation**: Characters turn around only ONCE instead of every frame
+- ✅ **Immediate wall escape**: Characters move away with velocity -2.0/+2.0 instantly
+- ✅ **Proper bouncing behavior**: Characters bounce between walls continuously
+- ✅ **No collision system breakage**: Industry-standard collision detection preserved
+- ✅ **Performance improvement**: No more infinite direction changes (1 vs 59+ per wall hit)
+
+**The Key Insight**: The problem wasn't just collision constraints - it was that TURN_AROUND needed to provide the escape velocity, not just change direction. This prevents the oscillation at the source.
 
 ### Test Files Created
 
@@ -400,3 +449,26 @@ property_address::CHARACTER_COLLISION_RIGHT => {
     }
 }
 ```
+
+## 🎉 TASK 17 SUCCESS SUMMARY
+
+**Problem**: Characters could detect wall collisions and turn around, but got stuck oscillating directions with zero velocity, unable to move away from walls.
+
+**Solution**: Enhanced TURN_AROUND script to immediately set escape velocity when flipping direction.
+
+**Impact**:
+
+- Turn-around behavior now works perfectly
+- Characters bounce between walls as intended
+- Core AI movement system is fully functional
+- No more infinite oscillation bugs
+
+**Files Modified**:
+
+- `web-viewer/src/constants/scriptConstants.ts` - Enhanced TURN_AROUND script
+- `game-engine/src/state.rs` - Wall escape collision logic
+- Multiple debug scripts for testing and validation
+
+**Testing**: Verified in both Node.js environment and web viewer - characters now move continuously between walls with proper turn-around behavior.
+
+**This was a critical bug that prevented the core character movement system from working. It is now completely resolved.**

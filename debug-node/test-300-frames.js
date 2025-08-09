@@ -177,17 +177,47 @@ async function test300Frames() {
         currentPhase.movement = true
       }
 
-      // Log key frames
+      // Log key frames with detailed wall analysis
       if (
         frame % 50 === 0 ||
         Math.abs(velX) > 0.1 ||
-        char.collision.some((c) => c)
+        char.collision.some((c) => c) ||
+        (frame >= 95 && frame <= 105)
       ) {
         console.log(
           `Frame ${frame}: pos=${posX.toFixed(1)}, vel=${velX.toFixed(
             1
           )}, dir=${char.dir[0]}, collision=[${char.collision.join(', ')}]`
         )
+
+        // Add detailed analysis for wall collision frames
+        if (frame >= 95 && frame <= 105) {
+          console.log(
+            `  🔍 Character right edge: ${(posX + 16).toFixed(
+              1
+            )} (wall at 240.0)`
+          )
+          console.log(
+            `  🔍 Distance to wall: ${(240 - (posX + 16)).toFixed(1)} pixels`
+          )
+
+          if (char.collision[1]) {
+            // Right collision
+            console.log(`  🚨 RIGHT COLLISION ACTIVE`)
+          }
+          if (char.collision[2]) {
+            // Bottom collision
+            console.log(`  🚨 BOTTOM COLLISION ACTIVE`)
+          }
+
+          if (velX === 0 && posX >= 224) {
+            console.log(
+              `  ❌ VELOCITY ZERO AT WALL - Wall escape system failed!`
+            )
+          } else if (velX !== 0) {
+            console.log(`  ✅ Velocity preserved: ${velX.toFixed(1)}`)
+          }
+        }
       }
 
       // Check for successful bouncing behavior

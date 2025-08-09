@@ -398,7 +398,7 @@
   - Ensure actions work correctly with position correction system
   - _Requirements: Core movement functionality that works with updated physics system_
 
-- [ ] 17. **CRITICAL: Fix Turn-Around Velocity Bug - Wall Escape System**
+- [x] 17. **CRITICAL: Fix Turn-Around Velocity Bug - Wall Escape System**
 
   - **Problem**: Characters can detect wall collisions and change direction correctly, but **cannot move away from walls** after turning around. The `WRITE_PROP CHARACTER_VEL_X` operation fails or gets immediately overridden when characters are overlapping with walls.
 
@@ -497,7 +497,72 @@
   - **Priority**: **CRITICAL** - This bug prevents core turn-around behavior from working
   - _Requirements: Functional AI behavior system for character movement_
 
-- [ ] 18. Optimize collision detection performance
+- [ ] 18. Fix energy regeneration going beyond energy cap
+
+  - **Problem**: Character energy can exceed the energy_cap due to regeneration system
+  - **Current Behavior**: Energy regeneration adds energy without checking the cap limit
+  - **Expected Behavior**: Energy should never exceed energy_cap, regeneration should stop at cap
+  - **Investigation**:
+    - Check `apply_passive_energy_regen_to_all_characters` function in game engine
+    - Verify energy regeneration logic respects energy_cap
+    - Test with characters that have different energy_cap values
+  - **Implementation**:
+    - Add cap checking in energy regeneration logic
+    - Ensure `character.energy = min(character.energy + regen_amount, character.energy_cap)`
+    - Test with various regeneration rates and energy caps
+  - **Testing**:
+    - Character with energy_cap=100 should never exceed 100 energy
+    - Verify regeneration stops when at cap
+    - Test with different energy_regen and energy_regen_rate values
+  - _Requirements: Proper energy system balance and game mechanics_
+
+- [ ] 19. Fix direction indicator in web viewer not respecting current facing direction
+
+  - **Problem**: The circular direction indicator in the web viewer doesn't show the correct facing direction
+  - **Current Behavior**: Direction indicator may not update or shows wrong direction
+  - **Expected Behavior**: Direction indicator should accurately reflect character's current facing direction (left/right)
+  - **Investigation**:
+    - Check how character direction is read from game state JSON
+    - Verify direction indicator rendering logic in web viewer
+    - Test with characters that change direction (turn-around behavior)
+  - **Implementation**:
+    - Fix direction indicator to read `character.dir[0]` correctly
+    - Map direction values: 0=left, 1=neutral, 2=right
+    - Update indicator visual to show correct facing direction
+    - Ensure indicator updates in real-time as character turns around
+  - **Testing**:
+    - Character facing left should show left-pointing indicator
+    - Character facing right should show right-pointing indicator
+    - Indicator should update immediately when character turns around
+    - Test with turn-around behavior from Task 17
+  - _Requirements: Accurate visual feedback for character state in web viewer_
+
+- [ ] 20. Clean up debug-node directory and remove outdated test files
+
+  - **Problem**: debug-node directory contains many outdated and irrelevant test/debug files from Task 17 development
+  - **Current State**: 70+ debug files accumulated during turn-around velocity bug investigation
+  - **Files to Keep**:
+    - `test-wall-escape-working.cjs` - Final working test for Task 17
+    - `test-300-frames.js` - Comprehensive behavior testing
+    - `package.json` - Node.js configuration
+    - Any files that test current functionality
+  - **Files to Remove**:
+    - All `debug-*` files related to collision detection experiments
+    - Outdated `test-*` files that test old/broken implementations
+    - Duplicate test files with similar functionality
+    - Files related to failed approaches and debugging attempts
+  - **Implementation**:
+    - Review each file to determine relevance to current codebase
+    - Keep only essential test files for regression testing
+    - Remove all experimental and debugging files from Task 17 investigation
+    - Organize remaining files with clear naming
+  - **Testing**:
+    - Ensure remaining test files still work with current implementation
+    - Verify no important test cases are lost
+    - Clean directory should have <10 essential files
+  - _Requirements: Clean and maintainable debug/test environment_
+
+- [ ] 21. Optimize collision detection performance
 
   - **Problem**: Collision detection may be inefficient with current implementation
   - **Performance Considerations**:

@@ -142,18 +142,34 @@ const PropertyAddress = {
  */
 export const ACTION_SCRIPTS = {
   /**
-   * Turn around action - flips the character's facing direction
-   * Simple approach: negate the current direction
+   * Turn around action - flips direction AND sets velocity to push away from wall
+   * This prevents oscillation by immediately moving away from the wall
    */
   TURN_AROUND: [
+    // Read current direction
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read current direction into fixed[0] (as Fixed)
+    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read current direction into fixed[0]
+    // Negate direction (flip it)
     OperatorAddress.NEGATE,
     0, // Negate fixed[0] (flip direction)
+    // Write new direction
     OperatorAddress.WRITE_PROP,
     PropertyAddress.ENTITY_DIR_HORIZONTAL,
     0, // Write fixed[0] back to direction
+    // Read move speed
+    OperatorAddress.READ_PROP,
+    1,
+    PropertyAddress.CHARACTER_MOVE_SPEED, // Read move speed into fixed[1]
+    // Calculate velocity = new_direction * move_speed
+    OperatorAddress.MUL,
+    2,
+    0,
+    1, // fixed[2] = fixed[0] * fixed[1] (new direction * speed)
+    // Write velocity to push away from wall
+    OperatorAddress.WRITE_PROP,
+    PropertyAddress.CHARACTER_VEL_X,
+    2, // Write fixed[2] to velocity
     OperatorAddress.EXIT,
     1, // Exit with success
   ],

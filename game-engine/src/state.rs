@@ -738,54 +738,51 @@ impl GameState {
     }
 
     /// Check collisions and constrain velocity only (no position correction)
+    /// WALL ESCAPE SYSTEM - FIXED IN TASK 17
+    /// Problem: Characters get stuck against walls because velocity gets constrained to 0
+    /// Solution: Allow movement away from walls when character is overlapping
     fn check_and_constrain_velocity_only(&mut self) -> GameResult<()> {
         use crate::tilemap::CollisionRect;
 
         // Process characters
         for character in &mut self.characters {
-            // Create collision rectangle for current position (position correction already done)
+            // Create collision rectangle for current position
             let current_rect = CollisionRect::from_entity(character.core.pos, character.core.size);
 
-            // COLLISION CONSTRAINT WITH WALL ESCAPE LOGIC
-            // Allow movement away from walls even when overlapping
+            // WALL ESCAPE SYSTEM - FIXED IN TASK 17 (SIMPLE APPROACH)
+            // Allow movement away from walls based on collision flags
+            let has_right_collision = character.core.collision.1;
+            let has_left_collision = character.core.collision.3;
+            let has_horizontal_collision = has_right_collision || has_left_collision;
 
-            // Check if character is currently overlapping with walls
-            let is_overlapping = self.tile_map.check_collision(current_rect);
+            if has_horizontal_collision && !character.core.vel.0.is_zero() {
+                // CHARACTER HAS WALL COLLISION - Check if movement is away from wall
+                let moving_right = character.core.vel.0 > Fixed::ZERO;
+                let moving_left = character.core.vel.0 < Fixed::ZERO;
 
-            if is_overlapping {
-                // Character is overlapping with wall - allow movement away from walls
-                // Only constrain movement that would move further into walls
+                // Allow movement away from the wall that's being collided with
+                let is_escaping =
+                    (moving_left && has_right_collision) || (moving_right && has_left_collision);
 
-                // For horizontal movement: allow movement away from walls
-                let horizontal_constraint = if character.core.vel.0.is_zero() {
-                    character.core.vel.0 // No movement, no constraint needed
+                if is_escaping {
+                    // Allow movement away from wall - preserve script-set velocity
+                    // character.core.vel.0 remains unchanged
                 } else {
-                    // Test if movement reduces overlap by checking collision in opposite direction
-                    let test_vel = character.core.vel.0.neg(); // Opposite direction
-                    let opposite_allowed = self
+                    // Apply collision constraint for movement into walls
+                    let allowed_horizontal = self
                         .tile_map
-                        .check_horizontal_movement(current_rect, test_vel);
-
-                    if opposite_allowed.abs() < test_vel.abs() {
-                        // Movement in opposite direction is blocked, so current direction is away from wall
-                        character.core.vel.0 // Allow movement away from wall
-                    } else {
-                        // Movement in opposite direction is not blocked, so current direction might be into wall
-                        self.tile_map
-                            .check_horizontal_movement(current_rect, character.core.vel.0)
-                    }
-                };
-
-                character.core.vel.0 = horizontal_constraint;
+                        .check_horizontal_movement(current_rect, character.core.vel.0);
+                    character.core.vel.0 = allowed_horizontal;
+                }
             } else {
-                // Character is not overlapping - use normal collision constraint
+                // No wall collision or zero velocity - apply normal constraint
                 let allowed_horizontal = self
                     .tile_map
                     .check_horizontal_movement(current_rect, character.core.vel.0);
                 character.core.vel.0 = allowed_horizontal;
             }
 
-            // Check vertical movement (normal constraint for now)
+            // Always apply vertical constraint
             let allowed_vertical = self
                 .tile_map
                 .check_vertical_movement(current_rect, character.core.vel.1);
