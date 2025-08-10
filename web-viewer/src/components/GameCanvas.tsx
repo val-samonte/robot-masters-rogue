@@ -228,7 +228,19 @@ function FacingIndicator({ facing, width, height }: FacingIndicatorProps) {
   const drawIndicator = useCallback(
     (g: any) => {
       g.clear()
-      const facingX = facing === 1 ? width - 2 : 2
+
+      // Map direction values correctly: 0=left, 1=neutral, 2=right
+      let facingX: number
+      if (facing === 0) {
+        facingX = 2 // left side
+      } else if (facing === 1) {
+        facingX = width / 2 // center
+      } else if (facing === 2) {
+        facingX = width - 2 // right side
+      } else {
+        facingX = width / 2 // default to center for unknown values
+      }
+
       g.beginFill(0xffffff)
       g.drawCircle(facingX, height / 2, 2)
       g.endFill()
@@ -236,7 +248,8 @@ function FacingIndicator({ facing, width, height }: FacingIndicatorProps) {
     [facing, width, height]
   )
 
-  return <Graphics draw={drawIndicator} />
+  // Force re-render by using facing as key to ensure Graphics component updates
+  return <Graphics key={`facing-${facing}`} draw={drawIndicator} />
 }
 
 interface CharacterEntityProps {
@@ -371,6 +384,24 @@ export function GameCanvas({ className = '' }: GameCanvasProps) {
     if (!gameState) return
     console.log('>>', gameState.frame, gameState.characters)
   }, [gameState])
+
+  // Debug character facing direction changes
+  useEffect(() => {
+    if (characters && characters.length > 0) {
+      const char = characters[0]
+      console.log(
+        `Character facing direction = ${char.facing} (${
+          char.facing === 0
+            ? 'left'
+            : char.facing === 1
+            ? 'neutral'
+            : char.facing === 2
+            ? 'right'
+            : 'unknown'
+        })`
+      )
+    }
+  }, [characters])
 
   useEffect(() => {
     const updateSize = () => {

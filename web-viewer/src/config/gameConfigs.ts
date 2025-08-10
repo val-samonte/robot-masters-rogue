@@ -10,7 +10,7 @@ import { ACTION_SCRIPTS, CONDITION_SCRIPTS } from '../constants/scriptConstants'
 export interface GameConfig {
   seed: number
   gravity?: [number, number] // Optional gravity as [numerator, denominator], defaults to [1, 1] (downward)
-  tilemap: number[][] // 2D array as expected by WASM wrapper
+  tilemap: number[][] // 2D array format as expected by WASM wrapper
   actions: Array<{
     energy_cost: number
     cooldown: number
@@ -53,10 +53,12 @@ export interface GameConfig {
 
 /**
  * Basic tilemap with walls around the edges and empty space in the middle
+ * 2D array format: 15 rows x 16 columns
  */
 const BASIC_TILEMAP = [
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Top wall
-  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], // Side walls with empty space
+  // Row 0 - Top wall
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  // Rows 1-13 - Side walls with empty space
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -69,7 +71,9 @@ const BASIC_TILEMAP = [
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Bottom wall
+  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  // Row 14 - Bottom wall
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]
 
 // Removed unused OPEN_TILEMAP

@@ -516,7 +516,7 @@
     - Test with different energy_regen and energy_regen_rate values
   - _Requirements: Proper energy system balance and game mechanics_
 
-- [ ] 19. Fix direction indicator in web viewer not respecting current facing direction
+- [x] 19. Fix direction indicator in web viewer not respecting current facing direction
 
   - **Problem**: The circular direction indicator in the web viewer doesn't show the correct facing direction
   - **Current Behavior**: Direction indicator may not update or shows wrong direction
@@ -537,7 +537,7 @@
     - Test with turn-around behavior from Task 17
   - _Requirements: Accurate visual feedback for character state in web viewer_
 
-- [ ] 20. Clean up debug-node directory and remove outdated test files
+- [x] 20. Clean up debug-node directory and remove outdated test files
 
   - **Problem**: debug-node directory contains many outdated and irrelevant test/debug files from Task 17 development
   - **Current State**: 70+ debug files accumulated during turn-around velocity bug investigation

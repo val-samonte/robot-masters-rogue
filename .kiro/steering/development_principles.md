@@ -117,9 +117,16 @@ To prevent bugs like the collision property issue:
   - [ ] Use correct array type and bounds check
   - [ ] Test with isolated script
 
-### 11. CRITICAL: NEVER USE WEB VIEWER FOR DEBUGGING
+### 11. CRITICAL: NEVER USE WEB VIEWER FOR DEBUGGING OR START DEV SERVERS
 
 **MANDATORY RULE**: When debugging game engine issues, ALWAYS use Node.js debug scripts, NEVER the web viewer.
+
+**NEVER START DEV SERVERS**:
+
+- **NEVER run `npm run dev`, `vite dev`, or any web development server**
+- **ASSUME a web viewer instance is already running** and accessible
+- **Just tell the user to check their existing web viewer** instead of starting servers
+- **Focus on Node.js debugging and code fixes only**
 
 **Why this rule exists**:
 
@@ -128,6 +135,7 @@ To prevent bugs like the collision property issue:
 - Web debugging is slow and unreliable for game engine logic
 - Node.js provides direct access to WASM without UI interference
 - Console logging is clearer and more detailed in Node.js
+- Starting dev servers is unnecessary overhead when debugging
 
 **What to do instead**:
 
@@ -142,6 +150,7 @@ To prevent bugs like the collision property issue:
 - **ONLY for final verification** after fixing issues in Node.js
 - **ONLY for visual confirmation** that fixes work in the UI
 - **NEVER for initial debugging** or problem investigation
+- **Tell user to check their existing web viewer instance** instead of starting one
 
 **Example Node.js debugging pattern**:
 
