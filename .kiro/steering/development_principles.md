@@ -178,7 +178,7 @@ for (let frame = 0; frame < 100; frame++) {
 
 **VIOLATION OF THIS RULE WASTES TIME AND CREATES CONFUSION**
 
-### 11. Comprehensive Code Documentation
+### 12. Comprehensive Code Documentation
 
 To prevent circular debugging and repeated work:
 
@@ -206,6 +206,104 @@ if flag_count > 1 {
 }
 ```
 
+### 13. Development Journals and Knowledge Management
+
+**MANDATORY DOCUMENTATION SYSTEM**: All significant development work must be documented in the `/journals/` directory.
+
+**Journal Categories**:
+
+- **`/journals/task-successes/`** - Major completed tasks and milestones
+- **`/journals/bug-fixes/`** - Detailed bug resolution documentation
+- **`/journals/investigations/`** - Analysis of complex system behaviors
+- **`/journals/research/`** - External technology and design pattern research
+
+**When to Create Journal Entries**:
+
+- **Task Successes**: After completing any major feature or resolving critical bugs
+- **Bug Fixes**: For any non-trivial bug that required investigation or debugging
+- **Investigations**: When analyzing complex behaviors, debugging issues, or understanding system interactions
+- **Research**: When investigating external technologies, libraries, or design patterns
+
+**Journal Entry Requirements**:
+
+- **Problem Description**: Clear explanation of what was being solved
+- **Investigation Process**: Steps taken to understand and debug the issue
+- **Root Cause Analysis**: Why the problem occurred and what caused it
+- **Solution Implementation**: How the problem was fixed
+- **Impact Assessment**: What changed and broader implications
+- **Prevention Strategies**: How to avoid similar issues in the future
+- **Related References**: Links to tasks, files, and other relevant documentation
+
+**Example Journal Structure**:
+
+```markdown
+# [Title] - [Date]
+
+## Problem Summary
+
+Brief description of the issue or task
+
+## Investigation Process
+
+- Step-by-step analysis
+- Tools and methods used
+- Key findings
+
+## Root Cause
+
+Why the problem occurred
+
+## Solution Implemented
+
+- Changes made
+- Code examples
+- Test results
+
+## Impact
+
+- What improved
+- Side effects
+- Performance implications
+
+## Prevention
+
+- How to avoid this issue
+- Best practices learned
+- Warning signs to watch for
+
+## Related Files
+
+- List of modified files
+- Related tasks/issues
+- Cross-references
+```
+
+**Benefits of Journal System**:
+
+- **Prevents repeated debugging** of the same issues
+- **Builds institutional knowledge** for complex systems
+- **Documents successful patterns** and anti-patterns
+- **Provides context** for future development decisions
+- **Creates searchable knowledge base** of solutions
+- **Tracks evolution** of system design and architecture
+
+**Integration with Development Process**:
+
+- **Reference journals** when encountering similar issues
+- **Update journals** when systems change significantly
+- **Cross-reference** related journal entries
+- **Use journals** to onboard new developers
+- **Archive outdated** journals to maintain relevance
+
+**VIOLATION OF THIS RULE LEADS TO**:
+
+- Repeated debugging of known issues
+- Lost institutional knowledge
+- Inefficient development cycles
+- Forgotten solutions to complex problems
+
 ## Remember
 
 This project is in active development. We can break things, change APIs, and redesign systems freely. Use this freedom to build something great, not to maintain something old.
+
+**The journals system ensures we learn from our successes and failures, building a knowledge base that accelerates future development.**
