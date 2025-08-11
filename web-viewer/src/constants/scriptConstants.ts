@@ -201,23 +201,59 @@ export const ACTION_SCRIPTS = {
   ],
 
   /**
-   * Jump action - applies upward velocity using jump_force
-   * Fixed implementation: Works with gravity system
+   * Jump action - FIXED for inverted gravity
+   * Jumps away from the surface the character is grounded on
+   * If gravity is upward (dir[1] = 2), jump downward (positive velocity)
+   * If gravity is downward (dir[1] = 0), jump upward (negative velocity)
    */
   JUMP: [
     OperatorAddress.EXIT_IF_NO_ENERGY,
     10, // Exit if not enough energy for jump
-    // Read jump force
+
+    // Read gravity direction
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.CHARACTER_JUMP_FORCE, // Read jump force into fixed[0]
-    // Apply negative jump force (upward velocity)
+    PropertyAddress.ENTITY_DIR_VERTICAL, // fixed[0] = gravity direction (0=down, 2=up)
+
+    // Read jump force
+    OperatorAddress.READ_PROP,
+    1,
+    PropertyAddress.CHARACTER_JUMP_FORCE, // fixed[1] = jump force
+
+    // Calculate jump direction based on gravity
+    // If gravity is upward (2), jump downward (positive velocity)
+    // If gravity is downward (0), jump upward (negative velocity)
+    OperatorAddress.EQUAL,
+    2,
+    0,
+    2, // fixed[2] = (gravity == 2) - true if upward gravity
+
+    // Convert boolean to direction multiplier
+    // upward_gravity ? +1 : -1
+    OperatorAddress.MUL,
+    3,
+    2,
+    1, // fixed[3] = upward_gravity * jump_force (positive if upward gravity)
     OperatorAddress.NEGATE,
-    0, // Negate jump force for upward movement
-    // Write to vertical velocity
+    4,
+    1, // fixed[4] = -jump_force
+    OperatorAddress.NOT,
+    5,
+    2, // fixed[5] = !upward_gravity (downward gravity)
+    OperatorAddress.MUL,
+    6,
+    5,
+    4, // fixed[6] = downward_gravity * (-jump_force)
+    OperatorAddress.ADD,
+    7,
+    3,
+    6, // fixed[7] = final jump velocity
+
+    // Write jump velocity
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_Y,
-    0, // Write negated jump force to velocity
+    7, // Write calculated jump velocity
+
     // Apply energy cost
     OperatorAddress.APPLY_ENERGY_COST,
     OperatorAddress.EXIT,
@@ -225,60 +261,60 @@ export const ACTION_SCRIPTS = {
   ],
 
   /**
-   * Wall jump action - simplified implementation that works with fixed collision detection
-   * Jumps away from wall with both vertical and horizontal velocity
+   * Wall jump action - Task 22 implementation
+   * Exact copy of TURN_AROUND + JUMP scripts combined
+   * Requirements: Character must be wall leaning AND airborne
+   * Action: Turn around and jump with full jump force (simplified)
    */
   WALL_JUMP: [
-    OperatorAddress.EXIT_IF_NO_ENERGY,
-    15, // Exit if not enough energy
-    // Check if touching right wall
+    // TURN AROUND: Exact copy of working TURN_AROUND script
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.CHARACTER_COLLISION_RIGHT,
-    // Check if touching left wall
+    PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read current direction into fixed[0]
+    OperatorAddress.NEGATE,
+    0, // Negate fixed[0] (flip direction)
+    OperatorAddress.WRITE_PROP,
+    PropertyAddress.ENTITY_DIR_HORIZONTAL,
+    0, // Write fixed[0] back to direction
     OperatorAddress.READ_PROP,
     1,
-    PropertyAddress.CHARACTER_COLLISION_LEFT,
-    // Must be touching at least one wall
-    OperatorAddress.OR,
+    PropertyAddress.CHARACTER_MOVE_SPEED, // Read move speed into fixed[1]
+    OperatorAddress.MUL,
     2,
     0,
-    1, // vars[2] = touching any wall
-    // Exit if not touching wall
-    OperatorAddress.NOT,
-    3,
-    2, // vars[3] = NOT touching wall
-    // Skip if not touching wall (jump to exit)
-    OperatorAddress.GOTO,
-    3,
-    20, // Jump to exit if not touching wall
-    // Apply upward velocity (jump force)
-    OperatorAddress.READ_PROP,
-    4, // Use fixed[4] for jump force
-    PropertyAddress.CHARACTER_JUMP_FORCE,
-    OperatorAddress.NEGATE,
-    4, // Negate for upward movement
-    OperatorAddress.WRITE_PROP,
-    PropertyAddress.CHARACTER_VEL_Y,
-    4, // Apply upward velocity
-    // Apply horizontal velocity away from wall
-    OperatorAddress.READ_PROP,
-    5,
-    PropertyAddress.CHARACTER_MOVE_SPEED, // Get move speed
-    // If touching right wall, go left (negative velocity)
-    OperatorAddress.NOT_EQUAL,
-    6,
-    0,
-    0, // vars[6] = (right_collision != 0)
-    OperatorAddress.NEGATE,
-    5, // Make speed negative for left movement
-    // If touching left wall, keep positive velocity (right movement)
-    // Apply the velocity
+    1, // fixed[2] = new_direction * move_speed
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_X,
-    5, // Apply horizontal velocity
-    // Apply energy cost
+    2, // Write horizontal velocity
+
+    // JUMP: Exact copy of working JUMP script (without energy check)
+    OperatorAddress.READ_PROP,
+    3,
+    PropertyAddress.CHARACTER_JUMP_FORCE, // Read jump force into fixed[3]
+    OperatorAddress.NEGATE,
+    3, // Negate jump force for upward movement
+    OperatorAddress.WRITE_PROP,
+    PropertyAddress.CHARACTER_VEL_Y,
+    3, // Write negated jump force to velocity
+
+    // Apply energy cost and exit
     OperatorAddress.APPLY_ENERGY_COST,
+    OperatorAddress.EXIT,
+    1, // Exit with success
+  ],
+
+  /**
+   * Invert gravity action - Task 23 implementation (ULTRA SIMPLE)
+   * Just sets gravity to upward (2) for testing
+   */
+  INVERT_GRAVITY: [
+    // Ultra simple: just set to 2 (upward gravity)
+    OperatorAddress.ASSIGN_BYTE,
+    0,
+    2, // vars[0] = 2
+    OperatorAddress.WRITE_PROP,
+    PropertyAddress.ENTITY_DIR_VERTICAL,
+    0, // Write vars[0] to vertical direction
     OperatorAddress.EXIT,
     1, // Exit with success
   ],
@@ -316,6 +352,122 @@ export const CONDITION_SCRIPTS = {
     1, // vars[2] = right_collision OR left_collision
     OperatorAddress.EXIT_WITH_VAR,
     2, // Exit with result (true if touching any wall)
+  ],
+
+  /**
+   * Is wall leaning and airborne condition - Task 22 implementation
+   * Returns true when character is touching a wall (left OR right) AND not touching ground
+   * This is the condition for wall jump behavior
+   * Fixed: Use same pattern as IS_WALL_LEANING but add airborne check
+   */
+  IS_WALL_LEANING_AND_AIRBORNE: [
+    // Check if touching right wall
+    OperatorAddress.READ_PROP,
+    0,
+    PropertyAddress.CHARACTER_COLLISION_RIGHT, // vars[0] = right collision (0 or 1)
+
+    // Check if touching left wall
+    OperatorAddress.READ_PROP,
+    1,
+    PropertyAddress.CHARACTER_COLLISION_LEFT, // vars[1] = left collision (0 or 1)
+
+    // Check if touching ground
+    OperatorAddress.READ_PROP,
+    2,
+    PropertyAddress.CHARACTER_COLLISION_BOTTOM, // vars[2] = bottom collision (0 or 1)
+
+    // Check if touching any wall (left OR right)
+    OperatorAddress.OR,
+    3,
+    0,
+    1, // vars[3] = right_collision OR left_collision
+
+    // Check if airborne (NOT touching ground)
+    OperatorAddress.NOT,
+    4,
+    2, // vars[4] = NOT bottom_collision
+
+    // Final condition: touching wall AND airborne
+    OperatorAddress.AND,
+    5,
+    3,
+    4, // vars[5] = touching_wall AND airborne
+
+    OperatorAddress.EXIT_WITH_VAR,
+    5, // Exit with result (true if wall leaning and airborne)
+  ],
+
+  /**
+   * Only once condition - Task 23 implementation
+   * Returns true only on frame 1, false on all subsequent frames
+   * Used to trigger one-time actions like gravity inversion
+   */
+  ONLY_ONCE: [
+    // ONLY_ONCE using vars flag - returns true once, then false (exit 0) to allow other behaviors
+    OperatorAddress.ASSIGN_BYTE,
+    1,
+    1, // vars[1] = 1
+    OperatorAddress.EQUAL,
+    2,
+    0,
+    1, // vars[2] = (vars[0] == 1) - true if already used
+    OperatorAddress.NOT,
+    3,
+    2, // vars[3] = !vars[2] - true if NOT used yet
+    OperatorAddress.ASSIGN_BYTE,
+    0,
+    1, // vars[0] = 1 (mark as used)
+    OperatorAddress.EXIT_WITH_VAR,
+    3, // Exit with vars[3] as exit code (1 first time, 0 after = false)
+  ],
+
+  /**
+   * Is grounded condition - FIXED for inverted gravity
+   * Checks appropriate collision based on gravity direction
+   * If gravity is upward (dir[1] = 2), check top collision (ceiling = ground)
+   * If gravity is downward (dir[1] = 0), check bottom collision (floor = ground)
+   */
+  IS_GROUNDED_GRAVITY_AWARE: [
+    // Read vertical direction to determine gravity
+    OperatorAddress.READ_PROP,
+    0,
+    PropertyAddress.ENTITY_DIR_VERTICAL, // vars[0] = gravity direction (0=down, 2=up)
+
+    // Check if gravity is upward (dir[1] = 2)
+    OperatorAddress.EQUAL,
+    1,
+    0,
+    2, // vars[1] = (gravity == 2) - true if upward gravity
+
+    // Read collision flags
+    OperatorAddress.READ_PROP,
+    2,
+    PropertyAddress.CHARACTER_COLLISION_TOP, // vars[2] = top collision
+    OperatorAddress.READ_PROP,
+    3,
+    PropertyAddress.CHARACTER_COLLISION_BOTTOM, // vars[3] = bottom collision
+
+    // Calculate grounded state based on gravity direction
+    // If upward gravity: grounded = top collision
+    // If downward gravity: grounded = bottom collision
+    OperatorAddress.MUL_BYTE,
+    4,
+    1,
+    2, // vars[4] = upward_gravity * top_collision
+    OperatorAddress.NOT,
+    5,
+    1, // vars[5] = !upward_gravity (downward gravity)
+    OperatorAddress.MUL_BYTE,
+    6,
+    5,
+    3, // vars[6] = downward_gravity * bottom_collision
+    OperatorAddress.OR,
+    7,
+    4,
+    6, // vars[7] = (upward_gravity * top_collision) | (downward_gravity * bottom_collision)
+
+    OperatorAddress.EXIT_WITH_VAR,
+    7, // Exit with grounded state
   ],
 } as const
 

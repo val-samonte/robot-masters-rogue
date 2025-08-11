@@ -1,4 +1,4 @@
-import { GameWrapper } from '../../../wasm-wrapper/pkg/wasm_wrapper.js'
+import { GameWrapper } from 'wasm-wrapper'
 
 // Global debugging utilities for browser console
 declare global {

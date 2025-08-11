@@ -1,4 +1,4 @@
-import { GameWrapper } from '../../../wasm-wrapper/pkg/wasm_wrapper.js'
+import { GameWrapper } from 'wasm-wrapper'
 import {
   GameStateData,
   CharacterRenderData,

@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import { GameWrapper } from '../../../wasm-wrapper/pkg/wasm_wrapper.js'
+import { GameWrapper } from 'wasm-wrapper'
 
 // Types for game state data
 export interface GameConfig {

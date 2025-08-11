@@ -1,4 +1,4 @@
-import init, { GameWrapper } from '../../../wasm-wrapper/pkg/wasm_wrapper.js'
+import init, { GameWrapper } from 'wasm-wrapper'
 
 // WASM wrapper integration utilities
 

@@ -1505,7 +1505,7 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                 }
                 property_address::ENTITY_DIR_VERTICAL => {
                     // Vertical direction (u8) - read from vars array
-                    if var_index < engine.fixed.len() {
+                    if var_index < engine.vars.len() {
                         character.core.dir.1 = engine.vars[var_index];
                     }
                 }
@@ -1919,7 +1919,7 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                 }
                 property_address::ENTITY_DIR_VERTICAL => {
                     // Vertical direction (u8) - read from vars array
-                    if var_index < engine.fixed.len() {
+                    if var_index < engine.vars.len() {
                         character.core.dir.1 = engine.vars[var_index];
                     }
                 }
@@ -2524,7 +2524,7 @@ impl ConditionContext<'_> {
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.fixed.len() {
+                if var_index < engine.vars.len() {
                     character.core.dir.1 = engine.vars[var_index];
                 }
             }
@@ -3192,7 +3192,7 @@ impl ActionContext<'_> {
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.fixed.len() {
+                if var_index < engine.vars.len() {
                     character.core.dir.1 = engine.vars[var_index];
                 }
             }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useGameState } from '../hooks/useGameState'
 import { getGameConfig } from '../config/gameConfigs'
 
-type ConfigName = 'COMBINATION_1' | 'ADVANCED_MOVEMENT'
+type ConfigName = 'COMBINATION_1' | 'ADVANCED_MOVEMENT' | 'INVERTED_GRAVITY'
 
 export const ConfigurationLoader: React.FC = () => {
   const [selectedConfig, setSelectedConfig] =
@@ -64,6 +64,7 @@ export const ConfigurationLoader: React.FC = () => {
         <option value="ADVANCED_MOVEMENT">
           Advanced Movement (All Actions)
         </option>
+        <option value="INVERTED_GRAVITY">Inverted Gravity (Task 23)</option>
       </select>
       {loadError && (
         <div className="text-red-600 text-sm mt-1">{loadError}</div>

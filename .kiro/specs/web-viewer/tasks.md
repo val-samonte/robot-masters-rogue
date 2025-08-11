@@ -586,3 +586,119 @@
     - Test with complex tilemap layouts
   - **Expected Outcome**: Collision detection runs efficiently at 60 FPS
   - _Requirements: Performance optimization for smooth gameplay_
+
+- [x] 22. Implement wall jump configuration
+
+  - **Problem**: Need to implement wall jump behavior that allows characters to jump off walls when sliding down them
+  - **Requirements**:
+    - Character must be wall leaning (touching left or right wall)
+    - Character must be in air (not touching ground - no bottom collision)
+    - When conditions are met: turn around and jump with 80% of normal jump force
+    - Use existing wall leaning detection and jump mechanics as foundation
+  - **Implementation Tasks**:
+    - Create WALL_JUMP action script that:
+      - Checks if character is wall leaning using IS_WALL_LEANING condition logic
+      - Checks if character is in air (no bottom collision)
+      - Turns around (flips horizontal direction)
+      - Applies 80% of jump_force as upward velocity
+      - Sets horizontal velocity to move away from wall
+    - Create IS_WALL_LEANING_AND_AIRBORNE condition script that:
+      - Combines wall leaning detection (left OR right collision)
+      - Combines airborne detection (NOT bottom collision)
+      - Returns true only when both conditions are met
+    - Add wall jump behavior to advanced movement configuration
+    - Use existing script constants and property addresses from previous tasks
+  - **Script Implementation**:
+    - **WALL_JUMP Action**:
+      - Read CHARACTER_COLLISION_LEFT and CHARACTER_COLLISION_RIGHT
+      - Read CHARACTER_COLLISION_BOTTOM (should be false for airborne)
+      - If wall leaning AND airborne: flip direction, set jump velocity, set horizontal escape velocity
+    - **IS_WALL_LEANING_AND_AIRBORNE Condition**:
+      - Check (collision_left OR collision_right) AND NOT collision_bottom
+      - Return true if character is sliding down a wall
+  - **Testing Requirements**:
+    - Character sliding down right wall should wall jump left with 80% jump force
+    - Character sliding down left wall should wall jump right with 80% jump force
+    - Character on ground touching wall should NOT wall jump (needs to be airborne)
+    - Character in air not touching wall should NOT wall jump (needs wall contact)
+    - Wall jump should provide enough horizontal velocity to clear the wall
+  - **Integration**:
+    - Add to existing advanced movement behavior configuration
+    - Should work alongside existing turn-around and jump behaviors
+    - Priority should be higher than regular turn-around (wall jump takes precedence when airborne)
+  - **Expected Outcome**: Characters can perform wall jumps when sliding down walls, adding advanced movement mechanics
+  - _Requirements: Advanced character movement system with wall jump mechanics_
+
+- [ ] 23. Implement basic inverted gravity system
+
+  - **Problem**: Need basic inverted gravity with simple movement behaviors
+  - **Requirements**:
+    - Create ONLY_ONCE condition that triggers exactly once per character
+    - Create INVERT_GRAVITY action that flips character's vertical direction (dir.1)
+    - Focus on three core behaviors: gravity inversion, wall turning, and running
+  - **Script Implementation**:
+    - **INVERT_GRAVITY Action**:
+      - Read current ENTITY_DIR_VERTICAL (dir.1)
+      - Flip vertical direction: 0 (downward) ↔ 2 (upward), keep 1 (neutral) unchanged
+      - Write new vertical direction back to character
+      - This changes gravity effect: downward gravity becomes upward, upward becomes downward
+    - **ONLY_ONCE Condition**:
+      - Use vars flag system to trigger only once per character
+      - Returns true only on first execution, false thereafter
+      - Prevents repeated gravity inversion
+    - **Basic Movement Actions**:
+      - TURN_AROUND: Flip horizontal direction and set escape velocity
+      - RUN: Move using direction \* move_speed (simple horizontal velocity)
+  - **Configuration Setup**:
+    - Create INVERTED_GRAVITY_CONFIG with three behaviors:
+      1. ONLY_ONCE → INVERT_GRAVITY (highest priority, once at start)
+      2. Wall leaning → TURN_AROUND (when hitting walls)
+      3. Always → RUN (constant horizontal movement)
+    - Character starts with dir.1 = 0 (normal downward gravity)
+    - After frame 1: Character should have dir.1 = 2 (inverted upward gravity)
+  - **Testing Requirements**:
+    - **Frame 1**: ONLY_ONCE triggers → INVERT_GRAVITY executes → dir.1 changes from 0 to 2
+    - **Frame 2+**: Character falls upward toward ceiling due to inverted gravity
+    - **Movement Testing**:
+      - Character runs horizontally (RUN action sets horizontal velocity)
+      - Character turns around when hitting walls (TURN_AROUND action)
+      - Character reaches ceiling and moves along it
+    - **Focus**: Get basic movement working before adding jumping complexity
+
+- [ ] 24. Add gravity-aware jumping to inverted gravity system
+
+  - **Problem**: Extend Task 23 with gravity-aware jumping behavior
+  - **Requirements**:
+    - Create IS_GROUNDED_GRAVITY_AWARE condition that checks appropriate collision based on gravity direction
+    - Update JUMP action to jump away from grounded surface based on gravity direction
+    - Add grounded → JUMP behavior to INVERTED_GRAVITY_CONFIG
+  - **Script Implementation**:
+    - **IS_GROUNDED_GRAVITY_AWARE Condition**:
+      - Read ENTITY_DIR_VERTICAL to determine gravity direction
+      - If gravity is upward (dir.1 = 2): check top collision (ceiling = ground)
+      - If gravity is downward (dir.1 = 0): check bottom collision (floor = ground)
+      - Return true if character is touching the appropriate surface
+    - **Gravity-Aware JUMP Action**:
+      - Read gravity direction and jump force
+      - If gravity is upward: jump downward (positive velocity)
+      - If gravity is downward: jump upward (negative velocity)
+      - Jump away from the surface the character is grounded on
+  - **Configuration Update**:
+    - Add IS_GROUNDED_GRAVITY_AWARE → JUMP behavior to INVERTED_GRAVITY_CONFIG
+    - Character should jump downward when on ceiling, upward when on floor
+  - **Testing Requirements**:
+    - Character jumps downward when touching ceiling (inverted gravity)
+    - Character jumps upward when touching floor (normal gravity)
+    - Jumping works correctly with wall turning and running behaviors
+    - Test all movement actions work correctly with inverted physics
+  - **Expected Behavior**:
+    - Frame 1: Character gravity inverts (dir.1: 0 → 2)
+    - Frame 2+: Character falls upward, bounces off ceiling
+    - All movement actions work correctly in inverted gravity
+    - Character can turn around at ceiling, jump toward floor, wall jump up walls
+  - **Integration**:
+    - Add INVERT_GRAVITY and ONLY_ONCE to script constants library
+    - Create complete inverted gravity test configuration
+    - Verify compatibility with existing collision and movement systems
+  - **Expected Outcome**: Complete inverted gravity system with all advanced movement mechanics working correctly
+  - _Requirements: Advanced physics system testing with gravity inversion mechanics_

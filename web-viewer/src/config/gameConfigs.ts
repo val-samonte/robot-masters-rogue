@@ -263,34 +263,11 @@ export const ADVANCED_MOVEMENT_CONFIG: GameConfig = {
         0, // EXIT_WITH_VAR vars[0]
       ],
     },
-    // Condition 3: Wall leaning AND not grounded (for wall jump)
+    // Condition 3: Wall leaning AND airborne (for wall jump) - Task 22 implementation
     {
       energy_mul: 32,
       args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [
-        15,
-        0,
-        0x27, // READ_PROP vars[0] = CHARACTER_COLLISION_RIGHT
-        15,
-        1,
-        0x29, // READ_PROP vars[1] = CHARACTER_COLLISION_LEFT
-        61,
-        2,
-        0,
-        1, // OR vars[2] = vars[0] OR vars[1] (touching wall)
-        15,
-        3,
-        0x28, // READ_PROP vars[3] = CHARACTER_COLLISION_BOTTOM
-        60,
-        4,
-        3, // NOT vars[4] = NOT vars[3] (not grounded)
-        62,
-        5,
-        2,
-        4, // AND vars[5] = touching_wall AND not_grounded
-        91,
-        5, // EXIT_WITH_VAR vars[5]
-      ],
+      script: [...CONDITION_SCRIPTS.IS_WALL_LEANING_AND_AIRBORNE],
     },
   ],
   characters: [
@@ -309,18 +286,87 @@ export const ADVANCED_MOVEMENT_CONFIG: GameConfig = {
 }
 
 /**
+ * Inverted gravity configuration - Task 23 implementation
+ * Simple configuration with three core behaviors: invert gravity once, turn around at walls, always run
+ */
+export const INVERTED_GRAVITY_CONFIG: GameConfig = {
+  seed: 12345,
+  gravity: [32, 64], // Same as ADVANCED_MOVEMENT
+  tilemap: BASIC_TILEMAP,
+  actions: [
+    // Action 0: TURN_AROUND
+    {
+      energy_cost: 0,
+      cooldown: 0,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.TURN_AROUND],
+    },
+    // Action 1: RUN
+    {
+      energy_cost: 0,
+      cooldown: 0,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.RUN],
+    },
+    // Action 2: INVERT_GRAVITY - NEW for Task 23
+    {
+      energy_cost: 0,
+      cooldown: 0,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      spawns: [0, 0, 0, 0],
+      script: [...ACTION_SCRIPTS.INVERT_GRAVITY],
+    },
+  ],
+  conditions: [
+    // Condition 0: Wall leaning
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [...CONDITION_SCRIPTS.IS_WALL_LEANING],
+    },
+    // Condition 1: Always
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [...CONDITION_SCRIPTS.ALWAYS],
+    },
+    // Condition 2: ONLY_ONCE - NEW for Task 23
+    {
+      energy_mul: 32,
+      args: [0, 0, 0, 0, 0, 0, 0, 0],
+      script: [...CONDITION_SCRIPTS.ONLY_ONCE],
+    },
+  ],
+  characters: [
+    {
+      ...BASIC_CHARACTER,
+      behaviors: [
+        [2, 2], // ONLY_ONCE -> INVERT_GRAVITY (highest priority, once at start)
+        [0, 0], // Wall leaning -> TURN_AROUND (when hitting walls)
+        [1, 1], // Always -> RUN (constant horizontal movement)
+      ],
+    },
+  ],
+  spawns: [],
+  status_effects: [],
+}
+
+/**
  * Available configuration presets
  */
 export const GAME_CONFIGS = {
   COMBINATION_1: COMBINATION_1_CONFIG,
   ADVANCED_MOVEMENT: ADVANCED_MOVEMENT_CONFIG,
+  INVERTED_GRAVITY: INVERTED_GRAVITY_CONFIG,
 } as const
 
 /**
  * Get a game configuration by name
  */
 export function getGameConfig(
-  configName: 'COMBINATION_1' | 'ADVANCED_MOVEMENT'
+  configName: 'COMBINATION_1' | 'ADVANCED_MOVEMENT' | 'INVERTED_GRAVITY'
 ): GameConfig {
   return GAME_CONFIGS[configName]
 }
