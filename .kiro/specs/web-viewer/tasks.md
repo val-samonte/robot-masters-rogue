@@ -629,9 +629,59 @@
   - **Expected Outcome**: Characters can perform wall jumps when sliding down walls, adding advanced movement mechanics
   - _Requirements: Advanced character movement system with wall jump mechanics_
 
-- [ ] 23. Implement basic inverted gravity system
+- [ ] 23. Fix condition instance management system for stateful behaviors
 
-  - **Problem**: Need basic inverted gravity with simple movement behaviors
+  - **Problem**: Critical bug in behavior execution system prevents stateful conditions from working correctly
+  - **Root Cause**: The `get_or_create_condition_instance()` method creates NEW instances every frame instead of reusing existing instances, causing stateful conditions like ONLY_ONCE to lose their state between frames
+  - **Impact**:
+    - Multi-behavior configurations broken (behavior sequencing fails)
+    - All stateful conditions broken (ONLY_ONCE, cooldown-based conditions, etc.)
+    - Behavior priority system broken (lower priority behaviors never execute)
+    - Inverted gravity system partially works but character doesn't run horizontally
+  - **Technical Details**:
+    - **Current Broken Behavior**:
+      - Frame 1: ONLY_ONCE gets new instance, `vars[0] = 0`, sets `vars[0] = 1`, returns 1 ✅
+      - Frame 2+: ONLY_ONCE gets NEW instance, `vars[0] = 0` (fresh!), sets `vars[0] = 1`, returns 1 ❌
+    - **Expected Behavior**:
+      - Frame 1: ONLY_ONCE gets new instance, `vars[0] = 0`, sets `vars[0] = 1`, returns 1 ✅
+      - Frame 2+: ONLY_ONCE reuses same instance, `vars[0] = 1` (remembered), returns 0 ✅
+  - **Implementation Requirements**:
+    - **Modify ConditionInstance Structure**:
+      - Add `character_id` field to track which character the instance belongs to
+      - Update `ConditionInstance::new()` to accept `character_id` parameter
+      - Update `ConditionDefinition::create_instance()` to accept `character_id`
+    - **Fix Instance Management Logic**:
+      - Modify `get_or_create_condition_instance()` to accept `character_idx` parameter
+      - Implement lookup logic to find existing instances by `character_id + condition_id`
+      - Only create new instances if none exist for the character+condition combination
+    - **Fix Script Engine State Loading**:
+      - Load previous `runtime_vars` and `runtime_fixed` from condition instance before script execution
+      - Ensure script engine starts with previous state instead of fresh state
+      - Apply same fix to action instances for consistency
+    - **Update Call Sites**:
+      - Update `evaluate_condition()` to pass `character_idx` to instance management
+      - Fix any compilation errors in tests and other code
+  - **Files Requiring Changes**:
+    - `game-engine/src/entity.rs` - ConditionInstance structure and methods
+    - `game-engine/src/state.rs` - Instance management and script engine initialization
+    - `game-engine/src/tests/entity_structures_test.rs` - Update tests for new API
+  - **Testing Requirements**:
+    - **ONLY_ONCE Condition Test**: Returns 1 on frame 1, then 0 on frame 2+
+    - **Multi-Behavior Test**: ONLY_ONCE → ACTION1 on frame 1, then ALWAYS → ACTION2 on frame 2+
+    - **Stateful Condition Test**: Counter condition increments vars[0] each frame and maintains state
+    - **Inverted Gravity Integration**: Character inverts gravity once, then runs horizontally
+  - **Debug Tools Created**:
+    - `debug-node/test-behavior-execution-trace.cjs` - Comprehensive behavior testing
+    - `debug-node/test-only-once-fix.cjs` - ONLY_ONCE condition validation
+    - `debug-node/test-condition-instance-debug.cjs` - Instance state persistence testing
+    - `debug-node/test-basic-action.cjs` - Basic action execution verification
+  - **Priority**: **CRITICAL** - This bug breaks the core behavior execution system and prevents proper AI behavior sequencing
+  - **Reference**: Refer to the unfinished implementation document section "❌ CRITICAL BUG: Condition Instance Management (Task 23 - January 2025)" for detailed technical analysis
+  - _Requirements: Core behavior execution system functionality for complex AI behaviors_
+
+- [ ] 24. Implement basic inverted gravity system
+
+  - **Problem**: Need basic inverted gravity with simple movement behaviors (depends on Task 23 completion)
   - **Requirements**:
     - Create ONLY_ONCE condition that triggers exactly once per character
     - Create INVERT_GRAVITY action that flips character's vertical direction (dir.1)
@@ -664,10 +714,12 @@
       - Character turns around when hitting walls (TURN_AROUND action)
       - Character reaches ceiling and moves along it
     - **Focus**: Get basic movement working before adding jumping complexity
+  - **Dependencies**: Task 23 must be completed first for ONLY_ONCE condition to work correctly
+  - _Requirements: Basic inverted gravity system with horizontal movement_
 
-- [ ] 24. Add gravity-aware jumping to inverted gravity system
+- [ ] 25. Add gravity-aware jumping to inverted gravity system
 
-  - **Problem**: Extend Task 23 with gravity-aware jumping behavior
+  - **Problem**: Extend Task 24 with gravity-aware jumping behavior
   - **Requirements**:
     - Create IS_GROUNDED_GRAVITY_AWARE condition that checks appropriate collision based on gravity direction
     - Update JUMP action to jump away from grounded surface based on gravity direction

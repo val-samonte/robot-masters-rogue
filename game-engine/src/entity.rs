@@ -73,6 +73,7 @@ pub struct ConditionDefinition {
 #[derive(Debug, Clone)]
 pub struct ConditionInstance {
     pub definition_id: ConditionId,
+    pub character_id: CharacterId, // NEW: Track which character this instance belongs to
     pub runtime_vars: [u8; 4],
     pub runtime_fixed: [Fixed; 4],
 }
@@ -276,10 +277,15 @@ impl ConditionDefinition {
         Ok(())
     }
 
-    /// Create an instance from this definition
-    pub fn create_instance(&self, definition_id: ConditionId) -> ConditionInstance {
+    /// Create an instance from this definition for a specific character
+    pub fn create_instance(
+        &self,
+        character_id: CharacterId,
+        definition_id: ConditionId,
+    ) -> ConditionInstance {
         ConditionInstance {
             definition_id,
+            character_id,
             runtime_vars: [0; 4],
             runtime_fixed: [Fixed::ZERO; 4],
         }
@@ -287,10 +293,11 @@ impl ConditionDefinition {
 }
 
 impl ConditionInstance {
-    /// Create a new condition instance
-    pub fn new(definition_id: ConditionId) -> Self {
+    /// Create a new condition instance for a specific character
+    pub fn new(character_id: CharacterId, definition_id: ConditionId) -> Self {
         Self {
             definition_id,
+            character_id,
             runtime_vars: [0; 4],
             runtime_fixed: [Fixed::ZERO; 4],
         }

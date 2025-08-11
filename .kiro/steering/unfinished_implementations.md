@@ -542,3 +542,242 @@ property_address::CHARACTER_COLLISION_RIGHT => {
 **Testing**: Verified in both Node.js environment and web viewer - characters now move continuously between walls with proper turn-around behavior.
 
 **This was a critical bug that prevented the core character movement system from working. It is now completely resolved.**
+
+## ❌ CRITICAL BUG: Condition Instance Management (Task 23 - January 2025)
+
+### Problem Summary
+
+**Status**: DISCOVERED - Critical bug in behavior execution system
+
+**Core Issue**: The `get_or_create_condition_instance()` method creates NEW instances every frame instead of reusing existing instances, causing stateful conditions like ONLY_ONCE to lose their state between frames.
+
+### Detailed Investigation Results
+
+**What's Broken**:
+
+- ❌ **Condition state persistence**: Conditions lose their vars/fixed state between frames
+- ❌ **ONLY_ONCE behavior**: Always returns true because it gets fresh state every frame
+- ❌ **Behavior sequencing**: Higher priority conditions never "fail" to allow lower priority behaviors
+- ❌ **Multi-behavior configurations**: Only the first behavior ever executes
+
+**Root Cause**: In `game-engine/src/state.rs` lines 604-610:
+
+```rust
+fn get_or_create_condition_instance(&mut self, condition_id: ConditionId) -> usize {
+    // For now, create a new instance each time  ← THIS IS THE BUG!
+    // In a more sophisticated system, we might reuse instances
+    let instance = ConditionInstance::new(condition_id);
+    self.condition_instances.push(instance);
+    self.condition_instances.len() - 1
+}
+```
+
+**Expected Behavior**:
+
+1. Frame 1: ONLY_ONCE gets new instance, `vars[0] = 0`, sets `vars[0] = 1`, returns 1 ✅
+2. Frame 2+: ONLY_ONCE reuses same instance, `vars[0] = 1` (remembered), returns 0 ✅
+
+**Actual Behavior**:
+
+1. Frame 1: ONLY_ONCE gets new instance, `vars[0] = 0`, sets `vars[0] = 1`, returns 1 ✅
+2. Frame 2+: ONLY_ONCE gets NEW instance, `vars[0] = 0` (fresh!), sets `vars[0] = 1`, returns 1 ❌
+
+### Impact Assessment
+
+**Affected Systems**:
+
+- ✅ Single behavior configurations work (only one execution per frame)
+- ❌ Multi-behavior configurations broken (behavior sequencing fails)
+- ❌ All stateful conditions broken (ONLY_ONCE, cooldown-based conditions, etc.)
+- ❌ Behavior priority system broken (lower priority behaviors never execute)
+
+**Test Evidence**:
+
+From `debug-node/test-behavior-execution-trace.cjs`:
+
+- **ONLY_ONCE_ONLY**: ✅ Works (single behavior)
+- **ONLY_ONCE_PLUS_ALWAYS**: ❌ Broken (ALWAYS never executes because ONLY_ONCE always returns true)
+
+**Inverted Gravity System (Task 23)**:
+
+- ✅ INVERT_GRAVITY action works correctly
+- ✅ Gravity inversion works (dir[1] changes from 0 to 2)
+- ❌ Character doesn't run horizontally (ALWAYS -> RUN never executes)
+
+### Required Fix
+
+**Solution**: Modify `get_or_create_condition_instance()` to reuse instances per character:
+
+```rust
+fn get_or_create_condition_instance(&mut self, character_idx: usize, condition_id: ConditionId) -> usize {
+    // Look for existing instance for this character + condition
+    for (idx, instance) in self.condition_instances.iter().enumerate() {
+        if instance.character_id == character_idx && instance.condition_id == condition_id {
+            return idx; // Reuse existing instance
+        }
+    }
+
+    // Create new instance only if none exists
+    let instance = ConditionInstance::new(character_idx, condition_id);
+    self.condition_instances.push(instance);
+    self.condition_instances.len() - 1
+}
+```
+
+**Files Requiring Changes**:
+
+- `game-engine/src/state.rs` - Fix instance management logic
+- `game-engine/src/entity.rs` - Update ConditionInstance to track character_id
+- All condition evaluation call sites - Pass character_idx parameter
+
+### Testing Requirements
+
+**Validation Tests**:
+
+- ONLY_ONCE condition returns 1 on frame 1, then 0 on frame 2+
+- Multi-behavior configurations execute behaviors in priority order
+- Stateful conditions maintain state between frames
+- Inverted gravity system works with horizontal movement
+
+**Debug Scripts**:
+
+- `debug-node/test-behavior-execution-trace.cjs` - Comprehensive behavior testing
+- `debug-node/test-inverted-gravity-middle.cjs` - Inverted gravity with movement
+
+### Priority
+
+**CRITICAL**: This bug breaks the core behavior execution system and prevents proper AI behavior sequencing. It affects any configuration with multiple behaviors or stateful conditions.
+
+**Impact**: Without this fix, complex character behaviors cannot work correctly, making the game engine unsuitable for sophisticated AI systems.
+
+**This bug was discovered during Task 24 (Inverted Gravity System) implementation and explains why the ALWAYS -> RUN behavior never executes after ONLY_ONCE -> INVERT_GRAVITY.**
+
+### Comprehensive Investigation Results (January 2025)
+
+**Discovery Process**:
+
+1. **Initial Symptom**: Inverted gravity system worked (character fell upward) but character never ran horizontally
+2. **Hypothesis Testing**: Created isolated tests to verify individual components
+3. **Component Verification**:
+   - ✅ RUN action works perfectly in isolation (`debug-node/test-run-action-only.cjs`)
+   - ✅ INVERT_GRAVITY action works correctly
+   - ✅ ALWAYS condition works in single-behavior configurations
+   - ❌ Multi-behavior configurations fail (ALWAYS never executes after ONLY_ONCE)
+4. **Root Cause Discovery**: Traced through behavior execution logic and found instance management bug
+
+**Detailed Technical Analysis**:
+
+**ONLY_ONCE Script Logic** (Correctly Implemented):
+
+```javascript
+ONLY_ONCE: [
+  20,
+  1,
+  1, // ASSIGN_BYTE vars[1] = 1 (constant)
+  50,
+  2,
+  0,
+  1, // EQUAL vars[2] = (vars[0] == 1) - true if already used
+  60,
+  3,
+  2, // NOT vars[3] = !vars[2] - true if NOT used yet
+  20,
+  0,
+  1, // ASSIGN_BYTE vars[0] = 1 (mark as used)
+  91,
+  3, // EXIT_WITH_VAR vars[3] - return result
+]
+```
+
+**Expected Execution Flow**:
+
+- Frame 1: `vars[0] = 0` → `vars[2] = false` → `vars[3] = true` → `vars[0] = 1` → Return 1
+- Frame 2+: `vars[0] = 1` → `vars[2] = true` → `vars[3] = false` → Return 0
+
+**Actual Broken Execution Flow**:
+
+- Frame 1: New instance, `vars[0] = 0` → Return 1 ✅
+- Frame 2: **New instance**, `vars[0] = 0` → Return 1 ❌ (should be 0)
+
+**Behavior Execution Logic** (Working Correctly):
+
+```rust
+for &(condition_id, action_id) in &behaviors {
+    let condition_result = self.evaluate_condition(character_idx, condition_id)?;
+    if condition_result == 0 {
+        continue; // Condition failed, try next behavior ✅
+    }
+    self.execute_action(character_idx, action_id)?;
+    break; // Only execute one action per frame ✅
+}
+```
+
+**Instance Management Bug** (Root Cause):
+
+```rust
+// BROKEN - in game-engine/src/state.rs
+fn get_or_create_condition_instance(&mut self, condition_id: ConditionId) -> usize {
+    // For now, create a new instance each time  ← THIS IS THE BUG!
+    let instance = ConditionInstance::new(condition_id);
+    self.condition_instances.push(instance);
+    self.condition_instances.len() - 1
+}
+```
+
+**Script Engine State Loading Bug** (Secondary Issue):
+
+```rust
+// BROKEN - Script engine always starts with fresh state
+let mut engine = crate::script::ScriptEngine::new_with_args(context.get_args());
+// Missing: Load previous state from condition instance
+```
+
+**Test Evidence Summary**:
+
+| Test Configuration | Expected Result                      | Actual Result                           | Status    |
+| ------------------ | ------------------------------------ | --------------------------------------- | --------- |
+| ONLY_ONCE alone    | Frame 1: Execute, Frame 2+: Nothing  | Frame 1: Execute, Frame 2+: Nothing     | ✅ Works  |
+| ONLY_ONCE + ALWAYS | Frame 1: ONLY_ONCE, Frame 2+: ALWAYS | Frame 1: ONLY_ONCE, Frame 2+: ONLY_ONCE | ❌ Broken |
+| ALWAYS alone       | Every frame: Execute                 | Every frame: Execute                    | ✅ Works  |
+| Counter condition  | Increment each frame                 | Always resets to 1                      | ❌ Broken |
+
+**Debug Tools Created**:
+
+- `debug-node/test-behavior-execution-trace.cjs` - Comprehensive multi-behavior testing
+- `debug-node/test-only-once-fix.cjs` - ONLY_ONCE condition validation with energy changes
+- `debug-node/test-condition-instance-debug.cjs` - Counter-based state persistence testing
+- `debug-node/test-basic-action.cjs` - Basic ALWAYS condition + action verification
+- `debug-node/test-inverted-gravity-middle.cjs` - Inverted gravity with movement testing
+
+**Partial Fix Implementation Status**:
+
+✅ **Completed Changes**:
+
+- Modified `ConditionInstance` to include `character_id` field
+- Updated `get_or_create_condition_instance()` to lookup existing instances
+- Fixed script engine initialization to load previous state
+- Applied same fixes to action instances for consistency
+- Updated tests and fixed compilation errors
+
+❌ **Still Not Working**:
+
+- ONLY_ONCE condition still returns 1 every frame instead of 0 after first frame
+- Multi-behavior configurations still broken
+- Inverted gravity system still lacks horizontal movement
+
+**Remaining Investigation Needed**:
+
+- Verify instance lookup logic is finding existing instances correctly
+- Check if state update (`update_instance_from_engine`) is saving changes correctly
+- Investigate potential borrowing or timing issues in state persistence
+- Consider if there are other places where instances might be cleared or reset
+
+**Impact on Game Systems**:
+
+- ❌ All complex AI behaviors broken (anything with multiple behaviors)
+- ❌ Cooldown-based systems broken (stateful conditions)
+- ❌ One-time trigger systems broken (ONLY_ONCE, initialization behaviors)
+- ❌ Behavior priority systems broken (lower priority behaviors never execute)
+- ✅ Simple single-behavior systems work (ALWAYS → ACTION)
+
+**This is the most critical bug in the behavior execution system and must be resolved before any complex AI behaviors can function correctly.**

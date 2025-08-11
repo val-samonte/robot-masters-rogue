@@ -559,14 +559,25 @@ impl GameState {
         character_idx: usize,
         condition_id: ConditionId,
     ) -> Result<u8, crate::script::ScriptError> {
-        // Get or create condition instance
-        let instance_id = self.get_or_create_condition_instance(condition_id);
+        // Get or create condition instance for this character
+        let instance_id = self.get_or_create_condition_instance(character_idx, condition_id);
+
+        // Get previous state from condition instance before creating context
+        let (previous_vars, previous_fixed) =
+            if let Some(instance) = self.condition_instances.get(instance_id) {
+                (instance.runtime_vars, instance.runtime_fixed)
+            } else {
+                ([0; 4], [Fixed::ZERO; 4])
+            };
 
         // Create condition context
         let mut context = ConditionContext::new(self, character_idx, condition_id, instance_id);
 
-        // Execute condition script
+        // Execute condition script with previous state loaded
         let mut engine = crate::script::ScriptEngine::new_with_args(context.get_args());
+        engine.vars[..4].copy_from_slice(&previous_vars);
+        engine.fixed = previous_fixed;
+
         let result = engine.execute(&context.get_script(), &mut context)?;
 
         // Update instance state from engine
@@ -584,14 +595,25 @@ impl GameState {
         // Get or create action instance
         let instance_id = self.get_or_create_action_instance(action_id);
 
+        // Get previous state from action instance before creating context
+        let (previous_vars, previous_fixed) =
+            if let Some(instance) = self.action_instances.get(instance_id) {
+                (instance.runtime_vars, instance.runtime_fixed)
+            } else {
+                ([0; 4], [Fixed::ZERO; 4])
+            };
+
         // Create action context
         let mut context = ActionContext::new(self, character_idx, action_id, instance_id);
 
-        // Execute action script
+        // Execute action script with previous state loaded
         let mut engine = crate::script::ScriptEngine::new_with_args_and_spawns(
             context.get_args(),
             context.get_spawns(),
         );
+        engine.vars[..4].copy_from_slice(&previous_vars);
+        engine.fixed = previous_fixed;
+
         engine.execute(&context.get_script(), &mut context)?;
 
         // Update instance state from engine
@@ -600,11 +622,24 @@ impl GameState {
         Ok(())
     }
 
-    /// Get or create a condition instance for the given definition
-    fn get_or_create_condition_instance(&mut self, condition_id: ConditionId) -> usize {
-        // For now, create a new instance each time
-        // In a more sophisticated system, we might reuse instances
-        let instance = ConditionInstance::new(condition_id);
+    /// Get or create a condition instance for the given character and condition
+    fn get_or_create_condition_instance(
+        &mut self,
+        character_idx: usize,
+        condition_id: ConditionId,
+    ) -> usize {
+        // Look for existing instance for this character + condition combination
+        for (idx, instance) in self.condition_instances.iter().enumerate() {
+            if instance.character_id == self.characters[character_idx].core.id
+                && instance.definition_id == condition_id
+            {
+                return idx; // Reuse existing instance
+            }
+        }
+
+        // Create new instance only if none exists
+        let character_id = self.characters[character_idx].core.id;
+        let instance = ConditionInstance::new(character_id, condition_id);
         self.condition_instances.push(instance);
         self.condition_instances.len() - 1
     }

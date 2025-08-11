@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_condition_instance_runtime_vars_size() {
-        let condition_instance = ConditionInstance::new(0);
+        let condition_instance = ConditionInstance::new(1, 0); // character_id=1, definition_id=0
 
         // Test that runtime_vars is [u8; 4] (reduced from [u8; 8])
         assert_eq!(condition_instance.runtime_vars.len(), 4);
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_condition_instance_runtime_vars_modification() {
-        let mut condition_instance = ConditionInstance::new(1);
+        let mut condition_instance = ConditionInstance::new(1, 1); // character_id=1, definition_id=1
 
         // Test runtime_vars modification
         condition_instance.runtime_vars = [100, 200, 50, 75];
@@ -191,9 +191,10 @@ mod tests {
     #[test]
     fn test_condition_definition_create_instance() {
         let condition_def = ConditionDefinition::new(Fixed::from_int(2), vec![1, 2, 3, 4]);
-        let instance = condition_def.create_instance(5);
+        let instance = condition_def.create_instance(1, 5); // character_id=1, definition_id=5
 
         assert_eq!(instance.definition_id, 5);
+        assert_eq!(instance.character_id, 1);
         assert_eq!(instance.runtime_vars, [0; 4]);
         assert_eq!(instance.runtime_fixed, [Fixed::ZERO; 4]);
     }
@@ -577,7 +578,7 @@ mod tests {
     fn test_all_runtime_vars_arrays_are_size_4() {
         // Test that all runtime_vars arrays are consistently [u8; 4]
         let action_instance = ActionInstance::new(0);
-        let condition_instance = ConditionInstance::new(0);
+        let condition_instance = ConditionInstance::new(1, 0); // character_id=1, definition_id=0
         let status_instance = StatusEffectInstance::new(0);
         let spawn_instance = SpawnInstance::new(0, 0, (Fixed::ZERO, Fixed::ZERO));
 

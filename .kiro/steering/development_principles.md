@@ -206,7 +206,33 @@ if flag_count > 1 {
 }
 ```
 
-### 13. Development Journals and Knowledge Management
+### 13. NEVER MARK TASKS COMPLETED WITHOUT USER CONFIRMATION
+
+**CRITICAL RULE**: Never mark any task as "completed" until the user explicitly confirms it is working correctly.
+
+**Why this rule exists**:
+
+- Node.js debugging only tests the WASM layer, not the full web viewer integration
+- Web viewer may have additional UI, state management, or rendering issues
+- User needs to verify the feature works in the actual application context
+- Premature completion marking wastes time and creates confusion
+
+**Process for task completion**:
+
+1. **Implement the feature** and test with Node.js debugging
+2. **Report results** to the user with test evidence
+3. **Wait for user confirmation** after they test in web viewer
+4. **Only then mark task as completed** when user says it's working
+
+**What to say instead of marking completed**:
+
+- "The Node.js tests show the feature is working. Please test in the web viewer to confirm."
+- "Implementation appears successful based on debugging. Ready for your verification."
+- "Feature implemented and tested in Node.js. Awaiting your confirmation from web viewer testing."
+
+**NEVER assume success** - always wait for user verification.
+
+### 14. Development Journals and Knowledge Management
 
 **MANDATORY DOCUMENTATION SYSTEM**: All significant development work must be documented in the `/journals/` directory.
 
