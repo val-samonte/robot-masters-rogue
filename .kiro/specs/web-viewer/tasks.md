@@ -699,10 +699,12 @@
 
   - **Problem**: Create comprehensive gravity-aware movement system with jumping and wall jumping
   - **Requirements**:
-    - Modify IS_GROUNDED condition to be always gravity-aware (works for both upward and downward gravity)
-    - Create gravity-aware JUMP action that jumps away from grounded surface
-    - Create gravity-aware WALL_JUMP action that works correctly with inverted gravity
-    - Integrate all movement actions with inverted gravity system
+    1. **Duplicate "Inverted Gravity" configuration from dropdown selection** as base template
+    2. **Add jump and wall jump functionality** to the duplicated configuration
+    3. **Modify IS_GROUNDED condition** to be always gravity-aware (works for both upward and downward gravity)
+    4. **Create gravity-aware JUMP action** that jumps away from grounded surface
+    5. **Create gravity-aware WALL_JUMP action** that works correctly with inverted gravity
+    6. **Integrate all movement actions** with inverted gravity system
   - **Script Implementation**:
     - **IS_GROUNDED Condition (Always Gravity-Aware)**:
       - Read ENTITY_DIR_VERTICAL to determine current gravity direction
@@ -729,13 +731,17 @@
         - If gravity is upward (dir.1 = 2): jump downward
         - If gravity is downward (dir.1 = 0): jump upward
         - If gravity is neutral (dir.1 = 1): jump upward (default)
+  - **Configuration Setup**:
+    - **Step 1**: Duplicate the existing `INVERTED_GRAVITY_CONFIG` from `gameConfigs.ts`
+    - **Step 2**: Create new configuration called `INVERTED_GRAVITY_WITH_JUMPING_CONFIG`
+    - **Step 3**: Use the duplicated configuration as the base and add jumping behaviors
+    - **Step 4**: Add the new configuration to the dropdown selection in the web viewer
   - **Configuration Integration**:
-    - Update INVERTED_GRAVITY_CONFIG to include gravity-aware jumping:
+    - **Base from INVERTED_GRAVITY_CONFIG**:
       1. ONLY_ONCE → INVERT_GRAVITY (gravity inversion)
       2. IS_WALL_LEANING → TURN_AROUND (wall collision response)
-      3. IS_GROUNDED → JUMP (gravity-aware ground jumping)
-      4. IS_WALL_LEANING + IS_GROUNDED → WALL_JUMP (gravity-aware wall jumping)
-      5. ALWAYS → RUN (constant horizontal movement)
+      3. ALWAYS → RUN (constant horizontal movement)
+    - **Add jumping behaviors**: 4. IS_GROUNDED → JUMP (gravity-aware ground jumping) 5. IS_WALL_LEANING + IS_GROUNDED → WALL_JUMP (gravity-aware wall jumping)
   - **Testing Requirements**:
     - **Normal Gravity (dir.1 = 0)**:
       - IS_GROUNDED checks bottom collision (floor)
@@ -755,10 +761,12 @@
     - When touching ceiling: IS_GROUNDED returns true, character can jump toward floor
     - When touching walls: Character can wall jump with correct gravity-aware trajectory
     - All jumping mechanics work correctly regardless of gravity orientation
-  - **Integration**:
-    - Add gravity-aware JUMP and WALL_JUMP to script constants library
-    - Update IS_GROUNDED condition to always be gravity-aware
-    - Create comprehensive inverted gravity test configuration with all movement types
-    - Verify compatibility with existing collision and movement systems
-  - **Expected Outcome**: Complete gravity-aware movement system where all jumping mechanics work correctly in both normal and inverted gravity
+  - **Implementation Steps**:
+    1. **Duplicate INVERTED_GRAVITY_CONFIG** in `gameConfigs.ts`
+    2. **Add gravity-aware JUMP and WALL_JUMP** to script constants library
+    3. **Update IS_GROUNDED condition** to always be gravity-aware
+    4. **Create new configuration** with all movement types
+    5. **Add to dropdown selection** in web viewer
+    6. **Test comprehensive movement system** with inverted gravity
+  - **Expected Outcome**: Complete gravity-aware movement system where all jumping mechanics work correctly in both normal and inverted gravity, accessible via dropdown selection
   - _Requirements: Comprehensive gravity-aware movement system with jumping and wall jumping_
