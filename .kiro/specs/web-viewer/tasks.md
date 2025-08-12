@@ -679,78 +679,86 @@
   - **Reference**: Refer to the unfinished implementation document section "❌ CRITICAL BUG: Condition Instance Management (Task 23 - January 2025)" for detailed technical analysis
   - _Requirements: Core behavior execution system functionality for complex AI behaviors_
 
-- [ ] 24. Implement basic inverted gravity system
+- [x] 24. Implement basic inverted gravity system
 
-  - **Problem**: Need basic inverted gravity with simple movement behaviors (depends on Task 23 completion)
+  - **Status**: COMPLETED - Fully addressed by Task 23 condition instance management fix
+  - **Implementation**: All requirements fulfilled through existing systems:
+    - ✅ ONLY_ONCE condition triggers exactly once per character (Task 23 fix)
+    - ✅ INVERT_GRAVITY action flips character's vertical direction (already implemented)
+    - ✅ Multi-behavior sequencing works correctly (Task 23 fix)
+    - ✅ Configuration with three behaviors functional (Task 23 fix)
+  - **Test Results**: Confirmed working in both Node.js tests and web viewer:
+    - ✅ Frame 1: ONLY_ONCE executes → gravity inverts (dir[1]: 0 → 2)
+    - ✅ Frame 2+: Character runs horizontally with inverted gravity
+    - ✅ Wall collision and turn-around behavior functional
+    - ✅ Character moves along ceiling with proper physics
+  - **Dependencies**: Task 23 completion ✅
+  - _Requirements: Basic inverted gravity system with horizontal movement_ ✅
+
+- [ ] 25. Implement gravity-aware jumping and wall jumping system
+
+  - **Problem**: Create comprehensive gravity-aware movement system with jumping and wall jumping
   - **Requirements**:
-    - Create ONLY_ONCE condition that triggers exactly once per character
-    - Create INVERT_GRAVITY action that flips character's vertical direction (dir.1)
-    - Focus on three core behaviors: gravity inversion, wall turning, and running
+    - Modify IS_GROUNDED condition to be always gravity-aware (works for both upward and downward gravity)
+    - Create gravity-aware JUMP action that jumps away from grounded surface
+    - Create gravity-aware WALL_JUMP action that works correctly with inverted gravity
+    - Integrate all movement actions with inverted gravity system
   - **Script Implementation**:
-    - **INVERT_GRAVITY Action**:
-      - Read current ENTITY_DIR_VERTICAL (dir.1)
-      - Flip vertical direction: 0 (downward) ↔ 2 (upward), keep 1 (neutral) unchanged
-      - Write new vertical direction back to character
-      - This changes gravity effect: downward gravity becomes upward, upward becomes downward
-    - **ONLY_ONCE Condition**:
-      - Use vars flag system to trigger only once per character
-      - Returns true only on first execution, false thereafter
-      - Prevents repeated gravity inversion
-    - **Basic Movement Actions**:
-      - TURN_AROUND: Flip horizontal direction and set escape velocity
-      - RUN: Move using direction \* move_speed (simple horizontal velocity)
-  - **Configuration Setup**:
-    - Create INVERTED_GRAVITY_CONFIG with three behaviors:
-      1. ONLY_ONCE → INVERT_GRAVITY (highest priority, once at start)
-      2. Wall leaning → TURN_AROUND (when hitting walls)
-      3. Always → RUN (constant horizontal movement)
-    - Character starts with dir.1 = 0 (normal downward gravity)
-    - After frame 1: Character should have dir.1 = 2 (inverted upward gravity)
-  - **Testing Requirements**:
-    - **Frame 1**: ONLY_ONCE triggers → INVERT_GRAVITY executes → dir.1 changes from 0 to 2
-    - **Frame 2+**: Character falls upward toward ceiling due to inverted gravity
-    - **Movement Testing**:
-      - Character runs horizontally (RUN action sets horizontal velocity)
-      - Character turns around when hitting walls (TURN_AROUND action)
-      - Character reaches ceiling and moves along it
-    - **Focus**: Get basic movement working before adding jumping complexity
-  - **Dependencies**: Task 23 must be completed first for ONLY_ONCE condition to work correctly
-  - _Requirements: Basic inverted gravity system with horizontal movement_
-
-- [ ] 25. Add gravity-aware jumping to inverted gravity system
-
-  - **Problem**: Extend Task 24 with gravity-aware jumping behavior
-  - **Requirements**:
-    - Create IS_GROUNDED_GRAVITY_AWARE condition that checks appropriate collision based on gravity direction
-    - Update JUMP action to jump away from grounded surface based on gravity direction
-    - Add grounded → JUMP behavior to INVERTED_GRAVITY_CONFIG
-  - **Script Implementation**:
-    - **IS_GROUNDED_GRAVITY_AWARE Condition**:
-      - Read ENTITY_DIR_VERTICAL to determine gravity direction
-      - If gravity is upward (dir.1 = 2): check top collision (ceiling = ground)
-      - If gravity is downward (dir.1 = 0): check bottom collision (floor = ground)
-      - Return true if character is touching the appropriate surface
+    - **IS_GROUNDED Condition (Always Gravity-Aware)**:
+      - Read ENTITY_DIR_VERTICAL to determine current gravity direction
+      - If gravity is upward (dir.1 = 2): check CHARACTER_COLLISION_TOP (ceiling = ground)
+      - If gravity is downward (dir.1 = 0): check CHARACTER_COLLISION_BOTTOM (floor = ground)
+      - If gravity is neutral (dir.1 = 1): check CHARACTER_COLLISION_BOTTOM (default to floor)
+      - Return true if character is touching the appropriate grounded surface
+      - **Note**: This replaces any existing IS_GROUNDED - all grounded checks should be gravity-aware
     - **Gravity-Aware JUMP Action**:
-      - Read gravity direction and jump force
-      - If gravity is upward: jump downward (positive velocity)
-      - If gravity is downward: jump upward (negative velocity)
+      - Read ENTITY_DIR_VERTICAL to determine gravity direction
+      - Read CHARACTER_JUMP_FORCE for jump strength
+      - If gravity is upward (dir.1 = 2): jump downward (positive Y velocity)
+      - If gravity is downward (dir.1 = 0): jump upward (negative Y velocity)
+      - If gravity is neutral (dir.1 = 1): jump upward (default behavior)
       - Jump away from the surface the character is grounded on
-  - **Configuration Update**:
-    - Add IS_GROUNDED_GRAVITY_AWARE → JUMP behavior to INVERTED_GRAVITY_CONFIG
-    - Character should jump downward when on ceiling, upward when on floor
+    - **Gravity-Aware WALL_JUMP Action**:
+      - Read ENTITY_DIR_VERTICAL for gravity direction
+      - Read wall collision flags (CHARACTER_COLLISION_LEFT, CHARACTER_COLLISION_RIGHT)
+      - Determine jump direction based on wall contact and gravity:
+        - If touching left wall: jump right and away from gravity
+        - If touching right wall: jump left and away from gravity
+      - Apply both horizontal velocity (away from wall) and vertical velocity (away from gravity)
+      - **Gravity-aware vertical component**:
+        - If gravity is upward (dir.1 = 2): jump downward
+        - If gravity is downward (dir.1 = 0): jump upward
+        - If gravity is neutral (dir.1 = 1): jump upward (default)
+  - **Configuration Integration**:
+    - Update INVERTED_GRAVITY_CONFIG to include gravity-aware jumping:
+      1. ONLY_ONCE → INVERT_GRAVITY (gravity inversion)
+      2. IS_WALL_LEANING → TURN_AROUND (wall collision response)
+      3. IS_GROUNDED → JUMP (gravity-aware ground jumping)
+      4. IS_WALL_LEANING + IS_GROUNDED → WALL_JUMP (gravity-aware wall jumping)
+      5. ALWAYS → RUN (constant horizontal movement)
   - **Testing Requirements**:
-    - Character jumps downward when touching ceiling (inverted gravity)
-    - Character jumps upward when touching floor (normal gravity)
-    - Jumping works correctly with wall turning and running behaviors
-    - Test all movement actions work correctly with inverted physics
+    - **Normal Gravity (dir.1 = 0)**:
+      - IS_GROUNDED checks bottom collision (floor)
+      - JUMP action jumps upward (negative Y velocity)
+      - WALL_JUMP jumps upward and away from wall
+    - **Inverted Gravity (dir.1 = 2)**:
+      - IS_GROUNDED checks top collision (ceiling)
+      - JUMP action jumps downward (positive Y velocity)
+      - WALL_JUMP jumps downward and away from wall
+    - **Integration Testing**:
+      - Character inverts gravity, falls to ceiling, can jump toward floor
+      - Character can wall jump correctly in both gravity orientations
+      - All movement actions work seamlessly with gravity inversion
   - **Expected Behavior**:
     - Frame 1: Character gravity inverts (dir.1: 0 → 2)
-    - Frame 2+: Character falls upward, bounces off ceiling
-    - All movement actions work correctly in inverted gravity
-    - Character can turn around at ceiling, jump toward floor, wall jump up walls
+    - Frame 2+: Character falls upward to ceiling
+    - When touching ceiling: IS_GROUNDED returns true, character can jump toward floor
+    - When touching walls: Character can wall jump with correct gravity-aware trajectory
+    - All jumping mechanics work correctly regardless of gravity orientation
   - **Integration**:
-    - Add INVERT_GRAVITY and ONLY_ONCE to script constants library
-    - Create complete inverted gravity test configuration
+    - Add gravity-aware JUMP and WALL_JUMP to script constants library
+    - Update IS_GROUNDED condition to always be gravity-aware
+    - Create comprehensive inverted gravity test configuration with all movement types
     - Verify compatibility with existing collision and movement systems
-  - **Expected Outcome**: Complete inverted gravity system with all advanced movement mechanics working correctly
-  - _Requirements: Advanced physics system testing with gravity inversion mechanics_
+  - **Expected Outcome**: Complete gravity-aware movement system where all jumping mechanics work correctly in both normal and inverted gravity
+  - _Requirements: Comprehensive gravity-aware movement system with jumping and wall jumping_
