@@ -629,7 +629,7 @@
   - **Expected Outcome**: Characters can perform wall jumps when sliding down walls, adding advanced movement mechanics
   - _Requirements: Advanced character movement system with wall jump mechanics_
 
-- [ ] 23. Fix condition instance management system for stateful behaviors
+- [x] 23. Fix condition instance management system for stateful behaviors
 
   - **Problem**: Critical bug in behavior execution system prevents stateful conditions from working correctly
   - **Root Cause**: The `get_or_create_condition_instance()` method creates NEW instances every frame instead of reusing existing instances, causing stateful conditions like ONLY_ONCE to lose their state between frames
