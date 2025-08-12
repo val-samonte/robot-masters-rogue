@@ -820,3 +820,163 @@ let mut engine = crate::script::ScriptEngine::new_with_args(context.get_args());
 - ✅ Simple single-behavior systems work (ALWAYS → ACTION)
 
 **This is the most critical bug in the behavior execution system and must be resolved before any complex AI behaviors can function correctly.**
+
+## 🚨 CRITICAL: EXIT Operator Compliance Issues (January 2025)
+
+### Problem Summary
+
+**Status**: CRITICAL BUG - EXIT operators not properly implemented across script constants
+
+**Core Issue**: All EXIT operators (EXIT, EXIT_IF_NO_ENERGY, EXIT_IF_COOLDOWN, EXIT_IF_NOT_GROUNDED) require an `exit_flag` parameter that determines behavior execution flow, but current script implementations are missing or misusing this parameter.
+
+**Discovery**: Found during EXIT logic compliance audit - multiple script constants violate the EXIT operator parameter requirements.
+
+### EXIT Operator Parameter Requirements
+
+**All EXIT operators follow the same pattern**:
+
+```rust
+// From game-engine/src/script.rs
+operator_address::EXIT => {
+    self.exit_flag = self.read_u8(script)?;  // ← Reads exit_flag parameter
+    self.pos = script.len();
+}
+
+operator_address::EXIT_IF_NO_ENERGY => {
+    let exit_flag = self.read_u8(script)?;   // ← Reads exit_flag parameter
+    if context.get_current_energy() < energy_req {
+        self.exit_flag = exit_flag;          // ← Uses exit_flag parameter
+        self.pos = script.len();
+    }
+}
+```
+
+**exit_flag Parameter Logic**:
+
+- **exit_flag = 1**: Action is acknowledged (condition succeeds, execute action)
+- **exit_flag = 0**: Action is not acknowledged (condition fails, proceed to next behavior)
+
+### Current Broken Implementations
+
+**❌ BROKEN: IS_GROUNDED condition** (PARTIALLY FIXED)
+
+```javascript
+// WRONG - Missing exit_flag parameter positioning
+IS_GROUNDED: [
+  EXIT_IF_NOT_GROUNDED, // ← Missing exit_flag parameter!
+  0, // ← This should be exit_flag, but positioned wrong
+  EXIT,
+  1, // Return true (grounded)
+]
+```
+
+**❌ BROKEN: JUMP action** (CRITICAL)
+
+```javascript
+// WRONG - Misunderstanding of EXIT_IF_NO_ENERGY parameters
+JUMP: [
+  EXIT_IF_NO_ENERGY,
+  10, // ← This is exit_flag, NOT energy requirement!
+  // Energy requirement comes from context.get_energy_requirement()
+]
+```
+
+**❌ BROKEN: All other EXIT operator usages**
+
+- Need comprehensive audit of all script constants
+- EXIT_IF_COOLDOWN usages likely broken
+- EXIT_IF_NOT_GROUNDED usages in other actions likely broken
+
+### Impact Assessment
+
+**Affected Systems**:
+
+- ❌ **Behavior execution flow**: exit_flag determines whether failed conditions allow fallback behaviors
+- ❌ **Energy-based actions**: JUMP and other energy actions may not work correctly
+- ❌ **Cooldown-based actions**: Actions with cooldown checks may not work correctly
+- ❌ **Grounding-based actions**: Actions that check grounding may not work correctly
+- ❌ **Multi-behavior configurations**: Incorrect exit_flag values break behavior sequencing
+
+**Severity**: **CRITICAL** - This affects the core behavior execution system
+
+### Required Fixes
+
+**1. Fix IS_GROUNDED condition** (COMPLETED):
+
+```javascript
+// CORRECTED
+IS_GROUNDED: [
+  EXIT_IF_NOT_GROUNDED, // Check if not grounded
+  0, // exit_flag = 0 (if not grounded, proceed to next behavior)
+  EXIT, // If grounded, exit with success
+  1, // exit_flag = 1 (condition succeeds)
+]
+```
+
+**2. Fix JUMP action** (URGENT):
+
+```javascript
+// CORRECTED
+JUMP: [
+  EXIT_IF_NO_ENERGY,
+  0, // exit_flag = 0 (if no energy, try next behavior)
+  // ... rest of jump logic
+  EXIT,
+  1, // exit_flag = 1 (action succeeds)
+]
+```
+
+**3. Comprehensive audit needed**:
+
+- Review ALL script constants in `web-viewer/src/constants/scriptConstants.ts`
+- Check ALL EXIT operator usages for proper exit_flag parameter
+- Update web-viewer spec tasks to reflect correct implementations
+- Test all fixed scripts with Node.js debugging
+
+### Files Requiring Changes
+
+**Immediate Priority**:
+
+- `web-viewer/src/constants/scriptConstants.ts` - Fix JUMP action and audit all EXIT usages
+- `.kiro/specs/web-viewer/tasks.md` - Update spec with correct implementations
+
+**Testing Required**:
+
+- Node.js debug scripts to verify EXIT operator behavior
+- Multi-behavior configuration testing to ensure proper fallback behavior
+- Energy-based action testing to verify JUMP works correctly
+
+### Prevention Strategy
+
+**EXIT Operator Implementation Checklist**:
+
+- [ ] All EXIT operators must have exit_flag as first parameter
+- [ ] exit_flag = 0 for "proceed to next behavior" (condition failed)
+- [ ] exit_flag = 1 for "acknowledge action" (condition succeeded)
+- [ ] Additional data comes from context methods, not script parameters
+- [ ] Test with multi-behavior configurations to verify fallback behavior
+
+**Common Mistakes to Avoid**:
+
+- ❌ Using script parameters for data that comes from context (energy requirements, cooldown status)
+- ❌ Missing exit_flag parameter entirely
+- ❌ Using wrong exit_flag values (should be 0 for failure, 1 for success)
+- ❌ Assuming EXIT operators work without parameters
+
+### Impact on Game Systems
+
+**Current State**:
+
+- ❌ JUMP action may not work correctly (energy check broken)
+- ❌ Behavior sequencing may be broken (wrong exit_flag values)
+- ❌ Fallback behaviors may not execute (conditions don't fail properly)
+- ❌ Multi-behavior configurations may be unreliable
+
+**Expected After Fix**:
+
+- ✅ Proper behavior execution flow with correct fallback behavior
+- ✅ Energy-based actions work correctly
+- ✅ Multi-behavior configurations execute in proper priority order
+- ✅ Conditions fail gracefully and allow next behavior to execute
+
+**This is a fundamental compliance issue that affects the entire script execution system and must be fixed immediately.**

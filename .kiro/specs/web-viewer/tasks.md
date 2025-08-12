@@ -726,10 +726,9 @@
     // IS_GROUNDED condition (gravity-aware) - CORRECTED
     IS_GROUNDED: [
       EXIT_IF_NOT_GROUNDED, // Use the gravity-aware operator instead of manual implementation
-      // This operator already handles gravity direction checking internally
-      0,
-      EXIT,
-      1, // Return true (grounded)
+      0, // exit_flag = 0 (if not grounded, proceed to next behavior)
+      EXIT, // If grounded, exit with success
+      1, // exit_flag = 1 (condition succeeds, execute action)
     ]
     ```
 
