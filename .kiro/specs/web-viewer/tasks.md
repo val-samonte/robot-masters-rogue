@@ -695,7 +695,7 @@
   - **Dependencies**: Task 23 completion ✅
   - _Requirements: Basic inverted gravity system with horizontal movement_ ✅
 
-- [ ] 25. Address all is_grounded logic to be gravity-aware
+- [x] 25. Address all is_grounded logic to be gravity-aware
 
   - **Problem**: Current is_grounded logic and EXIT_IF_NOT_GROUNDED operator are not gravity-aware, causing incorrect behavior in inverted gravity scenarios
   - **Current Issues**:
@@ -755,20 +755,15 @@
     5. **Create gravity-aware WALL_JUMP action** that works correctly with inverted gravity
     6. **Integrate all movement actions** with inverted gravity system
   - **Script Implementation**:
-    - **IS_GROUNDED Condition (Always Gravity-Aware)**:
-      - Read ENTITY_DIR_VERTICAL to determine current gravity direction
-      - If gravity is upward (dir.1 = 2): check CHARACTER_COLLISION_TOP (ceiling = ground)
-      - If gravity is downward (dir.1 = 0): check CHARACTER_COLLISION_BOTTOM (floor = ground)
-      - If gravity is neutral (dir.1 = 1): check CHARACTER_COLLISION_BOTTOM (default to floor)
-      - Return true if character is touching the appropriate grounded surface
-      - **Note**: This replaces any existing IS_GROUNDED - all grounded checks should be gravity-aware
+    - **IS_GROUNDED Condition (Always Gravity-Aware)**
     - **Gravity-Aware JUMP Action**:
       - **ALWAYS use EXIT_IF_NOT_GROUNDED operator** at the beginning of JUMP scripts to prevent jumping when not grounded
       - Read ENTITY_DIR_VERTICAL to determine gravity direction
       - Read CHARACTER_JUMP_FORCE for jump strength
-      - If gravity is upward (dir.1 = 2): jump downward (positive Y velocity)
-      - If gravity is downward (dir.1 = 0): jump upward (negative Y velocity)
-      - If gravity is neutral (dir.1 = 1): jump upward (default behavior)
+      - **IMPORTANT**: jump_force from character is a positive value. Normally, we would negate this jump_force and apply it to the y velocity. Since we're utilizing the dir.1 (which is fixed point integer when stored as script variable) instead for that purpose (ie. jump_force _ dir.1, dir.1 == -1 by default), the calculation becomes: velocity_y = jump_force _ dir.1
+      - If gravity is upward (stored fixed dir.1 = 1): jump downward (positive Y velocity)
+      - If gravity is downward (stored fixed dir.1 = -1): jump upward (negative Y velocity)
+      - If gravity is neutral (stored fixed dir.1 = 0): jump upward (default behavior)
       - Jump away from the surface the character is grounded on
     - **Gravity-Aware WALL_JUMP Action**:
       - Read ENTITY_DIR_VERTICAL for gravity direction
@@ -778,9 +773,9 @@
         - If touching right wall: jump left and away from gravity
       - Apply both horizontal velocity (away from wall) and vertical velocity (away from gravity)
       - **Gravity-aware vertical component**:
-        - If gravity is upward (dir.1 = 2): jump downward
-        - If gravity is downward (dir.1 = 0): jump upward
-        - If gravity is neutral (dir.1 = 1): jump upward (default)
+        - If gravity is upward (stored fixed dir.1 = 1): jump downward (positive Y velocity)
+      - If gravity is downward (stored fixed dir.1 = -1): jump upward (negative Y velocity)
+      - If gravity is neutral (stored fixed dir.1 = 0): jump upward (default behavior)
     - **Update IS_GROUNDED condition script**:
       - **Use EXIT_IF_NOT_GROUNDED operator** instead of manual collision checking where appropriate
       - Leverage the gravity-aware grounding logic from Task 25
