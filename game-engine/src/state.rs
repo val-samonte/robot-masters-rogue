@@ -1616,7 +1616,16 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
 
     fn is_grounded(&self) -> bool {
         if let Some(character) = self.game_state.characters.get(self.character_idx) {
-            character.core.collision.2 // Bottom collision flag
+            // GRAVITY-AWARE GROUNDING LOGIC - TASK 25
+            // Check appropriate collision based on gravity direction
+            // dir.1 = 0: Downward gravity (normal) → check bottom collision (floor)
+            // dir.1 = 2: Upward gravity (inverted) → check top collision (ceiling)
+            // dir.1 = 1: Neutral gravity → check bottom collision (default)
+            match character.core.dir.1 {
+                0 => character.core.collision.2, // Downward gravity: grounded when touching floor
+                2 => character.core.collision.0, // Upward gravity: grounded when touching ceiling
+                _ => character.core.collision.2, // Neutral/unknown: default to floor check
+            }
         } else {
             false
         }
@@ -2034,7 +2043,16 @@ impl crate::script::ScriptContext for ActionContext<'_> {
 
     fn is_grounded(&self) -> bool {
         if let Some(character) = self.game_state.characters.get(self.character_idx) {
-            character.core.collision.2 // Bottom collision flag
+            // GRAVITY-AWARE GROUNDING LOGIC - TASK 25
+            // Check appropriate collision based on gravity direction
+            // dir.1 = 0: Downward gravity (normal) → check bottom collision (floor)
+            // dir.1 = 2: Upward gravity (inverted) → check top collision (ceiling)
+            // dir.1 = 1: Neutral gravity → check bottom collision (default)
+            match character.core.dir.1 {
+                0 => character.core.collision.2, // Downward gravity: grounded when touching floor
+                2 => character.core.collision.0, // Upward gravity: grounded when touching ceiling
+                _ => character.core.collision.2, // Neutral/unknown: default to floor check
+            }
         } else {
             false
         }

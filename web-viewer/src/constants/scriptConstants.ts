@@ -422,52 +422,18 @@ export const CONDITION_SCRIPTS = {
   ],
 
   /**
-   * Is grounded condition - FIXED for inverted gravity
-   * Checks appropriate collision based on gravity direction
-   * If gravity is upward (dir[1] = 2), check top collision (ceiling = ground)
-   * If gravity is downward (dir[1] = 0), check bottom collision (floor = ground)
+   * Is grounded condition - GRAVITY-AWARE using EXIT_IF_NOT_GROUNDED operator
+   * Uses the gravity-aware EXIT_IF_NOT_GROUNDED operator from Task 25
+   * Automatically checks appropriate collision based on gravity direction:
+   * - dir[1] = 0 (downward gravity): checks bottom collision (floor)
+   * - dir[1] = 2 (upward gravity): checks top collision (ceiling)
+   * - dir[1] = 1 (neutral gravity): checks bottom collision (default)
    */
-  IS_GROUNDED_GRAVITY_AWARE: [
-    // Read vertical direction to determine gravity
-    OperatorAddress.READ_PROP,
-    0,
-    PropertyAddress.ENTITY_DIR_VERTICAL, // vars[0] = gravity direction (0=down, 2=up)
-
-    // Check if gravity is upward (dir[1] = 2)
-    OperatorAddress.EQUAL,
-    1,
-    0,
-    2, // vars[1] = (gravity == 2) - true if upward gravity
-
-    // Read collision flags
-    OperatorAddress.READ_PROP,
-    2,
-    PropertyAddress.CHARACTER_COLLISION_TOP, // vars[2] = top collision
-    OperatorAddress.READ_PROP,
-    3,
-    PropertyAddress.CHARACTER_COLLISION_BOTTOM, // vars[3] = bottom collision
-
-    // Calculate grounded state based on gravity direction
-    // If upward gravity: grounded = top collision
-    // If downward gravity: grounded = bottom collision
-    OperatorAddress.MUL_BYTE,
-    4,
-    1,
-    2, // vars[4] = upward_gravity * top_collision
-    OperatorAddress.NOT,
-    5,
-    1, // vars[5] = !upward_gravity (downward gravity)
-    OperatorAddress.MUL_BYTE,
-    6,
-    5,
-    3, // vars[6] = downward_gravity * bottom_collision
-    OperatorAddress.OR,
-    7,
-    4,
-    6, // vars[7] = (upward_gravity * top_collision) | (downward_gravity * bottom_collision)
-
-    OperatorAddress.EXIT_WITH_VAR,
-    7, // Exit with grounded state
+  IS_GROUNDED: [
+    OperatorAddress.EXIT_IF_NOT_GROUNDED, // Use gravity-aware operator
+    0, // exit_flag = 0 (if not grounded, proceed to next behavior)
+    OperatorAddress.EXIT, // If grounded, exit with success
+    1, // exit_flag = 1 (condition succeeds, execute action)
   ],
 } as const
 
