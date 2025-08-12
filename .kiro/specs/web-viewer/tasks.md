@@ -695,7 +695,74 @@
   - **Dependencies**: Task 23 completion ✅
   - _Requirements: Basic inverted gravity system with horizontal movement_ ✅
 
-- [ ] 25. Implement gravity-aware jumping and wall jumping system
+- [ ] 25. Address all is_grounded logic to be gravity-aware
+
+  - **Problem**: Current is_grounded logic and EXIT_IF_NOT_GROUNDED operator are not gravity-aware, causing incorrect behavior in inverted gravity scenarios
+  - **Current Issues**:
+    - IS_GROUNDED condition always checks bottom collision (collision.2) regardless of gravity direction
+    - EXIT_IF_NOT_GROUNDED operator hardcoded to check bottom collision only
+    - Characters with inverted gravity (dir.1 = 0) should be grounded when touching ceiling (collision.0)
+    - Characters with normal gravity (dir.1 = 2) should be grounded when touching floor (collision.2)
+  - **Implementation Tasks**:
+    - **Update EXIT_IF_NOT_GROUNDED operator in game engine**:
+      - Read ENTITY_DIR_VERTICAL (dir.1) to determine gravity direction
+      - If dir.1 = 0 (inverted gravity): check CHARACTER_COLLISION_TOP (collision.0)
+      - If dir.1 = 2 (normal gravity): check CHARACTER_COLLISION_BOTTOM (collision.2)
+      - If dir.1 = 1 (neutral gravity): check CHARACTER_COLLISION_BOTTOM (default behavior)
+      - Exit script execution if character is NOT grounded according to gravity direction
+    - **Update IS_GROUNDED condition script (client side)**:
+      - Modify IS_GROUNDED script to use gravity-aware collision checking
+      - Read ENTITY_DIR_VERTICAL to determine current gravity direction
+      - Check appropriate collision flag based on gravity direction
+      - Return true if character is touching the gravity-appropriate surface
+    - **Test gravity-aware grounding logic**:
+      - Character with normal gravity (dir.1 = 2) is grounded when collision.2 = true
+      - Character with inverted gravity (dir.1 = 0) is grounded when collision.0 = true
+      - EXIT_IF_NOT_GROUNDED works correctly in both gravity orientations
+      - IS_GROUNDED condition returns correct values for both gravity directions
+  - **Script Logic Implementation**:
+
+    ```javascript
+    // IS_GROUNDED condition (gravity-aware)
+    IS_GROUNDED: [
+      READ_PROP,
+      0,
+      ENTITY_DIR_VERTICAL, // Read gravity direction into vars[0]
+
+      // Check if dir.1 == 0 (inverted gravity)
+      EQUAL,
+      1,
+      0,
+      0, // vars[1] = (vars[0] == 0)
+      IF,
+      1, // If inverted gravity
+      READ_PROP,
+      2,
+      CHARACTER_COLLISION_TOP, // Check top collision
+      ELSE,
+      READ_PROP,
+      2,
+      CHARACTER_COLLISION_BOTTOM, // Check bottom collision (normal/neutral)
+      ENDIF,
+
+      EXIT_WITH_VAR,
+      2, // Return collision result
+    ]
+    ```
+
+  - **Game Engine Changes**:
+    - Modify EXIT_IF_NOT_GROUNDED operator implementation in script execution engine
+    - Add gravity direction reading to grounding check logic
+    - Ensure consistent behavior between script conditions and operators
+  - **Testing Requirements**:
+    - **Normal Gravity Testing**: Character with dir.1 = 2 is grounded only when collision.2 = true
+    - **Inverted Gravity Testing**: Character with dir.1 = 0 is grounded only when collision.0 = true
+    - **Neutral Gravity Testing**: Character with dir.1 = 1 uses default bottom collision check
+    - **Integration Testing**: EXIT_IF_NOT_GROUNDED and IS_GROUNDED produce consistent results
+  - **Expected Outcome**: All grounding logic becomes gravity-aware, enabling proper jump behavior in both normal and inverted gravity scenarios
+  - _Requirements: Foundation for gravity-aware movement system_
+
+- [ ] 26. Implement gravity-aware jumping and wall jumping system
 
   - **Problem**: Create comprehensive gravity-aware movement system with jumping and wall jumping
   - **Requirements**:
@@ -714,6 +781,7 @@
       - Return true if character is touching the appropriate grounded surface
       - **Note**: This replaces any existing IS_GROUNDED - all grounded checks should be gravity-aware
     - **Gravity-Aware JUMP Action**:
+      - **ALWAYS use EXIT_IF_NOT_GROUNDED operator** at the beginning of JUMP scripts to prevent jumping when not grounded
       - Read ENTITY_DIR_VERTICAL to determine gravity direction
       - Read CHARACTER_JUMP_FORCE for jump strength
       - If gravity is upward (dir.1 = 2): jump downward (positive Y velocity)
@@ -731,6 +799,10 @@
         - If gravity is upward (dir.1 = 2): jump downward
         - If gravity is downward (dir.1 = 0): jump upward
         - If gravity is neutral (dir.1 = 1): jump upward (default)
+    - **Update IS_GROUNDED condition script**:
+      - **Use EXIT_IF_NOT_GROUNDED operator** instead of manual collision checking where appropriate
+      - Leverage the gravity-aware grounding logic from Task 25
+      - Ensure consistent behavior across all grounding-related scripts
   - **Configuration Setup**:
     - **Step 1**: Duplicate the existing `INVERTED_GRAVITY_CONFIG` from `gameConfigs.ts`
     - **Step 2**: Create new configuration called `INVERTED_GRAVITY_WITH_JUMPING_CONFIG`
@@ -747,24 +819,28 @@
       - IS_GROUNDED checks bottom collision (floor)
       - JUMP action jumps upward (negative Y velocity)
       - WALL_JUMP jumps upward and away from wall
+      - EXIT_IF_NOT_GROUNDED prevents jumping when not touching floor
     - **Inverted Gravity (dir.1 = 2)**:
       - IS_GROUNDED checks top collision (ceiling)
       - JUMP action jumps downward (positive Y velocity)
       - WALL_JUMP jumps downward and away from wall
+      - EXIT_IF_NOT_GROUNDED prevents jumping when not touching ceiling
     - **Integration Testing**:
       - Character inverts gravity, falls to ceiling, can jump toward floor
       - Character can wall jump correctly in both gravity orientations
       - All movement actions work seamlessly with gravity inversion
+      - EXIT_IF_NOT_GROUNDED operator works correctly in JUMP scripts (WALL_JUMP requires airborne state)
   - **Expected Behavior**:
     - Frame 1: Character gravity inverts (dir.1: 0 → 2)
     - Frame 2+: Character falls upward to ceiling
     - When touching ceiling: IS_GROUNDED returns true, character can jump toward floor
     - When touching walls: Character can wall jump with correct gravity-aware trajectory
     - All jumping mechanics work correctly regardless of gravity orientation
+    - JUMP actions only execute when character is properly grounded according to gravity direction (WALL_JUMP requires airborne state)
   - **Implementation Steps**:
     1. **Duplicate INVERTED_GRAVITY_CONFIG** in `gameConfigs.ts`
-    2. **Add gravity-aware JUMP and WALL_JUMP** to script constants library
-    3. **Update IS_GROUNDED condition** to always be gravity-aware
+    2. **Add gravity-aware JUMP and WALL_JUMP** to script constants library (JUMP uses EXIT_IF_NOT_GROUNDED, WALL_JUMP requires airborne state)
+    3. **Update IS_GROUNDED condition** to always be gravity-aware and use EXIT_IF_NOT_GROUNDED where appropriate
     4. **Create new configuration** with all movement types
     5. **Add to dropdown selection** in web viewer
     6. **Test comprehensive movement system** with inverted gravity
