@@ -723,30 +723,13 @@
   - **Script Logic Implementation**:
 
     ```javascript
-    // IS_GROUNDED condition (gravity-aware)
+    // IS_GROUNDED condition (gravity-aware) - CORRECTED
     IS_GROUNDED: [
-      READ_PROP,
+      EXIT_IF_NOT_GROUNDED, // Use the gravity-aware operator instead of manual implementation
+      // This operator already handles gravity direction checking internally
       0,
-      ENTITY_DIR_VERTICAL, // Read gravity direction into vars[0]
-
-      // Check if dir.1 == 0 (inverted gravity)
-      EQUAL,
-      1,
-      0,
-      0, // vars[1] = (vars[0] == 0)
-      IF,
-      1, // If inverted gravity
-      READ_PROP,
-      2,
-      CHARACTER_COLLISION_TOP, // Check top collision
-      ELSE,
-      READ_PROP,
-      2,
-      CHARACTER_COLLISION_BOTTOM, // Check bottom collision (normal/neutral)
-      ENDIF,
-
-      EXIT_WITH_VAR,
-      2, // Return collision result
+      EXIT,
+      1, // Return true (grounded)
     ]
     ```
 
