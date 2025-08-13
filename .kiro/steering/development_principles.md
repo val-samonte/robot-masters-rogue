@@ -232,7 +232,83 @@ if flag_count > 1 {
 
 **NEVER assume success** - always wait for user verification.
 
-### 14. Development Journals and Knowledge Management
+### 14. MANDATORY: Use Constant Values for Script Byte Addresses
+
+**CRITICAL RULE**: NEVER use hardcoded numbers for operator addresses or property addresses in script arrays.
+
+**Why this rule exists**:
+
+- Hardcoded numbers are unreadable and unmaintainable
+- Address values may change during development
+- Constants provide type safety and IDE support
+- Debugging is impossible with magic numbers
+
+**ALWAYS use constants from `wasm-wrapper/tests/constants.ts`**:
+
+```typescript
+// ❌ WRONG - Hardcoded magic numbers
+const JUMP_SCRIPT = [
+  3,
+  0, // What does 3 mean? What does 0 mean?
+  1,
+  0, // Completely unreadable
+  15,
+  0,
+  65, // Impossible to debug
+  // ... more magic numbers
+]
+
+// ✅ CORRECT - Use named constants
+import {
+  OperatorAddress,
+  PropertyAddress,
+} from '../wasm-wrapper/tests/constants'
+
+const JUMP_SCRIPT = [
+  OperatorAddress.EXIT_IF_NOT_GROUNDED,
+  0, // Clear intent
+  OperatorAddress.EXIT_IF_NO_ENERGY,
+  0, // Self-documenting
+  OperatorAddress.READ_PROP,
+  0,
+  PropertyAddress.ENTITY_DIR_VERTICAL, // Readable
+  // ... rest of script with constants
+]
+```
+
+**Import pattern for script constants**:
+
+```typescript
+// At top of scriptConstants.ts
+import {
+  OperatorAddress,
+  PropertyAddress,
+} from '../../wasm-wrapper/tests/constants'
+
+// Use throughout the file
+export const ACTION_SCRIPTS = {
+  JUMP: [
+    OperatorAddress.EXIT_IF_NOT_GROUNDED,
+    0, // exit_flag
+    OperatorAddress.READ_PROP,
+    0, // var_index
+    PropertyAddress.ENTITY_DIR_VERTICAL,
+    // ... etc
+  ],
+}
+```
+
+**Benefits of using constants**:
+
+- **Readability**: Code is self-documenting
+- **Maintainability**: Changes to addresses only need to be made in one place
+- **Debugging**: Easy to understand what each script operation does
+- **Type Safety**: TypeScript can catch invalid address usage
+- **IDE Support**: Autocomplete and refactoring work correctly
+
+**VIOLATION OF THIS RULE MAKES SCRIPTS UNMAINTAINABLE AND UNDEBUGGABLE**
+
+### 15. Development Journals and Knowledge Management
 
 **MANDATORY DOCUMENTATION SYSTEM**: All significant development work must be documented in the `/journals/` directory.
 
