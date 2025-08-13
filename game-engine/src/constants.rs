@@ -14,7 +14,9 @@ pub mod operator_address {
     pub const EXIT_IF_COOLDOWN: u8 = 2;
     /// Exit if character is not grounded (not touching ground)
     pub const EXIT_IF_NOT_GROUNDED: u8 = 3;
-    // Reserved for future exit operators: 4-9
+    /// Exit with variable value: [ExitWithVar, var_index]
+    pub const EXIT_WITH_VAR: u8 = 4;
+    // Reserved for future exit operators: 5-9
 
     // ===== CONTROL FLOW OPERATORS (10-14) =====
     /// Skip specified number of bytes
@@ -107,8 +109,6 @@ pub mod operator_address {
     // ===== DEBUG OPERATIONS (90-91) =====
     /// Log variable value: [LogVariable, var_index]
     pub const LOG_VARIABLE: u8 = 90;
-    /// Exit with variable value: [ExitWithVar, var_index]
-    pub const EXIT_WITH_VAR: u8 = 91;
 
     // ===== ARGS AND SPAWNS ACCESS (96-98) =====
     /// Read argument to variable: [ReadArg, var_index, arg_index]

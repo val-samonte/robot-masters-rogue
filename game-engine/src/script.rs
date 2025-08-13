@@ -324,7 +324,10 @@ impl ScriptEngine {
                 if var_index >= self.vars.len() {
                     return Err(ScriptError::InvalidScript);
                 }
-                self.exit_flag = self.vars[var_index];
+                self.exit_flag = match self.vars[var_index] {
+                    0 => 0,
+                    _ => 1,
+                };
                 self.pos = script.len();
             }
 

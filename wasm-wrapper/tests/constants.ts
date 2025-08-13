@@ -17,7 +17,8 @@ export const OperatorAddress = {
   EXIT_IF_NO_ENERGY: 1,
   EXIT_IF_COOLDOWN: 2,
   EXIT_IF_NOT_GROUNDED: 3,
-  // Reserved for future exit operators: 4-9
+  EXIT_WITH_VAR: 4,
+  // Reserved for future exit operators: 5-9
 
   // ===== CONTROL FLOW OPERATORS (10-14) =====
   SKIP: 10,
@@ -74,7 +75,6 @@ export const OperatorAddress = {
 
   // ===== DEBUG OPERATIONS (90-91) =====
   LOG_VARIABLE: 90,
-  EXIT_WITH_VAR: 91,
 
   // ===== ARGS AND SPAWNS ACCESS (96-98) =====
   READ_ARG: 96,

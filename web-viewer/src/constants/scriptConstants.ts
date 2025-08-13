@@ -31,6 +31,7 @@ const OperatorAddress = {
   EXIT_IF_NO_ENERGY: 1,
   EXIT_IF_COOLDOWN: 2,
   EXIT_IF_NOT_GROUNDED: 3,
+  EXIT_WITH_VAR: 4,
   SKIP: 10,
   GOTO: 11,
   READ_PROP: 15,
@@ -67,7 +68,6 @@ const OperatorAddress = {
   SPAWN: 84,
   SPAWN_WITH_VARS: 85,
   LOG_VARIABLE: 90,
-  EXIT_WITH_VAR: 91,
   READ_ARG: 96,
   READ_SPAWN: 97,
   WRITE_SPAWN: 98,
@@ -201,58 +201,46 @@ export const ACTION_SCRIPTS = {
   ],
 
   /**
-   * Jump action - FIXED for inverted gravity
-   * Jumps away from the surface the character is grounded on
-   * If gravity is upward (dir[1] = 2), jump downward (positive velocity)
-   * If gravity is downward (dir[1] = 0), jump upward (negative velocity)
+   * Jump action - GRAVITY-AWARE using EXIT_IF_NOT_GROUNDED
+   * Uses EXIT_IF_NOT_GROUNDED operator for additional safety (belt and suspenders approach)
+   * The IS_GROUNDED condition should handle primary grounding check
+   * Uses dir.1 as multiplier: jump_force * dir.1 for gravity-aware jumping
+   * - dir.1 = -1 (downward gravity): jump upward (negative velocity)
+   * - dir.1 = 0 (neutral gravity): no jump (zero velocity)
+   * - dir.1 = 1 (upward gravity): jump downward (positive velocity)
    */
   JUMP: [
-    OperatorAddress.EXIT_IF_NO_ENERGY,
-    10, // Exit if not enough energy for jump
+    // Check if grounded using gravity-aware operator (safety check)
+    OperatorAddress.EXIT_IF_NOT_GROUNDED,
+    0, // exit_flag = 0 (if not grounded, try next behavior)
 
-    // Read gravity direction
+    // Exit if not enough energy for jump
+    OperatorAddress.EXIT_IF_NO_ENERGY,
+    0, // exit_flag = 0 (if no energy, try next behavior)
+
+    // Read gravity direction (stored as fixed)
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.ENTITY_DIR_VERTICAL, // fixed[0] = gravity direction (0=down, 2=up)
+    PropertyAddress.ENTITY_DIR_VERTICAL,
 
     // Read jump force
     OperatorAddress.READ_PROP,
     1,
     PropertyAddress.CHARACTER_JUMP_FORCE, // fixed[1] = jump force
 
-    // Calculate jump direction based on gravity
-    // If gravity is upward (2), jump downward (positive velocity)
-    // If gravity is downward (0), jump upward (negative velocity)
-    OperatorAddress.EQUAL,
-    2,
-    0,
-    2, // fixed[2] = (gravity == 2) - true if upward gravity
-
-    // Convert boolean to direction multiplier
-    // upward_gravity ? +1 : -1
+    // Calculate jump velocity: jump_force * dir.1
+    // This automatically handles gravity direction:
+    // - dir.1 = -1 (downward gravity): negative velocity (jump up)
+    // - dir.1 = 1 (upward gravity): positive velocity (jump down)
     OperatorAddress.MUL,
-    3,
     2,
-    1, // fixed[3] = upward_gravity * jump_force (positive if upward gravity)
-    OperatorAddress.NEGATE,
-    4,
-    1, // fixed[4] = -jump_force
-    OperatorAddress.NOT,
-    5,
-    2, // fixed[5] = !upward_gravity (downward gravity)
-    OperatorAddress.MUL,
-    6,
-    5,
-    4, // fixed[6] = downward_gravity * (-jump_force)
-    OperatorAddress.ADD,
-    7,
-    3,
-    6, // fixed[7] = final jump velocity
+    1,
+    0, // fixed[2] = jump_force * gravity_direction
 
     // Write jump velocity
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_Y,
-    7, // Write calculated jump velocity
+    2, // Write calculated jump velocity
 
     // Apply energy cost
     OperatorAddress.APPLY_ENERGY_COST,
@@ -261,13 +249,18 @@ export const ACTION_SCRIPTS = {
   ],
 
   /**
-   * Wall jump action - Task 22 implementation
-   * Exact copy of TURN_AROUND + JUMP scripts combined
+   * Wall jump action - GRAVITY-AWARE
+   * FIXED: Proper EXIT operator compliance with correct exit_flag parameters
    * Requirements: Character must be wall leaning AND airborne
-   * Action: Turn around and jump with full jump force (simplified)
+   * Action: Turn around and jump with gravity-aware trajectory
+   * Combines horizontal movement (away from wall) with vertical movement (away from gravity)
    */
   WALL_JUMP: [
-    // TURN AROUND: Exact copy of working TURN_AROUND script
+    // Exit if not enough energy for wall jump
+    OperatorAddress.EXIT_IF_NO_ENERGY,
+    0, // exit_flag = 0 (if no energy, try next behavior)
+
+    // HORIZONTAL COMPONENT: Turn around and move away from wall
     OperatorAddress.READ_PROP,
     0,
     PropertyAddress.ENTITY_DIR_HORIZONTAL, // Read current direction into fixed[0]
@@ -287,15 +280,30 @@ export const ACTION_SCRIPTS = {
     PropertyAddress.CHARACTER_VEL_X,
     2, // Write horizontal velocity
 
-    // JUMP: Exact copy of working JUMP script (without energy check)
+    // VERTICAL COMPONENT: Gravity-aware jump
+    // Read gravity direction (stored as Fixed in script context)
     OperatorAddress.READ_PROP,
     3,
-    PropertyAddress.CHARACTER_JUMP_FORCE, // Read jump force into fixed[3]
-    OperatorAddress.NEGATE,
-    3, // Negate jump force for upward movement
+    PropertyAddress.ENTITY_DIR_VERTICAL, // fixed[3] = gravity direction as Fixed
+
+    // Read jump force
+    OperatorAddress.READ_PROP,
+    4,
+    PropertyAddress.CHARACTER_JUMP_FORCE, // fixed[4] = jump force
+
+    // Calculate jump velocity: jump_force * dir.1
+    // This automatically handles gravity direction:
+    // - dir.1 = -1 (downward gravity): negative velocity (jump up)
+    // - dir.1 = 1 (upward gravity): positive velocity (jump down)
+    OperatorAddress.MUL,
+    5,
+    4,
+    3, // fixed[5] = jump_force * gravity_direction
+
+    // Write jump velocity
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_Y,
-    3, // Write negated jump force to velocity
+    5, // Write calculated jump velocity
 
     // Apply energy cost and exit
     OperatorAddress.APPLY_ENERGY_COST,
@@ -423,7 +431,8 @@ export const CONDITION_SCRIPTS = {
 
   /**
    * Is grounded condition - GRAVITY-AWARE using EXIT_IF_NOT_GROUNDED operator
-   * Uses the gravity-aware EXIT_IF_NOT_GROUNDED operator from Task 25
+   * Uses the gravity-aware EXIT_IF_NOT_GROUNDED operator which should work in conditions
+   * The game engine implements is_grounded() in both ConditionContext and ActionContext
    * Automatically checks appropriate collision based on gravity direction:
    * - dir[1] = 0 (downward gravity): checks bottom collision (floor)
    * - dir[1] = 2 (upward gravity): checks top collision (ceiling)
