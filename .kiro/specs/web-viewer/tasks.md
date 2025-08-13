@@ -744,38 +744,22 @@
   - **Expected Outcome**: All grounding logic becomes gravity-aware, enabling proper jump behavior in both normal and inverted gravity scenarios
   - _Requirements: Foundation for gravity-aware movement system_
 
-- [ ] 26. Implement gravity-aware jumping and wall jumping system
+- [-] 26. Implement gravity-aware jumping system (simplified - no wall jumping)
 
-  - **Problem**: Create comprehensive gravity-aware movement system with jumping and wall jumping
+  - **Problem**: Create gravity-aware jumping system that works with inverted gravity
   - **Requirements**:
     1. **Duplicate "Inverted Gravity" configuration from dropdown selection** as base template
-    2. **Add jump and wall jump functionality** to the duplicated configuration
-    3. **Modify IS_GROUNDED condition** to be always gravity-aware (works for both upward and downward gravity)
+    2. **Add jump functionality** to the duplicated configuration (no wall jumping)
+    3. **Use IS_GROUNDED condition**
     4. **Create gravity-aware JUMP action** that jumps away from grounded surface
-    5. **Create gravity-aware WALL_JUMP action** that works correctly with inverted gravity
-    6. **Integrate all movement actions** with inverted gravity system
+    5. **Integrate jump action** with inverted gravity system
   - **Script Implementation**:
     - **IS_GROUNDED Condition (Always Gravity-Aware)**
     - **Gravity-Aware JUMP Action**:
       - **ALWAYS use EXIT_IF_NOT_GROUNDED operator** at the beginning of JUMP scripts to prevent jumping when not grounded
       - Read ENTITY_DIR_VERTICAL to determine gravity direction
       - Read CHARACTER_JUMP_FORCE for jump strength
-      - **IMPORTANT**: jump_force from character is a positive value. Normally, we would negate this jump_force and apply it to the y velocity. Since we're utilizing the dir.1 (which is fixed point integer when stored as script variable) instead for that purpose (ie. jump_force _ dir.1, dir.1 == -1 by default), the calculation becomes: velocity_y = jump_force _ dir.1
-      - If gravity is upward (stored fixed dir.1 = 1): jump downward (positive Y velocity)
-      - If gravity is downward (stored fixed dir.1 = -1): jump upward (negative Y velocity)
-      - If gravity is neutral (stored fixed dir.1 = 0): jump upward (default behavior)
       - Jump away from the surface the character is grounded on
-    - **Gravity-Aware WALL_JUMP Action**:
-      - Read ENTITY_DIR_VERTICAL for gravity direction
-      - Read wall collision flags (CHARACTER_COLLISION_LEFT, CHARACTER_COLLISION_RIGHT)
-      - Determine jump direction based on wall contact and gravity:
-        - If touching left wall: jump right and away from gravity
-        - If touching right wall: jump left and away from gravity
-      - Apply both horizontal velocity (away from wall) and vertical velocity (away from gravity)
-      - **Gravity-aware vertical component**:
-        - If gravity is upward (stored fixed dir.1 = 1): jump downward (positive Y velocity)
-      - If gravity is downward (stored fixed dir.1 = -1): jump upward (negative Y velocity)
-      - If gravity is neutral (stored fixed dir.1 = 0): jump upward (default behavior)
     - **Update IS_GROUNDED condition script**:
       - **Use EXIT_IF_NOT_GROUNDED operator** instead of manual collision checking where appropriate
       - Leverage the gravity-aware grounding logic from Task 25
@@ -783,43 +767,39 @@
   - **Configuration Setup**:
     - **Step 1**: Duplicate the existing `INVERTED_GRAVITY_CONFIG` from `gameConfigs.ts`
     - **Step 2**: Create new configuration called `INVERTED_GRAVITY_WITH_JUMPING_CONFIG`
-    - **Step 3**: Use the duplicated configuration as the base and add jumping behaviors
+    - **Step 3**: Use the duplicated configuration as the base and add jumping behavior
     - **Step 4**: Add the new configuration to the dropdown selection in the web viewer
   - **Configuration Integration**:
     - **Base from INVERTED_GRAVITY_CONFIG**:
       1. ONLY_ONCE → INVERT_GRAVITY (gravity inversion)
       2. IS_WALL_LEANING → TURN_AROUND (wall collision response)
       3. ALWAYS → RUN (constant horizontal movement)
-    - **Add jumping behaviors**: 4. IS_GROUNDED → JUMP (gravity-aware ground jumping) 5. IS_WALL_LEANING + IS_GROUNDED → WALL_JUMP (gravity-aware wall jumping)
+    - **Add jumping behavior**: 4. IS_GROUNDED → JUMP (gravity-aware ground jumping)
   - **Testing Requirements**:
     - **Normal Gravity (dir.1 = 0)**:
       - IS_GROUNDED checks bottom collision (floor)
       - JUMP action jumps upward (negative Y velocity)
-      - WALL_JUMP jumps upward and away from wall
       - EXIT_IF_NOT_GROUNDED prevents jumping when not touching floor
     - **Inverted Gravity (dir.1 = 2)**:
       - IS_GROUNDED checks top collision (ceiling)
       - JUMP action jumps downward (positive Y velocity)
-      - WALL_JUMP jumps downward and away from wall
       - EXIT_IF_NOT_GROUNDED prevents jumping when not touching ceiling
     - **Integration Testing**:
       - Character inverts gravity, falls to ceiling, can jump toward floor
-      - Character can wall jump correctly in both gravity orientations
       - All movement actions work seamlessly with gravity inversion
-      - EXIT_IF_NOT_GROUNDED operator works correctly in JUMP scripts (WALL_JUMP requires airborne state)
+      - EXIT_IF_NOT_GROUNDED operator works correctly in JUMP scripts
   - **Expected Behavior**:
     - Frame 1: Character gravity inverts (dir.1: 0 → 2)
     - Frame 2+: Character falls upward to ceiling
     - When touching ceiling: IS_GROUNDED returns true, character can jump toward floor
-    - When touching walls: Character can wall jump with correct gravity-aware trajectory
     - All jumping mechanics work correctly regardless of gravity orientation
-    - JUMP actions only execute when character is properly grounded according to gravity direction (WALL_JUMP requires airborne state)
+    - JUMP actions only execute when character is properly grounded according to gravity direction
   - **Implementation Steps**:
     1. **Duplicate INVERTED_GRAVITY_CONFIG** in `gameConfigs.ts`
-    2. **Add gravity-aware JUMP and WALL_JUMP** to script constants library (JUMP uses EXIT_IF_NOT_GROUNDED, WALL_JUMP requires airborne state)
+    2. **Add gravity-aware JUMP** to script constants library (uses EXIT_IF_NOT_GROUNDED)
     3. **Update IS_GROUNDED condition** to always be gravity-aware and use EXIT_IF_NOT_GROUNDED where appropriate
-    4. **Create new configuration** with all movement types
+    4. **Create new configuration** with jumping functionality
     5. **Add to dropdown selection** in web viewer
-    6. **Test comprehensive movement system** with inverted gravity
-  - **Expected Outcome**: Complete gravity-aware movement system where all jumping mechanics work correctly in both normal and inverted gravity, accessible via dropdown selection
-  - _Requirements: Comprehensive gravity-aware movement system with jumping and wall jumping_
+    6. **Test gravity-aware jumping system** with inverted gravity
+  - **Expected Outcome**: Gravity-aware jumping system where jump mechanics work correctly in both normal and inverted gravity, accessible via dropdown selection
+  - _Requirements: Gravity-aware jumping system that works with inverted gravity_
