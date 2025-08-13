@@ -1,28 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { useGameState } from '../hooks/useGameState'
-import { getGameConfig } from '../config/gameConfigs'
-
-type ConfigName =
-  | 'SIMPLE_MOVEMENT'
-  | 'JUMP_DEBUG'
-  | 'COMBINATION_1'
-  | 'ADVANCED_MOVEMENT'
-  | 'INVERTED_GRAVITY'
-  | 'INVERTED_GRAVITY_WITH_JUMPING'
+import { ConfigName, getGameConfig } from '../config/gameConfigs'
 
 export const ConfigurationLoader: React.FC = () => {
-  const [selectedConfig, setSelectedConfig] =
-    useState<ConfigName>('COMBINATION_1')
+  const [selectedConfig, setSelectedConfig] = useState<ConfigName>('RUN_AROUND')
   const [loadError, setLoadError] = useState<string>('')
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
   const { loadConfiguration, isGameInitialized, isWasmInitialized } =
     useGameState()
 
-  // Auto-load COMBINATION_1 on mount (only once, after WASM is initialized)
   useEffect(() => {
     if (!hasAutoLoaded && isWasmInitialized) {
-      console.log('Auto-loading COMBINATION_1 configuration...')
-      const config = getGameConfig('COMBINATION_1')
+      const config = getGameConfig('RUN_AROUND')
       const configJson = JSON.stringify(config, null, 2)
 
       // Auto-load the configuration
@@ -66,16 +55,7 @@ export const ConfigurationLoader: React.FC = () => {
         onChange={(e) => handleConfigChange(e.target.value as ConfigName)}
         disabled={!isWasmInitialized}
       >
-        <option value="SIMPLE_MOVEMENT">Simple Movement (Debug)</option>
-        <option value="JUMP_DEBUG">Jump Debug (Energy Drain Test)</option>
-        <option value="COMBINATION_1">Basic Movement (Turn + Run)</option>
-        <option value="ADVANCED_MOVEMENT">
-          Advanced Movement (All Actions)
-        </option>
-        <option value="INVERTED_GRAVITY">Inverted Gravity (Task 23)</option>
-        <option value="INVERTED_GRAVITY_WITH_JUMPING">
-          Inverted Gravity + Jumping (Task 26)
-        </option>
+        <option value="RUN_AROUND">Run Around</option>
       </select>
       {loadError && (
         <div className="text-red-600 text-sm mt-1">{loadError}</div>

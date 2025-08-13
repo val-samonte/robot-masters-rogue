@@ -76,8 +76,6 @@ const BASIC_TILEMAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]
 
-// Removed unused OPEN_TILEMAP
-
 /**
  * Basic character template with standard properties
  */
@@ -102,19 +100,77 @@ const BASIC_CHARACTER = {
   energy_regen_rate: 60,
   energy_charge: 5,
   energy_charge_rate: 30,
-  dir: [2, 0] as [number, number], // Facing right (0=left, 1=neutral, 2=right)
+  dir: [2, 2] as [number, number], // Facing right, normal downward gravity
   enmity: 0,
   target_id: null,
   target_type: 0,
 }
 
-// All other configurations removed - only COMBINATION_1 is needed
+const conditions = [
+  {
+    energy_mul: 32,
+    args: [0, 0, 0, 0, 0, 0, 0, 0],
+    script: [...CONDITION_SCRIPTS.ALWAYS],
+  },
+  {
+    energy_mul: 32,
+    args: [0, 0, 0, 0, 0, 0, 0, 0],
+    script: [...CONDITION_SCRIPTS.IS_GROUNDED],
+  },
+  {
+    energy_mul: 32,
+    args: [0, 0, 0, 0, 0, 0, 0, 0],
+    script: [...CONDITION_SCRIPTS.IS_WALL_LEANING],
+  },
+]
+const actions = [
+  {
+    energy_cost: 0,
+    cooldown: 0,
+    args: [0, 0, 0, 0, 0, 0, 0, 0],
+    spawns: [0, 0, 0, 0],
+    script: [...ACTION_SCRIPTS.RUN],
+  },
+  {
+    energy_cost: 0,
+    cooldown: 0, // No cooldown - allow immediate turn-around
+    args: [0, 0, 0, 0, 0, 0, 0, 0],
+    spawns: [0, 0, 0, 0],
+    script: [...ACTION_SCRIPTS.TURN_AROUND],
+  },
+  {
+    energy_cost: 10,
+    cooldown: 30, // 30 frame cooldown for jump
+    args: [0, 0, 0, 0, 0, 0, 0, 0],
+    spawns: [0, 0, 0, 0],
+    script: [...ACTION_SCRIPTS.JUMP],
+  },
+]
 
-/**
- * Configuration for testing updated movement actions with fixed collision detection and gravity
- * Tests: RUN, JUMP, WALL_JUMP, TURN_AROUND actions with proper physics
- * Priority system: Wall leaning -> TURN_AROUND, Always -> RUN
- */
+const basicGameConfig = {
+  seed: 12345,
+  gravity: [32, 64] as [number, number],
+  tilemap: BASIC_TILEMAP,
+  actions,
+  conditions,
+  spawns: [],
+  status_effects: [],
+}
+
+export const RUN_AROUND: GameConfig = {
+  ...basicGameConfig,
+  characters: [
+    {
+      ...BASIC_CHARACTER,
+      behaviors: [
+        [0, 0], // Always -> RUN (lowest priority)
+        [2, 1], // Wall leaning -> TURN_AROUND (highest priority)
+      ],
+    },
+  ],
+}
+
+/*
 export const COMBINATION_1_CONFIG: GameConfig = {
   seed: 12345,
   gravity: [32, 64], // 0.5 gravity for testing
@@ -186,14 +242,6 @@ export const COMBINATION_1_CONFIG: GameConfig = {
   status_effects: [],
 }
 
-/**
- * Advanced configuration demonstrating all movement actions with proper priority
- * Priority (highest to lowest):
- * 1. Wall leaning + not grounded -> WALL_JUMP
- * 2. Wall leaning + grounded -> TURN_AROUND
- * 3. Grounded -> JUMP (occasionally)
- * 4. Always -> RUN
- */
 export const ADVANCED_MOVEMENT_CONFIG: GameConfig = {
   seed: 12345,
   gravity: [32, 64], // 0.5 gravity for testing
@@ -273,10 +321,7 @@ export const ADVANCED_MOVEMENT_CONFIG: GameConfig = {
   status_effects: [],
 }
 
-/**
- * Inverted gravity configuration - Task 23 implementation
- * Simple configuration with three core behaviors: invert gravity once, turn around at walls, always run
- */
+
 export const INVERTED_GRAVITY_CONFIG: GameConfig = {
   seed: 12345,
   gravity: [32, 64], // Same as ADVANCED_MOVEMENT
@@ -341,11 +386,6 @@ export const INVERTED_GRAVITY_CONFIG: GameConfig = {
   status_effects: [],
 }
 
-/**
- * Inverted gravity with jumping configuration - Task 26 implementation
- * Duplicated from INVERTED_GRAVITY_CONFIG with added jumping behaviors
- * Comprehensive gravity-aware movement system with jumping and wall jumping
- */
 export const INVERTED_GRAVITY_WITH_JUMPING_CONFIG: GameConfig = {
   seed: 12345,
   gravity: [32, 64], // Same as INVERTED_GRAVITY_CONFIG
@@ -439,136 +479,27 @@ export const INVERTED_GRAVITY_WITH_JUMPING_CONFIG: GameConfig = {
   spawns: [],
   status_effects: [],
 }
-
-/**
- * Simple movement test configuration - for debugging core issues
- * Single behavior: ALWAYS -> RUN (no energy cost, no cooldown)
- */
-export const SIMPLE_MOVEMENT_CONFIG: GameConfig = {
-  seed: 12345,
-  gravity: [32, 64], // 0.5 gravity
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    // Action 0: RUN (no energy cost, no cooldown)
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.RUN],
-    },
-  ],
-  conditions: [
-    // Condition 0: ALWAYS (always returns true)
-    {
-      energy_mul: 32,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.ALWAYS],
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      behaviors: [
-        [0, 0], // ALWAYS -> RUN (single behavior)
-      ],
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
-
-/**
- * Jump-only debug configuration - for isolating JUMP action issues
- * Removes wall jumping to focus on JUMP energy drain problem
- */
-export const JUMP_DEBUG_CONFIG: GameConfig = {
-  seed: 12345,
-  gravity: [32, 64], // 0.5 gravity for testing
-  tilemap: BASIC_TILEMAP,
-  actions: [
-    // Action 0: TURN_AROUND
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.TURN_AROUND],
-    },
-    // Action 1: RUN
-    {
-      energy_cost: 0,
-      cooldown: 0,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.RUN],
-    },
-    // Action 2: JUMP (the problematic one)
-    {
-      energy_cost: 10,
-      cooldown: 120,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      spawns: [0, 0, 0, 0],
-      script: [...ACTION_SCRIPTS.JUMP],
-    },
-  ],
-  conditions: [
-    // Condition 0: Wall leaning
-    {
-      energy_mul: 32,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.IS_WALL_LEANING],
-    },
-    // Condition 1: Always
-    {
-      energy_mul: 32,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.ALWAYS],
-    },
-    // Condition 2: Is grounded
-    {
-      energy_mul: 32,
-      args: [0, 0, 0, 0, 0, 0, 0, 0],
-      script: [...CONDITION_SCRIPTS.IS_GROUNDED],
-    },
-  ],
-  characters: [
-    {
-      ...BASIC_CHARACTER,
-      behaviors: [
-        [0, 0], // Wall leaning -> TURN_AROUND (high priority)
-        [2, 2], // Grounded -> JUMP (medium priority) - THE SUSPECT
-        [1, 1], // Always -> RUN (lowest priority)
-      ],
-    },
-  ],
-  spawns: [],
-  status_effects: [],
-}
+  */
 
 /**
  * Available configuration presets
  */
 export const GAME_CONFIGS = {
-  SIMPLE_MOVEMENT: SIMPLE_MOVEMENT_CONFIG,
-  JUMP_DEBUG: JUMP_DEBUG_CONFIG,
-  COMBINATION_1: COMBINATION_1_CONFIG,
-  ADVANCED_MOVEMENT: ADVANCED_MOVEMENT_CONFIG,
-  INVERTED_GRAVITY: INVERTED_GRAVITY_CONFIG,
-  INVERTED_GRAVITY_WITH_JUMPING: INVERTED_GRAVITY_WITH_JUMPING_CONFIG,
+  RUN_AROUND: RUN_AROUND,
+  RUN_AND_JUMP: RUN_AROUND,
+  INVERTED_RUN: RUN_AROUND,
+  INVERTED_RUN_AND_JUMP: RUN_AROUND,
 } as const
+
+export type ConfigName =
+  | 'RUN_AROUND'
+  | 'RUN_AND_JUMP'
+  | 'INVERTED_RUN'
+  | 'INVERTED_RUN_AND_JUMP'
 
 /**
  * Get a game configuration by name
  */
-export function getGameConfig(
-  configName:
-    | 'SIMPLE_MOVEMENT'
-    | 'JUMP_DEBUG'
-    | 'COMBINATION_1'
-    | 'ADVANCED_MOVEMENT'
-    | 'INVERTED_GRAVITY'
-    | 'INVERTED_GRAVITY_WITH_JUMPING'
-): GameConfig {
+export function getGameConfig(configName: ConfigName): GameConfig {
   return GAME_CONFIGS[configName]
 }

@@ -80,8 +80,8 @@
   - Initialize energy_cap with provided value in Character conversion
   - Initialize power with provided value in Character conversion
   - Initialize weight with provided value in Character conversion
-  - Initialize jump_force using Fixed::from_num(numerator) / Fixed::from_num(denominator) in Character conversion
-  - Initialize move_speed using Fixed::from_num(numerator) / Fixed::from_num(denominator) in Character conversion
+  - Initialize jump_force using Fixed::from_frac(numerator, denominator) in Character conversion
+  - Initialize move_speed using Fixed::from_frac(numerator, denominator) in Character conversion
   - Set EntityCore.dir from provided direction values in Character conversion
   - Initialize enmity with provided value in Character conversion
   - Initialize target_id and target_type with provided values in Character conversion
@@ -157,7 +157,7 @@
 
   - Update position property to [[i16; 2]; 2] type in CharacterDefinitionJson and CharacterStateJson
   - Update velocity property to [[i16; 2]; 2] type in CharacterStateJson and SpawnStateJson
-  - Update position conversion logic to use Fixed::from_num(numerator) / Fixed::from_num(denominator)
+  - Update position conversion logic to use Fixed::from_frac(numerator, denominator)
   - Update position serialization logic to use Fixed::numer() and Fixed::denom() methods
   - Update velocity serialization logic to use Fixed::numer() and Fixed::denom() methods
   - Update runtime_fixed arrays to [[i16; 2]; 4] type in SpawnStateJson and StatusEffectStateJson

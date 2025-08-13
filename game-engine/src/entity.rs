@@ -87,7 +87,7 @@ pub struct EntityCore {
     pub vel: (Fixed, Fixed),
     pub size: (u8, u8),
     pub collision: (bool, bool, bool, bool), // top, right, bottom, left
-    pub dir: (u8, u8), // (horizontal: 0=left/1=right, vertical: 0=upward/1=downward)
+    pub dir: (u8, u8), // (horizontal: 0=left/1=neutral/2=right, vertical: 0=upward/1=neutral/2=downward)
     pub enmity: u8,    // Target ordering priority
     pub target_id: Option<EntityId>, // Target entity ID (can be Character or Spawn)
     pub target_type: u8, // Target entity type (1=Character, 2=Spawn)
@@ -343,27 +343,27 @@ impl EntityCore {
     }
 
     /// Get gravity multiplier based on dir.1 value
-    /// dir.1 = 0: Downward gravity (multiply by +1.0)
+    /// dir.1 = 0: Upward gravity (multiply by +1.0 - inverted)
     /// dir.1 = 1: Neutral gravity (multiply by 0.0 - no gravity effect)  
-    /// dir.1 = 2: Upward gravity (multiply by -1.0 - inverted)
+    /// dir.1 = 2: Downward gravity (multiply by -1.0 - normal)
     pub fn get_gravity_multiplier(&self) -> Fixed {
         match self.dir.1 {
-            0 => Fixed::from_int(1),  // Downward gravity
+            0 => Fixed::from_int(1),  // Upward gravity (inverted)
             1 => Fixed::ZERO,         // Neutral - no gravity effect
-            2 => Fixed::from_int(-1), // Upward gravity (inverted)
+            2 => Fixed::from_int(-1), // Downward gravity (normal)
             _ => Fixed::ZERO,         // Invalid value defaults to neutral
         }
     }
 
     /// Set gravity direction from multiplier value
-    /// +1.0 → downward (dir.1 = 0)
+    /// +1.0 → upward (dir.1 = 0)
     /// 0.0 → neutral (dir.1 = 1)
-    /// -1.0 → upward (dir.1 = 2)
+    /// -1.0 → downward (dir.1 = 2)
     pub fn set_gravity_direction(&mut self, multiplier: Fixed) {
         if multiplier > Fixed::ZERO {
-            self.dir.1 = 0; // Downward
+            self.dir.1 = 0; // Upward
         } else if multiplier < Fixed::ZERO {
-            self.dir.1 = 2; // Upward
+            self.dir.1 = 2; // Downward
         } else {
             self.dir.1 = 1; // Neutral
         }

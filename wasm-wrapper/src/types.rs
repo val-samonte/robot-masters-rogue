@@ -273,8 +273,8 @@ impl From<CharacterDefinitionJson> for Character {
 
         // Set position using Fixed-point conversion from numerator/denominator
         character.core.pos = (
-            Fixed::from_num(json.position[0][0]) / Fixed::from_num(json.position[0][1]),
-            Fixed::from_num(json.position[1][0]) / Fixed::from_num(json.position[1][1]),
+            Fixed::from_frac(json.position[0][0], json.position[0][1]),
+            Fixed::from_frac(json.position[1][0], json.position[1][1]),
         );
 
         // Set updated properties
@@ -284,10 +284,8 @@ impl From<CharacterDefinitionJson> for Character {
         character.energy_cap = json.energy_cap;
         character.power = json.power;
         character.weight = json.weight;
-        character.jump_force =
-            Fixed::from_num(json.jump_force[0]) / Fixed::from_num(json.jump_force[1]);
-        character.move_speed =
-            Fixed::from_num(json.move_speed[0]) / Fixed::from_num(json.move_speed[1]);
+        character.jump_force = Fixed::from_frac(json.jump_force[0], json.jump_force[1]);
+        character.move_speed = Fixed::from_frac(json.move_speed[0], json.move_speed[1]);
         character.armor = json.armor;
         character.energy_regen = json.energy_regen;
         character.energy_regen_rate = json.energy_regen_rate;

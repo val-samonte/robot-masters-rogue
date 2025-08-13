@@ -170,7 +170,7 @@ impl GameWrapper {
         let game_state = if let Some(config) = &self.config {
             if let Some(gravity_array) = &config.gravity {
                 // Use custom gravity
-                let gravity = Fixed::from_num(gravity_array[0]) / Fixed::from_num(gravity_array[1]);
+                let gravity = Fixed::from_frac(gravity_array[0], gravity_array[1]);
                 robot_masters_engine::state::GameState::new_with_gravity(
                     seed,
                     tilemap,

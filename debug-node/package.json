@@ -1,11 +1,21 @@
 {
-  "name": "wasm-debug",
-  "version": "1.0.0",
-  "description": "Debug WASM game engine",
-  "main": "debug.js",
+  "name": "wasm-wrapper",
   "type": "module",
-  "scripts": {
-    "debug": "node debug.js"
+  "description": "WebAssembly bindings for Robot Masters Game Engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robotmasters/game-engine"
   },
-  "dependencies": {}
+  "files": [
+    "wasm_wrapper_bg.wasm",
+    "wasm_wrapper.js",
+    "wasm_wrapper.d.ts"
+  ],
+  "main": "wasm_wrapper.js",
+  "types": "wasm_wrapper.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
 }

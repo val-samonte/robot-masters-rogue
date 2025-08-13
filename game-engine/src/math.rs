@@ -28,9 +28,19 @@ impl Fixed {
         Fixed(value << Self::FRACTIONAL_BITS)
     }
 
-    /// Create a Fixed from numerator (integer value)
-    pub fn from_num(value: i16) -> Self {
-        Fixed(value << Self::FRACTIONAL_BITS)
+    /// Create a Fixed from fraction (numerator / denominator)
+    pub fn from_frac(numerator: i16, denominator: i16) -> Self {
+        if denominator == 0 {
+            // Return max/min value based on sign of numerator for division by zero
+            return if numerator >= 0 {
+                Fixed::MAX
+            } else {
+                Fixed::MIN
+            };
+        }
+        let result = ((numerator as i32) << Self::FRACTIONAL_BITS) / denominator as i32;
+        // Clamp to i16 range to handle overflow
+        Fixed(result.clamp(i16::MIN as i32, i16::MAX as i32) as i16)
     }
 
     /// Create a Fixed from raw internal representation

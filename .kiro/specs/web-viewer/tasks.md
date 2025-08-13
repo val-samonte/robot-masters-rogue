@@ -744,7 +744,7 @@
   - **Expected Outcome**: All grounding logic becomes gravity-aware, enabling proper jump behavior in both normal and inverted gravity scenarios
   - _Requirements: Foundation for gravity-aware movement system_
 
-- [-] 26. Implement gravity-aware jumping system (simplified - no wall jumping)
+- [ ] 26. Implement gravity-aware jumping system (simplified - no wall jumping)
 
   - **Problem**: Create gravity-aware jumping system that works with inverted gravity
   - **Requirements**:

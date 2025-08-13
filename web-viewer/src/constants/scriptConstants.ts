@@ -96,50 +96,58 @@ export const ACTION_SCRIPTS = {
 
   /**
    * Jump action - GRAVITY-AWARE using EXIT_IF_NOT_GROUNDED
-   * Uses EXIT_IF_NOT_GROUNDED operator for additional safety (belt and suspenders approach)
-   * The IS_GROUNDED condition should handle primary grounding check
-   * Uses dir.1 as multiplier: jump_force * dir.1 for gravity-aware jumping
-   * - dir.1 = -1 (downward gravity): jump upward (negative velocity)
-   * - dir.1 = 0 (neutral gravity): no jump (zero velocity)
-   * - dir.1 = 1 (upward gravity): jump downward (positive velocity)
+   * Fresh implementation from scratch for Task 26
+   *
+   * Logic:
+   * 1. Check if grounded (exit if not)
+   * 2. Check if enough energy (exit if not)
+   * 3. Read gravity direction to determine jump direction
+   * 4. Apply jump force in direction away from grounded surface
+   * 5. Apply energy cost
+   *
+   * Gravity-aware jumping:
+   * - Normal gravity (dir.1 = 0): Jump upward (negative velocity)
+   * - Inverted gravity (dir.1 = 2): Jump downward (positive velocity)
    */
   JUMP: [
-    // Check if grounded using gravity-aware operator (safety check)
+    // Exit if not grounded (gravity-aware check)
     OperatorAddress.EXIT_IF_NOT_GROUNDED,
     0, // exit_flag = 0 (if not grounded, try next behavior)
 
-    // Exit if not enough energy for jump
+    // Exit if not enough energy
     OperatorAddress.EXIT_IF_NO_ENERGY,
     0, // exit_flag = 0 (if no energy, try next behavior)
 
-    // Read gravity direction (stored as fixed)
+    // Read gravity direction into fixed[0] (ENTITY_DIR uses fixed array)
     OperatorAddress.READ_PROP,
     0,
-    PropertyAddress.ENTITY_DIR_VERTICAL,
+    PropertyAddress.ENTITY_DIR_VERTICAL, // fixed[0] = gravity direction
 
-    // Read jump force
+    // Read jump force into fixed[1]
     OperatorAddress.READ_PROP,
     1,
     PropertyAddress.CHARACTER_JUMP_FORCE, // fixed[1] = jump force
 
-    // Calculate jump velocity: jump_force * dir.1
-    // This automatically handles gravity direction:
-    // - dir.1 = -1 (downward gravity): negative velocity (jump up)
-    // - dir.1 = 1 (upward gravity): positive velocity (jump down)
+    // Calculate jump velocity: jump_force * gravity_direction * -1
+    // As per entity_dir_script_access.md documentation
     OperatorAddress.MUL,
-    2,
     1,
-    0, // fixed[2] = jump_force * gravity_direction
+    1,
+    0, // fixed[1] = jump_force * gravity_direction (reuse fixed[1])
 
-    // Write jump velocity
+    // Multiply by -1 (as required by documentation)
+    OperatorAddress.NEGATE,
+    1, // fixed[1] = -(jump_force * gravity_direction)
+
+    // Write jump velocity to character
     OperatorAddress.WRITE_PROP,
     PropertyAddress.CHARACTER_VEL_Y,
-    2, // Write calculated jump velocity
+    1, // Set vertical velocity to calculated jump velocity
 
-    // Apply energy cost
+    // Apply energy cost and exit
     OperatorAddress.APPLY_ENERGY_COST,
     OperatorAddress.EXIT,
-    1, // Exit with success
+    1, // exit_flag = 1 (action succeeded)
   ],
 
   /**

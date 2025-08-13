@@ -63,7 +63,7 @@ impl GameState {
             frame: 0,
             tile_map: Tilemap::new(tilemap),
             status: GameStatus::Playing,
-            gravity: Fixed::from_int(1), // Default downward gravity
+            gravity: Fixed::from_frac(1, 2),
             characters,
             spawn_instances: Vec::new(),
 
@@ -1614,13 +1614,13 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
         if let Some(character) = self.game_state.characters.get(self.character_idx) {
             // GRAVITY-AWARE GROUNDING LOGIC - TASK 25
             // Check appropriate collision based on gravity direction
-            // dir.1 = 0: Downward gravity (normal) → check bottom collision (floor)
-            // dir.1 = 2: Upward gravity (inverted) → check top collision (ceiling)
+            // dir.1 = 0: Upward gravity (inverted) → check top collision (ceiling)
             // dir.1 = 1: Neutral gravity → check bottom collision (default)
+            // dir.1 = 2: Downward gravity (normal) → check bottom collision (floor)
             match character.core.dir.1 {
-                0 => character.core.collision.2, // Downward gravity: grounded when touching floor
-                2 => character.core.collision.0, // Upward gravity: grounded when touching ceiling
-                _ => character.core.collision.2, // Neutral/unknown: default to floor check
+                0 => character.core.collision.0, // Upward gravity: grounded when touching ceiling
+                2 => character.core.collision.2, // Downward gravity: grounded when touching floor
+                _ => character.core.collision.0 || character.core.collision.2, // Neutral/unknown: either
             }
         } else {
             false
@@ -2037,13 +2037,13 @@ impl crate::script::ScriptContext for ActionContext<'_> {
         if let Some(character) = self.game_state.characters.get(self.character_idx) {
             // GRAVITY-AWARE GROUNDING LOGIC - TASK 25
             // Check appropriate collision based on gravity direction
-            // dir.1 = 0: Downward gravity (normal) → check bottom collision (floor)
-            // dir.1 = 2: Upward gravity (inverted) → check top collision (ceiling)
+            // dir.1 = 0: Upward gravity (inverted) → check top collision (ceiling)
             // dir.1 = 1: Neutral gravity → check bottom collision (default)
+            // dir.1 = 2: Downward gravity (normal) → check bottom collision (floor)
             match character.core.dir.1 {
-                0 => character.core.collision.2, // Downward gravity: grounded when touching floor
-                2 => character.core.collision.0, // Upward gravity: grounded when touching ceiling
-                _ => character.core.collision.2, // Neutral/unknown: default to floor check
+                0 => character.core.collision.0, // Upward gravity: grounded when touching ceiling
+                2 => character.core.collision.2, // Downward gravity: grounded when touching floor
+                _ => character.core.collision.0 || character.core.collision.2, // Neutral/unknown: either
             }
         } else {
             false

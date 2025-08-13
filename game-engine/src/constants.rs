@@ -241,9 +241,9 @@ pub mod property_address {
 
     // ===== ENTITY CORE PROPERTIES (0x40-0x4F) =====
     // Reserved range: 0x40-0x4F (16 addresses)
-    /// Entity direction horizontal (byte: 0=left, 1=right)
+    /// Entity direction horizontal (byte: 0=left, 1=neutral, 2=right)
     pub const ENTITY_DIR_HORIZONTAL: u8 = 0x40;
-    /// Entity direction vertical (byte: 0=upward, 1=downward)
+    /// Entity direction vertical (byte: 0=upward, 1=neutral, 2=downward)
     pub const ENTITY_DIR_VERTICAL: u8 = 0x41;
     /// Entity enmity level (byte)
     pub const ENTITY_ENMITY: u8 = 0x42;
