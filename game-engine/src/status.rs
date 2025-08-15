@@ -599,8 +599,16 @@ impl ScriptContext for StatusEffectContext<'_> {
     }
 
     fn is_grounded(&self) -> bool {
-        // Check if the character is grounded (bottom collision)
-        self.character.core.collision.2
+        // GRAVITY-AWARE GROUNDING LOGIC - TASK 4
+        // Check appropriate collision based on gravity direction
+        // dir.1 = 0: Upward gravity (inverted) → check top collision (ceiling)
+        // dir.1 = 1: Neutral gravity → check bottom collision (default)
+        // dir.1 = 2: Downward gravity (normal) → check bottom collision (floor)
+        match self.character.core.dir.1 {
+            0 => self.character.core.collision.0, // Upward gravity: grounded when touching ceiling
+            2 => self.character.core.collision.2, // Downward gravity: grounded when touching floor
+            _ => self.character.core.collision.0 || self.character.core.collision.2, // Neutral/unknown: either
+        }
     }
 
     fn get_random_u8(&mut self) -> u8 {

@@ -313,7 +313,7 @@ impl EntityCore {
             vel: (Fixed::ZERO, Fixed::ZERO),
             size: (0, 0), // Size will be set from configuration
             collision: (false, false, false, false),
-            dir: (2, 0),     // Default to right (2) and downward gravity (0)
+            dir: (2, 2),     // CORRECTED: Default to right (2) and downward gravity (2)
             enmity: 0,       // Default enmity
             target_id: None, // No target initially
             target_type: 0,  // No target type initially
@@ -343,27 +343,31 @@ impl EntityCore {
     }
 
     /// Get gravity multiplier based on dir.1 value
-    /// dir.1 = 0: Upward gravity (multiply by +1.0 - inverted)
-    /// dir.1 = 1: Neutral gravity (multiply by 0.0 - no gravity effect)  
-    /// dir.1 = 2: Downward gravity (multiply by -1.0 - normal)
+    /// CORRECTED GRAVITY DIRECTION LOGIC (Fixed in Task 1):
+    /// The direction rule is: 0=upward, 1=neutral, 2=downward
+    /// When global gravity is positive (downward force), multipliers should be:
+    /// dir.1 = 0: Upward gravity → multiply by -1 (negative velocity = upward acceleration)
+    /// dir.1 = 1: Neutral gravity → multiply by 0 (no gravity effect)  
+    /// dir.1 = 2: Downward gravity → multiply by +1 (positive velocity = downward acceleration)
     pub fn get_gravity_multiplier(&self) -> Fixed {
         match self.dir.1 {
-            0 => Fixed::from_int(1),  // Upward gravity (inverted)
+            0 => Fixed::from_int(-1), // CORRECTED: Upward gravity returns -1
             1 => Fixed::ZERO,         // Neutral - no gravity effect
-            2 => Fixed::from_int(-1), // Downward gravity (normal)
+            2 => Fixed::from_int(1),  // CORRECTED: Downward gravity returns +1
             _ => Fixed::ZERO,         // Invalid value defaults to neutral
         }
     }
 
     /// Set gravity direction from multiplier value
-    /// +1.0 → upward (dir.1 = 0)
+    /// CORRECTED GRAVITY DIRECTION LOGIC (Fixed in Task 1):
+    /// -1.0 → upward (dir.1 = 0)
     /// 0.0 → neutral (dir.1 = 1)
-    /// -1.0 → downward (dir.1 = 2)
+    /// +1.0 → downward (dir.1 = 2)
     pub fn set_gravity_direction(&mut self, multiplier: Fixed) {
         if multiplier > Fixed::ZERO {
-            self.dir.1 = 0; // Upward
+            self.dir.1 = 2; // CORRECTED: Positive multiplier → downward gravity
         } else if multiplier < Fixed::ZERO {
-            self.dir.1 = 2; // Downward
+            self.dir.1 = 0; // CORRECTED: Negative multiplier → upward gravity
         } else {
             self.dir.1 = 1; // Neutral
         }
