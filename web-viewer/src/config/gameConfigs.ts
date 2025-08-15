@@ -94,7 +94,7 @@ const BASIC_CHARACTER = {
   power: 10,
   weight: 5,
   jump_force: [160, 32] as [number, number], // 5.0 in fixed-point
-  move_speed: [64, 32] as [number, number], // 2.0 in fixed-point
+  move_speed: [2, 1] as [number, number], // 2.0 in fixed-point
   armor: [0, 0, 0, 0, 0, 0, 0, 0, 0],
   energy_regen: 1,
   energy_regen_rate: 60,

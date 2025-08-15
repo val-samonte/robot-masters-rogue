@@ -1401,13 +1401,13 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                 property_address::ENTITY_DIR_HORIZONTAL => {
                     if var_index < engine.fixed.len() {
                         let x = (character.core.dir.0 as i16) - 1;
-                        engine.fixed[var_index] = Fixed::from_raw(x);
+                        engine.fixed[var_index] = Fixed::from_int(x);
                     }
                 }
                 property_address::ENTITY_DIR_VERTICAL => {
                     if var_index < engine.fixed.len() {
                         let y = (character.core.dir.1 as i16) - 1;
-                        engine.fixed[var_index] = Fixed::from_raw(y);
+                        engine.fixed[var_index] = Fixed::from_int(y);
                     }
                 }
                 property_address::CHARACTER_HEALTH_CAP => {
@@ -1808,13 +1808,13 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                 property_address::ENTITY_DIR_HORIZONTAL => {
                     if var_index < engine.fixed.len() {
                         let x = (character.core.dir.0 as i16) - 1;
-                        engine.fixed[var_index] = Fixed::from_raw(x);
+                        engine.fixed[var_index] = Fixed::from_int(x);
                     }
                 }
                 property_address::ENTITY_DIR_VERTICAL => {
                     if var_index < engine.fixed.len() {
                         let y = (character.core.dir.1 as i16) - 1;
-                        engine.fixed[var_index] = Fixed::from_raw(y);
+                        engine.fixed[var_index] = Fixed::from_int(y);
                     }
                 }
                 property_address::CHARACTER_HEALTH_CAP => {
@@ -2415,13 +2415,13 @@ impl ConditionContext<'_> {
             property_address::ENTITY_DIR_HORIZONTAL => {
                 if var_index < engine.fixed.len() {
                     let x = (character.core.dir.0 as i16) - 1;
-                    engine.fixed[var_index] = Fixed::from_raw(x);
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
                 if var_index < engine.fixed.len() {
                     let y = (character.core.dir.1 as i16) - 1;
-                    engine.fixed[var_index] = Fixed::from_raw(y);
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -2642,13 +2642,13 @@ impl ConditionContext<'_> {
             property_address::ENTITY_DIR_HORIZONTAL => {
                 if var_index < engine.fixed.len() {
                     let x = (spawn_instance.core.dir.0 as i16) - 1;
-                    engine.fixed[var_index] = Fixed::from_raw(x);
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
                 if var_index < engine.fixed.len() {
                     let y = (spawn_instance.core.dir.1 as i16) - 1;
-                    engine.fixed[var_index] = Fixed::from_raw(y);
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -3083,13 +3083,13 @@ impl ActionContext<'_> {
             property_address::ENTITY_DIR_HORIZONTAL => {
                 if var_index < engine.fixed.len() {
                     let x = (character.core.dir.0 as i16) - 1;
-                    engine.fixed[var_index] = Fixed::from_raw(x);
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
                 if var_index < engine.fixed.len() {
                     let y = (character.core.dir.1 as i16) - 1;
-                    engine.fixed[var_index] = Fixed::from_raw(y);
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -3310,13 +3310,13 @@ impl ActionContext<'_> {
             property_address::ENTITY_DIR_HORIZONTAL => {
                 if var_index < engine.fixed.len() {
                     let x = (spawn_instance.core.dir.0 as i16) - 1;
-                    engine.fixed[var_index] = Fixed::from_raw(x);
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
                 if var_index < engine.fixed.len() {
                     let y = (spawn_instance.core.dir.1 as i16) - 1;
-                    engine.fixed[var_index] = Fixed::from_raw(y);
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
