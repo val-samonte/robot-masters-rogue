@@ -122,6 +122,11 @@ const conditions = [
     args: [0, 0, 0, 0, 0, 0, 0, 0],
     script: [...CONDITION_SCRIPTS.IS_WALL_LEANING],
   },
+  {
+    energy_mul: 32,
+    args: [0, 0, 0, 0, 0, 0, 0, 0],
+    script: [...CONDITION_SCRIPTS.ONLY_ONCE],
+  },
 ]
 const actions = [
   {
@@ -145,6 +150,13 @@ const actions = [
     spawns: [0, 0, 0, 0],
     script: [...ACTION_SCRIPTS.JUMP],
   },
+  {
+    energy_cost: 10,
+    cooldown: 30, // 30 frame cooldown for jump
+    args: [0, 0, 0, 0, 0, 0, 0, 0],
+    spawns: [0, 0, 0, 0],
+    script: [...ACTION_SCRIPTS.INVERT_GRAVITY],
+  },
 ]
 
 const basicGameConfig = {
@@ -164,6 +176,49 @@ export const RUN_AROUND: GameConfig = {
       ...BASIC_CHARACTER,
       behaviors: [
         [2, 1], // Wall leaning -> TURN_AROUND (highest priority)
+        [0, 0], // Always -> RUN (lowest priority)
+      ],
+    },
+  ],
+}
+
+export const RUN_AND_JUMP: GameConfig = {
+  ...basicGameConfig,
+  characters: [
+    {
+      ...BASIC_CHARACTER,
+      behaviors: [
+        [2, 1], // Wall leaning -> TURN_AROUND (highest priority)
+        [1, 2], // Is grounded -> JUMP
+        [0, 0], // Always -> RUN (lowest priority)
+      ],
+    },
+  ],
+}
+
+export const INVERTED_RUN: GameConfig = {
+  ...basicGameConfig,
+  characters: [
+    {
+      ...BASIC_CHARACTER,
+      behaviors: [
+        [3, 3], // Only once -> INVERT GRAVITY
+        [2, 1], // Wall leaning -> TURN_AROUND (highest priority)
+        [0, 0], // Always -> RUN (lowest priority)
+      ],
+    },
+  ],
+}
+
+export const INVERTED_RUN_AND_JUMP: GameConfig = {
+  ...basicGameConfig,
+  characters: [
+    {
+      ...BASIC_CHARACTER,
+      behaviors: [
+        [3, 3], // Only once -> INVERT GRAVITY
+        [2, 1], // Wall leaning -> TURN_AROUND (highest priority)
+        [1, 2], // Is grounded -> JUMP
         [0, 0], // Always -> RUN (lowest priority)
       ],
     },
@@ -486,9 +541,9 @@ export const INVERTED_GRAVITY_WITH_JUMPING_CONFIG: GameConfig = {
  */
 export const GAME_CONFIGS = {
   RUN_AROUND: RUN_AROUND,
-  RUN_AND_JUMP: RUN_AROUND,
-  INVERTED_RUN: RUN_AROUND,
-  INVERTED_RUN_AND_JUMP: RUN_AROUND,
+  RUN_AND_JUMP: RUN_AND_JUMP,
+  INVERTED_RUN: INVERTED_RUN,
+  INVERTED_RUN_AND_JUMP: INVERTED_RUN_AND_JUMP,
 } as const
 
 export type ConfigName =

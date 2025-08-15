@@ -6,8 +6,7 @@ export const ConfigurationLoader: React.FC = () => {
   const [selectedConfig, setSelectedConfig] = useState<ConfigName>('RUN_AROUND')
   const [loadError, setLoadError] = useState<string>('')
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
-  const { loadConfiguration, isGameInitialized, isWasmInitialized } =
-    useGameState()
+  const { loadConfiguration, isWasmInitialized } = useGameState()
 
   useEffect(() => {
     if (!hasAutoLoaded && isWasmInitialized) {
@@ -56,6 +55,9 @@ export const ConfigurationLoader: React.FC = () => {
         disabled={!isWasmInitialized}
       >
         <option value="RUN_AROUND">Run Around</option>
+        <option value="RUN_AND_JUMP">Run & Jump</option>
+        <option value="INVERTED_RUN">Inverted Run Around</option>
+        <option value="INVERTED_RUN_AND_JUMP">Inverted Run & Jump</option>
       </select>
       {loadError && (
         <div className="text-red-600 text-sm mt-1">{loadError}</div>

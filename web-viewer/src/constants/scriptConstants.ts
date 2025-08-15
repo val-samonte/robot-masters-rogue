@@ -214,17 +214,22 @@ export const ACTION_SCRIPTS = {
   ],
 
   /**
-   * Invert gravity action - Task 23 implementation (ULTRA SIMPLE)
-   * Just sets gravity to upward (2) for testing
+   * Invert gravity action - Task 23 implementation
+   * Read current gravity direction, negate it, write it back
+   * This flips between upward (-1.0) and downward (+1.0) gravity
    */
   INVERT_GRAVITY: [
-    // Ultra simple: just set to 2 (upward gravity)
-    OperatorAddress.ASSIGN_BYTE,
+    // Read current gravity direction
+    OperatorAddress.READ_PROP,
     0,
-    2, // vars[0] = 2
+    PropertyAddress.ENTITY_DIR_VERTICAL, // Read current gravity direction into fixed[0]
+    // Negate direction (flip it)
+    OperatorAddress.NEGATE,
+    0, // Negate fixed[0] (flip gravity direction)
+    // Write new direction back
     OperatorAddress.WRITE_PROP,
     PropertyAddress.ENTITY_DIR_VERTICAL,
-    0, // Write vars[0] to vertical direction
+    0, // Write fixed[0] back to gravity direction
     OperatorAddress.EXIT,
     1, // Exit with success
   ],
@@ -264,48 +269,20 @@ export const CONDITION_SCRIPTS = {
     2, // Exit with result (true if touching any wall)
   ],
 
-  /**
-   * Is wall leaning and airborne condition - Task 22 implementation
-   * Returns true when character is touching a wall (left OR right) AND not touching ground
-   * This is the condition for wall jump behavior
-   * Fixed: Use same pattern as IS_WALL_LEANING but add airborne check
-   */
-  IS_WALL_LEANING_AND_AIRBORNE: [
-    // Check if touching right wall
-    OperatorAddress.READ_PROP,
-    0,
-    PropertyAddress.CHARACTER_COLLISION_RIGHT, // vars[0] = right collision (0 or 1)
-
-    // Check if touching left wall
-    OperatorAddress.READ_PROP,
-    1,
-    PropertyAddress.CHARACTER_COLLISION_LEFT, // vars[1] = left collision (0 or 1)
-
-    // Check if touching ground
-    OperatorAddress.READ_PROP,
-    2,
-    PropertyAddress.CHARACTER_COLLISION_BOTTOM, // vars[2] = bottom collision (0 or 1)
-
-    // Check if touching any wall (left OR right)
-    OperatorAddress.OR,
-    3,
-    0,
-    1, // vars[3] = right_collision OR left_collision
-
-    // Check if airborne (NOT touching ground)
-    OperatorAddress.NOT,
-    4,
-    2, // vars[4] = NOT bottom_collision
-
-    // Final condition: touching wall AND airborne
-    OperatorAddress.AND,
-    5,
-    3,
-    4, // vars[5] = touching_wall AND airborne
-
-    OperatorAddress.EXIT_WITH_VAR,
-    5, // Exit with result (true if wall leaning and airborne)
-  ],
+  // IS_WALL_SLIDING: [
+  //   OperatorAddress.READ_PROP,
+  //   0,
+  //   PropertyAddress.CHARACTER_COLLISION_RIGHT, // Read right collision
+  //   OperatorAddress.READ_PROP,
+  //   1,
+  //   PropertyAddress.CHARACTER_COLLISION_LEFT, // Read left collision
+  //   OperatorAddress.OR,
+  //   2,
+  //   0,
+  //   1, // vars[2] = right_collision OR left_collision
+  //   OperatorAddress.EXIT_WITH_VAR,
+  //   2, // Exit with result (true if touching any wall)
+  // ],
 
   /**
    * Only once condition - Task 23 implementation
@@ -331,15 +308,6 @@ export const CONDITION_SCRIPTS = {
     3, // Exit with vars[3] as exit code (1 first time, 0 after = false)
   ],
 
-  /**
-   * Is grounded condition - GRAVITY-AWARE using EXIT_IF_NOT_GROUNDED operator
-   * Uses the gravity-aware EXIT_IF_NOT_GROUNDED operator which should work in conditions
-   * The game engine implements is_grounded() in both ConditionContext and ActionContext
-   * Automatically checks appropriate collision based on gravity direction:
-   * - dir[1] = 0 (downward gravity): checks bottom collision (floor)
-   * - dir[1] = 2 (upward gravity): checks top collision (ceiling)
-   * - dir[1] = 1 (neutral gravity): checks bottom collision (default)
-   */
   IS_GROUNDED: [
     OperatorAddress.EXIT_IF_NOT_GROUNDED, // Use gravity-aware operator
     0, // exit_flag = 0 (if not grounded, proceed to next behavior)
