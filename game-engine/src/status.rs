@@ -574,12 +574,12 @@ impl ScriptContext for StatusEffectContext<'_> {
             // Entity direction properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
                 if var_index < engine.fixed.len() {
-                    self.character.core.dir.0 = (engine.fixed[var_index].raw() + 1) as u8;
+                    self.character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
                 if var_index < engine.fixed.len() {
-                    self.character.core.dir.1 = (engine.fixed[var_index].raw() + 1) as u8;
+                    self.character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             _ => {} // Property not writable or not supported in status effect context
@@ -1054,12 +1054,12 @@ impl ScriptContext for StatusEffectContext<'_> {
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
                 if var_index < engine.fixed.len() {
-                    character.core.dir.0 = (engine.fixed[var_index].raw() + 1) as u8;
+                    character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
                 if var_index < engine.fixed.len() {
-                    character.core.dir.1 = (engine.fixed[var_index].raw() + 1) as u8;
+                    character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -1240,12 +1240,12 @@ impl ScriptContext for StatusEffectContext<'_> {
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
                 if var_index < engine.fixed.len() {
-                    spawn_instance.core.dir.0 = (engine.fixed[var_index].raw() + 1) as u8;
+                    spawn_instance.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
                 if var_index < engine.fixed.len() {
-                    spawn_instance.core.dir.1 = (engine.fixed[var_index].raw() + 1) as u8;
+                    spawn_instance.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
 

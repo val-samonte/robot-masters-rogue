@@ -163,8 +163,8 @@ export const RUN_AROUND: GameConfig = {
     {
       ...BASIC_CHARACTER,
       behaviors: [
-        [0, 0], // Always -> RUN (lowest priority)
         [2, 1], // Wall leaning -> TURN_AROUND (highest priority)
+        [0, 0], // Always -> RUN (lowest priority)
       ],
     },
   ],
