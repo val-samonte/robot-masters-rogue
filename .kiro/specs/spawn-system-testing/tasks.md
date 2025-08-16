@@ -1,13 +1,13 @@
 # Implementation Plan
 
-- [ ] 1. Create spawn test configuration system
+- [x] 1. Create spawn test configuration system
 
   - Create TypeScript interfaces for spawn test configurations
   - Implement test configuration loader that can parse different spawn scenarios
   - Create sample test configurations for basic spawn creation scenarios
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 2. Implement basic spawn creation test
+- [x] 2. Implement basic spawn creation test
 
   - Create a simple test configuration with one character that spawns a single entity
   - Implement test execution logic that loads the configuration and runs the scenario

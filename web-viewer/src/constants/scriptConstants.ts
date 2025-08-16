@@ -114,6 +114,17 @@ export const ACTION_SCRIPTS = {
     OperatorAddress.EXIT,
     1, // Exit with success
   ],
+
+  SPAWN_ENTITY: [
+    // Create a spawn entity using spawn ID 0
+    OperatorAddress.ASSIGN_BYTE,
+    0,
+    0, // vars[0] = 0 (spawn ID 0)
+    OperatorAddress.SPAWN,
+    0, // SPAWN vars[0] (create spawn with ID from vars[0])
+    OperatorAddress.EXIT,
+    1, // Exit with success
+  ],
 } as const
 
 export const CONDITION_SCRIPTS = {
