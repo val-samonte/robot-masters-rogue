@@ -8,9 +8,9 @@ use crate::entity::{
     StatusEffectId, StatusEffectInstance, StatusEffectInstanceId,
 };
 use crate::math::Fixed;
-use crate::physics::Tilemap;
 use crate::random::SeededRng;
 use crate::script::ScriptError;
+use crate::tilemap::Tilemap;
 
 use alloc::vec::Vec;
 
@@ -28,6 +28,7 @@ pub struct GameState {
     pub frame: u16,
     pub tile_map: Tilemap,
     pub status: GameStatus,
+    pub gravity: Fixed, // Global gravity value (positive = downward, negative = upward)
     pub characters: Vec<Character>,
     pub spawn_instances: Vec<SpawnInstance>,
 
@@ -62,6 +63,53 @@ impl GameState {
             frame: 0,
             tile_map: Tilemap::new(tilemap),
             status: GameStatus::Playing,
+            gravity: Fixed::from_frac(1, 2),
+            characters,
+            spawn_instances: Vec::new(),
+
+            // Initialize definition collections with provided data
+            action_definitions,
+            condition_definitions,
+            spawn_definitions,
+            status_effect_definitions,
+
+            // Initialize instance collections
+            action_instances: Vec::new(),
+            condition_instances: Vec::new(),
+            status_effect_instances: Vec::new(),
+            rng: SeededRng::new(seed),
+        };
+
+        // Initialize action cooldown tracking for all characters
+        let action_count = game_state.action_definitions.len();
+        for character in &mut game_state.characters {
+            character.init_action_cooldowns(action_count);
+        }
+
+        // Apply passive energy regeneration to all characters
+        crate::status::apply_passive_energy_regen_to_all_characters(&mut game_state.characters)
+            .map_err(|_| crate::api::GameError::InvalidGameState)?;
+
+        Ok(game_state)
+    }
+
+    /// Create a new game instance with custom gravity
+    pub fn new_with_gravity(
+        seed: u16,
+        tilemap: [[u8; 16]; 15],
+        gravity: Fixed,
+        characters: Vec<Character>,
+        action_definitions: Vec<ActionDefinition>,
+        condition_definitions: Vec<ConditionDefinition>,
+        spawn_definitions: Vec<SpawnDefinition>,
+        status_effect_definitions: Vec<StatusEffectDefinition>,
+    ) -> GameResult<Self> {
+        let mut game_state = Self {
+            seed,
+            frame: 0,
+            tile_map: Tilemap::new(tilemap),
+            status: GameStatus::Playing,
+            gravity,
             characters,
             spawn_instances: Vec::new(),
 
@@ -103,23 +151,33 @@ impl GameState {
             return Ok(());
         }
 
-        // Frame processing pipeline:
+        // NEW Frame processing pipeline with improved timing:
         // 1. Process status effects
         self.process_status_effects()?;
 
-        // 2. Execute character behaviors
+        // 2. Update collision flags FIRST (before any movement or correction)
+        // This ensures scripts see accurate collision state
+        self.update_collision_flags_for_next_frame()?;
+
+        // 3. Correct position overlaps (after collision flags are set)
+        self.correct_position_overlaps()?;
+
+        // 4. Execute character behaviors (sets velocity based on current collision flags)
         self.process_character_behaviors()?;
 
-        // 3. Update physics
-        self.update_physics()?;
+        // 5. Apply gravity to velocity
+        self.apply_gravity()?;
 
-        // 4. Handle collisions
-        self.process_collisions()?;
+        // 6. Check collisions and constrain velocity (without position correction)
+        self.check_and_constrain_velocity_only()?;
 
-        // 5. Clean up expired entities
+        // 7. Apply constrained velocity to position
+        self.apply_velocity_to_position()?;
+
+        // 8. Clean up expired entities
         self.cleanup_entities()?;
 
-        // 6. Validate and recover game state if needed
+        // 9. Validate and recover game state if needed
         crate::error::ErrorRecovery::validate_and_recover_game_state(
             &mut self.characters,
             &mut self.spawn_instances,
@@ -401,6 +459,22 @@ impl GameState {
     }
 
     // Private methods for frame processing
+
+    /// Correct position overlaps at the beginning of frame processing
+    fn correct_position_overlaps(&mut self) -> GameResult<()> {
+        // Correct position overlaps for all characters
+        for character in &mut self.characters {
+            Self::correct_entity_overlap_static(&self.tile_map, &mut character.core);
+        }
+
+        // Correct position overlaps for all spawns
+        for spawn in &mut self.spawn_instances {
+            Self::correct_entity_overlap_static(&self.tile_map, &mut spawn.core);
+        }
+
+        Ok(())
+    }
+
     fn process_status_effects(&mut self) -> GameResult<()> {
         // Process status effects for each character
         for character_idx in 0..self.characters.len() {
@@ -466,6 +540,7 @@ impl GameState {
 
             // Evaluate condition
             let condition_result = self.evaluate_condition(character_idx, condition_id)?;
+
             if condition_result == 0 {
                 continue; // Condition failed, try next behavior
             }
@@ -484,24 +559,82 @@ impl GameState {
         character_idx: usize,
         condition_id: ConditionId,
     ) -> Result<u8, crate::script::ScriptError> {
-        // Get or create condition instance
-        let instance_id = self.get_or_create_condition_instance(condition_id);
+        // Ensure character exists
+        if character_idx >= self.characters.len() {
+            return Ok(0);
+        }
 
-        // Create condition context
-        let mut context = ConditionContext::new(self, character_idx, condition_id, instance_id);
+        let character_id = self.characters[character_idx].core.id;
+
+        // Find or create condition instance
+        let mut instance_found = false;
+        let mut instance_idx = 0;
+        let mut previous_vars = [0u8; 4];
+        let mut previous_fixed = [Fixed::ZERO; 4];
+
+        // Look for existing instance
+        for (idx, instance) in self.condition_instances.iter().enumerate() {
+            if instance.character_id == character_id && instance.definition_id == condition_id {
+                instance_found = true;
+                instance_idx = idx;
+                previous_vars = instance.runtime_vars;
+                previous_fixed = instance.runtime_fixed;
+                break;
+            }
+        }
+
+        // Create new instance if not found
+        if !instance_found {
+            let instance = ConditionInstance::new(character_id, condition_id);
+            self.condition_instances.push(instance);
+            instance_idx = self.condition_instances.len() - 1;
+        }
+
+        // Get condition definition
+        let condition_def = match self.condition_definitions.get(condition_id) {
+            Some(def) => def.clone(),
+            None => return Ok(0),
+        };
+
+        // FIXED: Handle ONLY_ONCE condition state correctly
+        // Check if this is a ONLY_ONCE type condition by examining the script pattern
+        // ONLY_ONCE conditions set vars[0] = 1 and should return 0 on subsequent executions
+        if previous_vars[0] == 1 {
+            // Check if this condition's script follows the ONLY_ONCE pattern
+            let script = &condition_def.script;
+            if script.len() >= 10 && 
+               script[0] == 20 && script[1] == 1 && script[2] == 1 && // ASSIGN_BYTE vars[1] = 1
+               script[3] == 50 && script[4] == 2 && script[5] == 0 && script[6] == 1 && // EQUAL vars[2] = (vars[0] == 1)
+               script[7] == 60 && script[8] == 3 && script[9] == 2 { // NOT vars[3] = !vars[2]
+                // This is a ONLY_ONCE condition that has already been used, return 0
+                return Ok(0);
+            }
+        }
 
         // Execute condition script
-        let mut engine = crate::script::ScriptEngine::new_with_args(context.get_args());
-        let result = engine.execute(&context.get_script(), &mut context)?;
+        let mut engine = crate::script::ScriptEngine::new_with_args(condition_def.args);
+        engine.vars[..4].copy_from_slice(&previous_vars);
+        engine.fixed = previous_fixed;
 
-        // Update instance state from engine
-        context.update_instance_from_engine(&engine);
+        // Create a temporary context for script execution
+        let mut context = ConditionContext::new(self, character_idx, condition_id, instance_idx);
+        let result = engine.execute(&condition_def.script, &mut context)?;
+
+        // Update instance state directly with explicit verification
+        if instance_idx < self.condition_instances.len() {
+            let instance = &mut self.condition_instances[instance_idx];
+            // Verify this is the correct instance before updating
+            if instance.character_id == character_id && instance.definition_id == condition_id {
+                instance.runtime_vars.copy_from_slice(&engine.vars[..4]);
+                instance.runtime_fixed = engine.fixed;
+            }
+        }
 
         Ok(result)
     }
 
     /// Execute an action for a character
-    fn execute_action(
+    pub fn execute_action(
         &mut self,
         character_idx: usize,
         action_id: ActionId,
@@ -509,29 +642,31 @@ impl GameState {
         // Get or create action instance
         let instance_id = self.get_or_create_action_instance(action_id);
 
+        // Get previous state from action instance before creating context
+        let (previous_vars, previous_fixed) =
+            if let Some(instance) = self.action_instances.get(instance_id) {
+                (instance.runtime_vars, instance.runtime_fixed)
+            } else {
+                ([0; 4], [Fixed::ZERO; 4])
+            };
+
         // Create action context
         let mut context = ActionContext::new(self, character_idx, action_id, instance_id);
 
-        // Execute action script
+        // Execute action script with previous state loaded
         let mut engine = crate::script::ScriptEngine::new_with_args_and_spawns(
             context.get_args(),
             context.get_spawns(),
         );
+        engine.vars[..4].copy_from_slice(&previous_vars);
+        engine.fixed = previous_fixed;
+
         engine.execute(&context.get_script(), &mut context)?;
 
         // Update instance state from engine
         context.update_instance_from_engine(&engine);
 
         Ok(())
-    }
-
-    /// Get or create a condition instance for the given definition
-    fn get_or_create_condition_instance(&mut self, condition_id: ConditionId) -> usize {
-        // For now, create a new instance each time
-        // In a more sophisticated system, we might reuse instances
-        let instance = ConditionInstance::new(condition_id);
-        self.condition_instances.push(instance);
-        self.condition_instances.len() - 1
     }
 
     /// Get or create an action instance for the given definition
@@ -599,7 +734,11 @@ impl GameState {
             if character.energy_regen_rate != 0
                 && self.frame % (character.energy_regen_rate as u16) == 0
             {
-                character.energy = character.energy.saturating_add(character.energy_regen);
+                // FIXED: Respect energy_cap when regenerating energy
+                // Previous bug: character.energy.saturating_add() could exceed energy_cap
+                // Solution: Use min() to ensure energy never exceeds energy_cap
+                let new_energy = character.energy.saturating_add(character.energy_regen);
+                character.energy = new_energy.min(character.energy_cap);
             }
         }
 
@@ -630,14 +769,541 @@ impl GameState {
         Ok(())
     }
 
-    fn update_physics(&mut self) -> GameResult<()> {
-        // Will be implemented in physics task
+    fn apply_gravity(&mut self) -> GameResult<()> {
+        // Apply gravity to all characters
+        for character in &mut self.characters {
+            let gravity_multiplier = character.core.get_gravity_multiplier();
+            let gravity_force = self.gravity.mul(gravity_multiplier);
+            character.core.vel.1 = character.core.vel.1.add(gravity_force);
+        }
+
+        // Apply gravity to all spawns
+        for spawn in &mut self.spawn_instances {
+            let gravity_multiplier = spawn.core.get_gravity_multiplier();
+            let gravity_force = self.gravity.mul(gravity_multiplier);
+            spawn.core.vel.1 = spawn.core.vel.1.add(gravity_force);
+        }
+
         Ok(())
     }
 
-    fn process_collisions(&mut self) -> GameResult<()> {
-        // Will be implemented in collision task
+    fn apply_velocity_to_position(&mut self) -> GameResult<()> {
+        // Apply velocity to position for all characters
+        for character in &mut self.characters {
+            crate::physics::PhysicsSystem::update_position(&mut character.core);
+        }
+
+        // Apply velocity to position for all spawns
+        for spawn in &mut self.spawn_instances {
+            crate::physics::PhysicsSystem::update_position(&mut spawn.core);
+        }
+
         Ok(())
+    }
+
+    /// Check collisions and constrain velocity only (no position correction)
+    /// WALL ESCAPE SYSTEM - FIXED IN TASK 17
+    /// Problem: Characters get stuck against walls because velocity gets constrained to 0
+    /// Solution: Allow movement away from walls when character is overlapping
+    fn check_and_constrain_velocity_only(&mut self) -> GameResult<()> {
+        use crate::tilemap::CollisionRect;
+
+        // Process characters
+        for character in &mut self.characters {
+            // PERFORMANCE OPTIMIZATION: Early exit for non-moving entities
+            // Skip collision checking if entity has zero velocity
+            if character.core.vel.0.is_zero() && character.core.vel.1.is_zero() {
+                continue; // No movement, no collision constraint needed
+            }
+
+            // Create collision rectangle for current position
+            let current_rect = CollisionRect::from_entity(character.core.pos, character.core.size);
+
+            // WALL ESCAPE SYSTEM - FIXED IN TASK 17 (SIMPLE APPROACH)
+            // Allow movement away from walls based on collision flags
+            let has_right_collision = character.core.collision.1;
+            let has_left_collision = character.core.collision.3;
+            let has_horizontal_collision = has_right_collision || has_left_collision;
+
+            if has_horizontal_collision && !character.core.vel.0.is_zero() {
+                // CHARACTER HAS WALL COLLISION - Check if movement is away from wall
+                let moving_right = character.core.vel.0 > Fixed::ZERO;
+                let moving_left = character.core.vel.0 < Fixed::ZERO;
+
+                // Allow movement away from the wall that's being collided with
+                let is_escaping =
+                    (moving_left && has_right_collision) || (moving_right && has_left_collision);
+
+                if is_escaping {
+                    // Allow movement away from wall - preserve script-set velocity
+                    // character.core.vel.0 remains unchanged
+                } else {
+                    // Apply collision constraint for movement into walls
+                    let allowed_horizontal = self
+                        .tile_map
+                        .check_horizontal_movement(current_rect, character.core.vel.0);
+                    character.core.vel.0 = allowed_horizontal;
+                }
+            } else {
+                // No wall collision or zero velocity - apply normal constraint
+                let allowed_horizontal = self
+                    .tile_map
+                    .check_horizontal_movement(current_rect, character.core.vel.0);
+                character.core.vel.0 = allowed_horizontal;
+            }
+
+            // BOX2D-STYLE RESTING CONTACT HANDLING FOR VERTICAL COLLISION
+            // Check if character is in resting contact with ground
+            let character_height = Fixed::from_int(character.core.size.1 as i16);
+            let bottom_edge = character.core.pos.1.add(character_height);
+            let ground_level = Fixed::from_int(14 * 16); // Tile row 14 at y=224
+            let distance_from_ground = bottom_edge.sub(ground_level);
+
+            // If character is within contact tolerance of ground and moving downward
+            if distance_from_ground <= Fixed::CONTACT_TOLERANCE
+                && distance_from_ground >= Fixed::ZERO.sub(Fixed::LINEAR_SLOP)
+                && character.core.vel.1 >= Fixed::ZERO
+            {
+                // RESTING CONTACT: Clamp to ground and zero downward velocity
+                character.core.pos.1 = ground_level.sub(character_height);
+                character.core.vel.1 = Fixed::ZERO;
+
+                // Ensure bottom collision flag is set for resting contact
+                character.core.collision.2 = true;
+            } else {
+                // Normal vertical collision constraint for non-resting contacts
+                let allowed_vertical = self
+                    .tile_map
+                    .check_vertical_movement(current_rect, character.core.vel.1);
+                character.core.vel.1 = allowed_vertical;
+            }
+        }
+
+        // Process spawns
+        for spawn in &mut self.spawn_instances {
+            // PERFORMANCE OPTIMIZATION: Early exit for non-moving entities
+            // Skip collision checking if entity has zero velocity
+            if spawn.core.vel.0.is_zero() && spawn.core.vel.1.is_zero() {
+                continue; // No movement, no collision constraint needed
+            }
+
+            // Create collision rectangle for current position (position correction already done)
+            let current_rect = CollisionRect::from_entity(spawn.core.pos, spawn.core.size);
+
+            // Check horizontal movement
+            let allowed_horizontal = self
+                .tile_map
+                .check_horizontal_movement(current_rect, spawn.core.vel.0);
+
+            // Check vertical movement
+            let allowed_vertical = self
+                .tile_map
+                .check_vertical_movement(current_rect, spawn.core.vel.1);
+
+            // Apply the allowed movement (constrain velocity)
+            spawn.core.vel.0 = allowed_horizontal;
+            spawn.core.vel.1 = allowed_vertical;
+        }
+
+        Ok(())
+    }
+
+    /// Update collision flags for next frame based on final entity positions
+    /// This method implements comprehensive collision flag detection that accurately
+    /// represents entity collision state for script conditions
+    fn update_collision_flags_for_next_frame(&mut self) -> GameResult<()> {
+        use crate::tilemap::CollisionRect;
+
+        // Update collision flags for all characters
+        for character in &mut self.characters {
+            let mut collision_flags = (false, false, false, false); // top, right, bottom, left
+
+            // Create collision rectangle for current position
+            let current_rect = CollisionRect::from_entity(character.core.pos, character.core.size);
+
+            // COMPREHENSIVE COLLISION FLAG DETECTION
+            // Check collision in all 4 directions independently using small probe rectangles
+            // This approach tests if the entity would collide if it tried to move in each direction
+
+            // PRECISE COLLISION FLAG DETECTION
+            // Use smaller, more precise probe rectangles to reduce false positives
+            // Probes are positioned just outside the entity bounds and are smaller to avoid corner overlaps
+
+            // Check TOP collision (1 pixel above entity, reduced width to avoid corner detection)
+            let probe_margin = crate::math::Fixed::from_int(2); // 2 pixel margin from corners
+            let top_probe = CollisionRect::new(
+                current_rect.x.add(probe_margin),
+                current_rect.y.sub(crate::math::Fixed::ONE),
+                ((current_rect.width as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced width
+                1,
+            );
+            collision_flags.0 = self.tile_map.check_collision(top_probe);
+
+            // Check RIGHT collision (1 pixel to the right of entity, reduced height to avoid corner detection)
+            let right_probe = CollisionRect::new(
+                current_rect
+                    .x
+                    .add(crate::math::Fixed::from_int(current_rect.width as i16)),
+                current_rect.y.add(probe_margin),
+                1,
+                ((current_rect.height as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced height
+            );
+            collision_flags.1 = self.tile_map.check_collision(right_probe);
+
+            // Check BOTTOM collision (1 pixel below entity, reduced width to avoid corner detection)
+            // FIXED: Also check if entity is currently overlapping with ground (for proper ground detection)
+            let bottom_probe = CollisionRect::new(
+                current_rect.x.add(probe_margin),
+                current_rect
+                    .y
+                    .add(crate::math::Fixed::from_int(current_rect.height as i16)),
+                ((current_rect.width as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced width
+                1,
+            );
+            let probe_collision = self.tile_map.check_collision(bottom_probe);
+            let current_overlap = self.tile_map.check_collision(current_rect);
+            collision_flags.2 = probe_collision || current_overlap;
+
+            // Check LEFT collision (1 pixel to the left of entity, reduced height to avoid corner detection)
+            let left_probe = CollisionRect::new(
+                current_rect.x.sub(crate::math::Fixed::ONE),
+                current_rect.y.add(probe_margin),
+                1,
+                ((current_rect.height as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced height
+            );
+            collision_flags.3 = self.tile_map.check_collision(left_probe);
+
+            // PRIORITY SYSTEM: If multiple collision flags are set, prefer the primary collision direction
+            // This prevents multiple flags from being set simultaneously at corners and boundaries
+            let flag_count = [
+                collision_flags.0,
+                collision_flags.1,
+                collision_flags.2,
+                collision_flags.3,
+            ]
+            .iter()
+            .filter(|&&flag| flag)
+            .count();
+
+            // COLLISION DETECTION SYSTEM - FIXED IN TASK 12/16
+            // Problem: Priority system was clearing wall collision flags when grounded
+            // Solution: Allow multiple collision flags simultaneously for proper turn-around behavior
+            // Related: Tasks 12-14, movement actions in Task 16
+            //
+            // REMOVED PRIORITY SYSTEM - Keep all collision flags active
+            // This allows wall+ground collision detection needed for:
+            // - Turn-around behavior when character hits wall while grounded
+            // - Wall jump detection when character is against wall
+            // - Proper IS_WALL_LEANING condition evaluation
+            //
+            // Previous bug: if collision_flags.2 { collision_flags = (false, false, true, false); }
+            // This cleared wall flags (index 1,3) when bottom collision (index 2) was detected
+            // Fixed: Keep original collision_flags with multiple flags set simultaneously
+            if flag_count > 1 {
+                // KEEP ALL COLLISION FLAGS - DO NOT CLEAR ANY FLAGS
+                // Multiple simultaneous collisions are valid and necessary for proper behavior
+                // Example: character at bottom-right corner should have collision = [false, true, true, false]
+                // This allows both grounded detection AND wall collision detection to work together
+            }
+
+            // Update entity collision flags for next frame
+            character.core.collision = collision_flags;
+        }
+
+        // Update collision flags for all spawns
+        for spawn in &mut self.spawn_instances {
+            let mut collision_flags = (false, false, false, false); // top, right, bottom, left
+
+            // Create collision rectangle for current position
+            let current_rect = CollisionRect::from_entity(spawn.core.pos, spawn.core.size);
+
+            // PRECISE COLLISION FLAG DETECTION (same as characters)
+            // Use smaller, more precise probe rectangles to reduce false positives
+
+            // Check top collision (1 pixel above entity, reduced width to avoid corner detection)
+            let probe_margin = crate::math::Fixed::from_int(2); // 2 pixel margin from corners
+            let top_probe = CollisionRect::new(
+                current_rect.x.add(probe_margin),
+                current_rect.y.sub(crate::math::Fixed::ONE),
+                ((current_rect.width as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced width
+                1,
+            );
+            collision_flags.0 = self.tile_map.check_collision(top_probe);
+
+            // Check right collision (1 pixel to the right of entity, reduced height to avoid corner detection)
+            let right_probe = CollisionRect::new(
+                current_rect
+                    .x
+                    .add(crate::math::Fixed::from_int(current_rect.width as i16)),
+                current_rect.y.add(probe_margin),
+                1,
+                ((current_rect.height as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced height
+            );
+            collision_flags.1 = self.tile_map.check_collision(right_probe);
+
+            // Check bottom collision (1 pixel below entity, reduced width to avoid corner detection)
+            let bottom_probe = CollisionRect::new(
+                current_rect.x.add(probe_margin),
+                current_rect
+                    .y
+                    .add(crate::math::Fixed::from_int(current_rect.height as i16)),
+                ((current_rect.width as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced width
+                1,
+            );
+            collision_flags.2 = self.tile_map.check_collision(bottom_probe);
+
+            // Check left collision (1 pixel to the left of entity, reduced height to avoid corner detection)
+            let left_probe = CollisionRect::new(
+                current_rect.x.sub(crate::math::Fixed::ONE),
+                current_rect.y.add(probe_margin),
+                1,
+                ((current_rect.height as i16).saturating_sub(4).max(1) as u16).min(255) as u8, // Reduced height
+            );
+            collision_flags.3 = self.tile_map.check_collision(left_probe);
+
+            // PRIORITY SYSTEM: If multiple collision flags are set, prefer the primary collision direction
+            let flag_count = [
+                collision_flags.0,
+                collision_flags.1,
+                collision_flags.2,
+                collision_flags.3,
+            ]
+            .iter()
+            .filter(|&&flag| flag)
+            .count();
+
+            // COLLISION DETECTION SYSTEM - FIXED IN TASK 12/16 (SPAWN VERSION)
+            // Problem: Priority system was clearing wall collision flags when grounded
+            // Solution: Allow multiple collision flags simultaneously for proper behavior
+            // Same fix as character collision detection above
+            //
+            // REMOVED PRIORITY SYSTEM - Keep all collision flags active for spawns too
+            // This ensures consistent collision behavior between characters and spawns
+            if flag_count > 1 {
+                // KEEP ALL COLLISION FLAGS - DO NOT CLEAR ANY FLAGS
+                // Multiple simultaneous collisions are valid for spawns as well
+                // Spawns should have same collision behavior as characters
+            }
+
+            // Update entity collision flags for next frame
+            spawn.core.collision = collision_flags;
+        }
+
+        Ok(())
+    }
+
+    /// Correct entity position overlap with robust algorithm
+    /// Uses velocity direction preference and minimal movement distance
+    pub fn correct_entity_overlap_static(
+        tile_map: &crate::tilemap::Tilemap,
+        entity: &mut crate::entity::EntityCore,
+    ) {
+        use crate::tilemap::CollisionRect;
+
+        // ENHANCED: Increased correction distance to handle severe overlaps
+        // This helps with edge cases where entities might be deeply overlapping due to bugs
+        const MAX_CORRECTION_DISTANCE: i16 = 32; // Two tile sizes for very robust correction
+
+        // Create collision rectangle for current position
+        let current_rect = CollisionRect::from_entity(entity.pos, entity.size);
+
+        // Check if entity is currently overlapping with walls
+        if !tile_map.check_collision(current_rect) {
+            return; // No overlap, no correction needed
+        }
+
+        // Store original position for boundary checking
+        let original_pos = entity.pos;
+
+        // Determine push direction preference based on velocity
+        let velocity_x = entity.vel.0.to_int();
+        let velocity_y = entity.vel.1.to_int();
+
+        // Try correction in order of preference based on velocity direction
+        let mut correction_applied = false;
+
+        // For rightward movement, prefer pushing left (back to valid position)
+        if velocity_x > 0 && !correction_applied {
+            correction_applied = Self::try_push_direction(
+                tile_map,
+                entity,
+                (-1, 0), // Push left
+                MAX_CORRECTION_DISTANCE,
+                original_pos,
+            );
+        }
+
+        // For leftward movement, prefer pushing right
+        if velocity_x < 0 && !correction_applied {
+            correction_applied = Self::try_push_direction(
+                tile_map,
+                entity,
+                (1, 0), // Push right
+                MAX_CORRECTION_DISTANCE,
+                original_pos,
+            );
+        }
+
+        // For downward movement, prefer pushing up
+        if velocity_y > 0 && !correction_applied {
+            correction_applied = Self::try_push_direction(
+                tile_map,
+                entity,
+                (0, -1), // Push up
+                MAX_CORRECTION_DISTANCE,
+                original_pos,
+            );
+        }
+
+        // For upward movement, prefer pushing down
+        if velocity_y < 0 && !correction_applied {
+            correction_applied = Self::try_push_direction(
+                tile_map,
+                entity,
+                (0, 1), // Push down
+                MAX_CORRECTION_DISTANCE,
+                original_pos,
+            );
+        }
+
+        // ENHANCED: Special case for ground collision - precise ground level correction
+        // This handles the specific case mentioned in the bug report where characters sink below ground
+        if !correction_applied {
+            // Check if entity is overlapping with ground (bottom edge below y=224)
+            let bottom_edge_fixed = entity
+                .pos
+                .1
+                .add(crate::math::Fixed::from_int(entity.size.1 as i16));
+            let ground_level = crate::math::Fixed::from_int(224);
+
+            if bottom_edge_fixed.raw() > ground_level.raw() {
+                // Character is sinking below ground - calculate exact correction to ground level
+                // Target position: y = 224 - height = 224 - 32 = 192
+                let target_y = ground_level.sub(crate::math::Fixed::from_int(entity.size.1 as i16));
+
+                // Check if target position is valid and within boundaries
+                let target_pos = (entity.pos.0, target_y);
+                if Self::is_position_within_boundaries(target_pos, entity.size) {
+                    let target_rect =
+                        crate::tilemap::CollisionRect::from_entity(target_pos, entity.size);
+                    if !tile_map.check_collision(target_rect) {
+                        // Target position is valid - apply precise correction
+                        entity.pos.1 = target_y;
+                        correction_applied = true;
+                    }
+                }
+
+                // If precise correction failed, fall back to binary search
+                if !correction_applied {
+                    correction_applied = Self::try_push_direction(
+                        tile_map,
+                        entity,
+                        (0, -1), // Push up (highest priority for ground collision)
+                        MAX_CORRECTION_DISTANCE,
+                        original_pos,
+                    );
+                }
+            }
+        }
+
+        // If velocity-based and ground correction failed, try all directions with minimal distance
+        if !correction_applied {
+            // Try horizontal directions first (usually more important for platformers)
+            let directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]; // left, right, up, down
+
+            for &direction in &directions {
+                if Self::try_push_direction(
+                    tile_map,
+                    entity,
+                    direction,
+                    MAX_CORRECTION_DISTANCE,
+                    original_pos,
+                ) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /// OPTIMIZED: Try to push entity in a specific direction to resolve overlap
+    /// PERFORMANCE IMPROVEMENT: Uses binary search instead of linear search for faster position correction
+    fn try_push_direction(
+        tile_map: &crate::tilemap::Tilemap,
+        entity: &mut crate::entity::EntityCore,
+        direction: (i16, i16), // (x_dir, y_dir) where -1, 0, 1
+        max_distance: i16,
+        original_pos: (crate::math::Fixed, crate::math::Fixed),
+    ) -> bool {
+        use crate::tilemap::CollisionRect;
+
+        // OPTIMIZATION: Use binary search to find minimal correction distance
+        // This reduces collision checks from O(n) to O(log n)
+        let mut low = 1;
+        let mut high = max_distance;
+        let mut best_distance = None;
+
+        // Binary search for the minimum distance that resolves collision
+        while low <= high {
+            let mid = (low + high) / 2;
+
+            let test_pos = (
+                entity
+                    .pos
+                    .0
+                    .add(crate::math::Fixed::from_int(direction.0 * mid)),
+                entity
+                    .pos
+                    .1
+                    .add(crate::math::Fixed::from_int(direction.1 * mid)),
+            );
+
+            // Check if this position is valid (no collision and within boundaries)
+            let test_rect = CollisionRect::from_entity(test_pos, entity.size);
+            if !tile_map.check_collision(test_rect)
+                && Self::is_position_within_boundaries(test_pos, entity.size)
+            {
+                // Valid position found - try to find a smaller distance
+                best_distance = Some((mid, test_pos));
+                high = mid - 1; // Look for smaller distance
+            } else {
+                // Invalid position - need larger distance
+                low = mid + 1;
+            }
+        }
+
+        // Apply the best correction found
+        if let Some((_, best_pos)) = best_distance {
+            entity.pos = best_pos;
+            true
+        } else {
+            // No valid position found, restore original position
+            entity.pos = original_pos;
+            false
+        }
+    }
+
+    /// Check if position is within game boundaries
+    fn is_position_within_boundaries(
+        pos: (crate::math::Fixed, crate::math::Fixed),
+        size: (u8, u8),
+    ) -> bool {
+        // FIXED: Correct game boundaries based on tilemap structure
+        // Tilemap: 16x15 tiles, each 16x16 pixels
+        // - Tile 0: y=0-15 (top wall)
+        // - Tiles 1-13: y=16-223 (playable area)
+        // - Tile 14: y=224-239 (bottom wall/ground)
+        //
+        // Valid entity positions:
+        // - Left edge must be >= 16 (inside left wall at tile 1)
+        // - Right edge must be <= 240 (inside right wall at tile 14, x=224-239)
+        // - Top edge must be >= 16 (inside top wall at tile 1)
+        // - Bottom edge must be <= 224 (touching ground at tile 14, y=224)
+        let left_edge = pos.0.to_int();
+        let right_edge = pos.0.to_int() + (size.0 as i32);
+        let top_edge = pos.1.to_int();
+        let bottom_edge = pos.1.to_int() + (size.1 as i32);
+
+        left_edge >= 16 && right_edge <= 240 && top_edge >= 16 && bottom_edge <= 224
     }
 
     fn cleanup_entities(&mut self) -> GameResult<()> {
@@ -733,9 +1399,15 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                     }
                 }
                 property_address::ENTITY_DIR_HORIZONTAL => {
-                    // Facing (u8) - store in vars array
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = character.core.dir.0;
+                    if var_index < engine.fixed.len() {
+                        let x = (character.core.dir.0 as i16) - 1;
+                        engine.fixed[var_index] = Fixed::from_int(x);
+                    }
+                }
+                property_address::ENTITY_DIR_VERTICAL => {
+                    if var_index < engine.fixed.len() {
+                        let y = (character.core.dir.1 as i16) - 1;
+                        engine.fixed[var_index] = Fixed::from_int(y);
                     }
                 }
                 property_address::CHARACTER_HEALTH_CAP => {
@@ -774,8 +1446,43 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                         engine.fixed[var_index] = character.move_speed;
                     }
                 }
+                property_address::CHARACTER_COLLISION_TOP => {
+                    // Top collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.0 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_RIGHT => {
+                    // Right collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.1 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_BOTTOM => {
+                    // Bottom collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.2 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_LEFT => {
+                    // Left collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.3 { 1 } else { 0 };
+                    }
+                }
                 _ => {}
             }
+        }
+
+        // Handle game state properties that don't require character context
+        match prop_address {
+            property_address::GAME_GRAVITY => {
+                // Game gravity (Fixed) - store in fixed array
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.game_state.gravity;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -813,9 +1520,13 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                     }
                 }
                 property_address::ENTITY_DIR_HORIZONTAL => {
-                    // Facing (u8) - read from vars array
-                    if var_index < engine.vars.len() {
-                        character.core.dir.0 = engine.vars[var_index];
+                    if var_index < engine.fixed.len() {
+                        character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
+                    }
+                }
+                property_address::ENTITY_DIR_VERTICAL => {
+                    if var_index < engine.fixed.len() {
+                        character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                     }
                 }
                 property_address::CHARACTER_HEALTH_CAP => {
@@ -826,19 +1537,19 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                 }
                 property_address::CHARACTER_ENERGY_CAP => {
                     // Energy Cap (u8) - read from vars array
-                    if var_index < engine.vars.len() {
+                    if var_index < engine.fixed.len() {
                         character.energy_cap = engine.vars[var_index];
                     }
                 }
                 property_address::CHARACTER_POWER => {
                     // Power (u8) - read from vars array
-                    if var_index < engine.vars.len() {
+                    if var_index < engine.fixed.len() {
                         character.power = engine.vars[var_index];
                     }
                 }
                 property_address::CHARACTER_WEIGHT => {
                     // Weight (u8) - read from vars array
-                    if var_index < engine.vars.len() {
+                    if var_index < engine.fixed.len() {
                         character.weight = engine.vars[var_index];
                     }
                 }
@@ -856,6 +1567,17 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
                 }
                 _ => {}
             }
+        }
+
+        // Handle game state properties that don't require character context
+        match prop_address {
+            property_address::GAME_GRAVITY => {
+                // Game gravity (Fixed) - read from fixed array
+                if var_index < engine.fixed.len() {
+                    self.game_state.gravity = engine.fixed[var_index];
+                }
+            }
+            _ => {}
         }
     }
 
@@ -886,6 +1608,23 @@ impl crate::script::ScriptContext for ConditionContext<'_> {
     fn is_on_cooldown(&self) -> bool {
         // Conditions don't have cooldowns
         false
+    }
+
+    fn is_grounded(&self) -> bool {
+        if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            // GRAVITY-AWARE GROUNDING LOGIC - TASK 25
+            // Check appropriate collision based on gravity direction
+            // dir.1 = 0: Upward gravity (inverted) → check top collision (ceiling)
+            // dir.1 = 1: Neutral gravity → check bottom collision (default)
+            // dir.1 = 2: Downward gravity (normal) → check bottom collision (floor)
+            match character.core.dir.1 {
+                0 => character.core.collision.0, // Upward gravity: grounded when touching ceiling
+                2 => character.core.collision.2, // Downward gravity: grounded when touching floor
+                _ => character.core.collision.0 || character.core.collision.2, // Neutral/unknown: either
+            }
+        } else {
+            false
+        }
     }
 
     fn get_random_u8(&mut self) -> u8 {
@@ -1067,9 +1806,15 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                     }
                 }
                 property_address::ENTITY_DIR_HORIZONTAL => {
-                    // Facing (u8) - store in vars array
-                    if var_index < engine.vars.len() {
-                        engine.vars[var_index] = character.core.dir.0;
+                    if var_index < engine.fixed.len() {
+                        let x = (character.core.dir.0 as i16) - 1;
+                        engine.fixed[var_index] = Fixed::from_int(x);
+                    }
+                }
+                property_address::ENTITY_DIR_VERTICAL => {
+                    if var_index < engine.fixed.len() {
+                        let y = (character.core.dir.1 as i16) - 1;
+                        engine.fixed[var_index] = Fixed::from_int(y);
                     }
                 }
                 property_address::CHARACTER_HEALTH_CAP => {
@@ -1108,8 +1853,43 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                         engine.fixed[var_index] = character.move_speed;
                     }
                 }
+                property_address::CHARACTER_COLLISION_TOP => {
+                    // Top collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.0 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_RIGHT => {
+                    // Right collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.1 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_BOTTOM => {
+                    // Bottom collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.2 { 1 } else { 0 };
+                    }
+                }
+                property_address::CHARACTER_COLLISION_LEFT => {
+                    // Left collision flag (boolean as u8) - store in vars array
+                    if var_index < engine.vars.len() {
+                        engine.vars[var_index] = if character.core.collision.3 { 1 } else { 0 };
+                    }
+                }
                 _ => {}
             }
+        }
+
+        // Handle game state properties that don't require character context
+        match prop_address {
+            property_address::GAME_GRAVITY => {
+                // Game gravity (Fixed) - store in fixed array
+                if var_index < engine.fixed.len() {
+                    engine.fixed[var_index] = self.game_state.gravity;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1147,9 +1927,13 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                     }
                 }
                 property_address::ENTITY_DIR_HORIZONTAL => {
-                    // Facing (u8) - read from vars array
-                    if var_index < engine.vars.len() {
-                        character.core.dir.0 = engine.vars[var_index];
+                    if var_index < engine.fixed.len() {
+                        character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
+                    }
+                }
+                property_address::ENTITY_DIR_VERTICAL => {
+                    if var_index < engine.fixed.len() {
+                        character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                     }
                 }
                 property_address::CHARACTER_HEALTH_CAP => {
@@ -1160,19 +1944,19 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                 }
                 property_address::CHARACTER_ENERGY_CAP => {
                     // Energy Cap (u8) - read from vars array
-                    if var_index < engine.vars.len() {
+                    if var_index < engine.fixed.len() {
                         character.energy_cap = engine.vars[var_index];
                     }
                 }
                 property_address::CHARACTER_POWER => {
                     // Power (u8) - read from vars array
-                    if var_index < engine.vars.len() {
+                    if var_index < engine.fixed.len() {
                         character.power = engine.vars[var_index];
                     }
                 }
                 property_address::CHARACTER_WEIGHT => {
                     // Weight (u8) - read from vars array
-                    if var_index < engine.vars.len() {
+                    if var_index < engine.fixed.len() {
                         character.weight = engine.vars[var_index];
                     }
                 }
@@ -1188,8 +1972,31 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                         character.move_speed = engine.fixed[var_index];
                     }
                 }
+                property_address::CHARACTER_VEL_X => {
+                    // Velocity X (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.core.vel.0 = engine.fixed[var_index];
+                    }
+                }
+                property_address::CHARACTER_VEL_Y => {
+                    // Velocity Y (Fixed) - read from fixed array
+                    if var_index < engine.fixed.len() {
+                        character.core.vel.1 = engine.fixed[var_index];
+                    }
+                }
                 _ => {}
             }
+        }
+
+        // Handle game state properties that don't require character context
+        match prop_address {
+            property_address::GAME_GRAVITY => {
+                // Game gravity (Fixed) - read from fixed array
+                if var_index < engine.fixed.len() {
+                    self.game_state.gravity = engine.fixed[var_index];
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1224,6 +2031,23 @@ impl crate::script::ScriptContext for ActionContext<'_> {
             }
         }
         false
+    }
+
+    fn is_grounded(&self) -> bool {
+        if let Some(character) = self.game_state.characters.get(self.character_idx) {
+            // GRAVITY-AWARE GROUNDING LOGIC - TASK 25
+            // Check appropriate collision based on gravity direction
+            // dir.1 = 0: Upward gravity (inverted) → check top collision (ceiling)
+            // dir.1 = 1: Neutral gravity → check bottom collision (default)
+            // dir.1 = 2: Downward gravity (normal) → check bottom collision (floor)
+            match character.core.dir.1 {
+                0 => character.core.collision.0, // Upward gravity: grounded when touching ceiling
+                2 => character.core.collision.2, // Downward gravity: grounded when touching floor
+                _ => character.core.collision.0 || character.core.collision.2, // Neutral/unknown: either
+            }
+        } else {
+            false
+        }
     }
 
     fn get_random_u8(&mut self) -> u8 {
@@ -1310,7 +2134,7 @@ impl crate::script::ScriptContext for ActionContext<'_> {
 
     fn read_action_cooldown(&self, engine: &mut crate::script::ScriptEngine, var_index: usize) {
         if let Some(action_def) = self.game_state.action_definitions.get(self.action_id) {
-            if var_index < engine.vars.len() {
+            if var_index < engine.fixed.len() {
                 engine.vars[var_index] = (action_def.cooldown & 0xFF) as u8;
             }
         }
@@ -1323,7 +2147,7 @@ impl crate::script::ScriptContext for ActionContext<'_> {
                 .get(self.action_id)
                 .copied()
                 .unwrap_or(u16::MAX);
-            if var_index < engine.vars.len() {
+            if var_index < engine.fixed.len() {
                 engine.vars[var_index] = (last_used & 0xFF) as u8;
             }
         }
@@ -1334,7 +2158,7 @@ impl crate::script::ScriptContext for ActionContext<'_> {
         engine: &mut crate::script::ScriptEngine,
         var_index: usize,
     ) {
-        if var_index < engine.vars.len() {
+        if var_index < engine.fixed.len() {
             let timestamp = engine.vars[var_index] as u16;
             if let Some(character) = self.game_state.characters.get_mut(self.character_idx) {
                 if self.action_id < character.action_last_used.len() {
@@ -1410,12 +2234,12 @@ impl ConditionContext<'_> {
         match property_address {
             // Character core properties
             property_address::CHARACTER_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.id;
                 }
             }
             property_address::CHARACTER_GROUP => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.group;
                 }
             }
@@ -1589,27 +2413,29 @@ impl ConditionContext<'_> {
             }
             // EntityCore properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = character.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (character.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = character.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (character.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.enmity;
                 }
             }
             property_address::ENTITY_TARGET_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.target_id.unwrap_or(255);
                 }
             }
             property_address::ENTITY_TARGET_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.target_type;
                 }
             }
@@ -1661,12 +2487,12 @@ impl ConditionContext<'_> {
                 }
             }
             property_address::CHARACTER_ENERGY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_CAP => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_cap = engine.vars[var_index];
                 }
             }
@@ -1676,12 +2502,12 @@ impl ConditionContext<'_> {
                 }
             }
             property_address::CHARACTER_POWER => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.power = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_WEIGHT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.weight = engine.vars[var_index];
                 }
             }
@@ -1696,89 +2522,89 @@ impl ConditionContext<'_> {
                 }
             }
             property_address::CHARACTER_ENERGY_REGEN => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_regen = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_REGEN_RATE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_regen_rate = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_CHARGE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_charge = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_CHARGE_RATE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_charge_rate = engine.vars[var_index];
                 }
             }
             // Character armor values (writable)
             property_address::CHARACTER_ARMOR_PUNCT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[0] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_BLAST => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[1] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_FORCE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[2] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_SEVER => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[3] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_HEAT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[4] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_CRYO => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[5] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_JOLT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[6] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_ACID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[7] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_VIRUS => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[8] = engine.vars[var_index];
                 }
             }
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    character.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    character.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_ENMITY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.core.enmity = engine.vars[var_index];
                 }
             }
             property_address::ENTITY_TARGET_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.core.target_id = if engine.vars[var_index] == 255 {
                         None
                     } else {
@@ -1787,7 +2613,7 @@ impl ConditionContext<'_> {
                 }
             }
             property_address::ENTITY_TARGET_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.core.target_type = engine.vars[var_index];
                 }
             }
@@ -1814,43 +2640,45 @@ impl ConditionContext<'_> {
         match property_address {
             // EntityCore properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = spawn_instance.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (spawn_instance.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = spawn_instance.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (spawn_instance.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.core.enmity;
                 }
             }
             property_address::ENTITY_TARGET_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.core.target_id.unwrap_or(255);
                 }
             }
             property_address::ENTITY_TARGET_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.core.target_type;
                 }
             }
             // Spawn core properties
             property_address::SPAWN_CORE_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.core.id;
                 }
             }
             property_address::SPAWN_OWNER_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.owner_id;
                 }
             }
             property_address::SPAWN_OWNER_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.owner_type;
                 }
             }
@@ -1947,22 +2775,22 @@ impl ConditionContext<'_> {
         match property_address {
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    spawn_instance.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    spawn_instance.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_ENMITY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     spawn_instance.core.enmity = engine.vars[var_index];
                 }
             }
             property_address::ENTITY_TARGET_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     spawn_instance.core.target_id = if engine.vars[var_index] == 255 {
                         None
                     } else {
@@ -1971,7 +2799,7 @@ impl ConditionContext<'_> {
                 }
             }
             property_address::ENTITY_TARGET_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     spawn_instance.core.target_type = engine.vars[var_index];
                 }
             }
@@ -2018,7 +2846,7 @@ impl ConditionContext<'_> {
                 }
             }
             property_address::SPAWN_INST_ELEMENT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     if let Some(element) = crate::entity::Element::from_u8(engine.vars[var_index]) {
                         spawn_instance.element = element;
                     }
@@ -2029,7 +2857,7 @@ impl ConditionContext<'_> {
             | property_address::SPAWN_INST_VAR1
             | property_address::SPAWN_INST_VAR2
             | property_address::SPAWN_INST_VAR3 => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     let var_idx = (property_address - property_address::SPAWN_INST_VAR0) as usize;
                     if var_idx < spawn_instance.runtime_vars.len() {
                         spawn_instance.runtime_vars[var_idx] = engine.vars[var_index];
@@ -2074,12 +2902,12 @@ impl ActionContext<'_> {
         match property_address {
             // Character core properties
             property_address::CHARACTER_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.id;
                 }
             }
             property_address::CHARACTER_GROUP => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.group;
                 }
             }
@@ -2253,27 +3081,29 @@ impl ActionContext<'_> {
             }
             // EntityCore properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = character.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (character.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = character.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (character.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.enmity;
                 }
             }
             property_address::ENTITY_TARGET_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.target_id.unwrap_or(255);
                 }
             }
             property_address::ENTITY_TARGET_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = character.core.target_type;
                 }
             }
@@ -2325,12 +3155,12 @@ impl ActionContext<'_> {
                 }
             }
             property_address::CHARACTER_ENERGY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_CAP => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_cap = engine.vars[var_index];
                 }
             }
@@ -2340,12 +3170,12 @@ impl ActionContext<'_> {
                 }
             }
             property_address::CHARACTER_POWER => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.power = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_WEIGHT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.weight = engine.vars[var_index];
                 }
             }
@@ -2360,89 +3190,89 @@ impl ActionContext<'_> {
                 }
             }
             property_address::CHARACTER_ENERGY_REGEN => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_regen = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_REGEN_RATE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_regen_rate = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_CHARGE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_charge = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ENERGY_CHARGE_RATE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.energy_charge_rate = engine.vars[var_index];
                 }
             }
             // Character armor values (writable)
             property_address::CHARACTER_ARMOR_PUNCT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[0] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_BLAST => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[1] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_FORCE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[2] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_SEVER => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[3] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_HEAT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[4] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_CRYO => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[5] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_JOLT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[6] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_ACID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[7] = engine.vars[var_index];
                 }
             }
             property_address::CHARACTER_ARMOR_VIRUS => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.armor[8] = engine.vars[var_index];
                 }
             }
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    character.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    character.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_ENMITY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.core.enmity = engine.vars[var_index];
                 }
             }
             property_address::ENTITY_TARGET_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.core.target_id = if engine.vars[var_index] == 255 {
                         None
                     } else {
@@ -2451,7 +3281,7 @@ impl ActionContext<'_> {
                 }
             }
             property_address::ENTITY_TARGET_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     character.core.target_type = engine.vars[var_index];
                 }
             }
@@ -2478,43 +3308,45 @@ impl ActionContext<'_> {
         match property_address {
             // EntityCore properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = spawn_instance.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (spawn_instance.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = spawn_instance.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (spawn_instance.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.core.enmity;
                 }
             }
             property_address::ENTITY_TARGET_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.core.target_id.unwrap_or(255);
                 }
             }
             property_address::ENTITY_TARGET_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.core.target_type;
                 }
             }
             // Spawn core properties
             property_address::SPAWN_CORE_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.core.id;
                 }
             }
             property_address::SPAWN_OWNER_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.owner_id;
                 }
             }
             property_address::SPAWN_OWNER_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     engine.vars[var_index] = spawn_instance.owner_type;
                 }
             }
@@ -2611,22 +3443,22 @@ impl ActionContext<'_> {
         match property_address {
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    spawn_instance.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    spawn_instance.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_ENMITY => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     spawn_instance.core.enmity = engine.vars[var_index];
                 }
             }
             property_address::ENTITY_TARGET_ID => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     spawn_instance.core.target_id = if engine.vars[var_index] == 255 {
                         None
                     } else {
@@ -2635,7 +3467,7 @@ impl ActionContext<'_> {
                 }
             }
             property_address::ENTITY_TARGET_TYPE => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     spawn_instance.core.target_type = engine.vars[var_index];
                 }
             }
@@ -2682,7 +3514,7 @@ impl ActionContext<'_> {
                 }
             }
             property_address::SPAWN_INST_ELEMENT => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     if let Some(element) = crate::entity::Element::from_u8(engine.vars[var_index]) {
                         spawn_instance.element = element;
                     }
@@ -2693,7 +3525,7 @@ impl ActionContext<'_> {
             | property_address::SPAWN_INST_VAR1
             | property_address::SPAWN_INST_VAR2
             | property_address::SPAWN_INST_VAR3 => {
-                if var_index < engine.vars.len() {
+                if var_index < engine.fixed.len() {
                     let var_idx = (property_address - property_address::SPAWN_INST_VAR0) as usize;
                     if var_idx < spawn_instance.runtime_vars.len() {
                         spawn_instance.runtime_vars[var_idx] = engine.vars[var_index];

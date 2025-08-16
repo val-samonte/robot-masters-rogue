@@ -133,6 +133,14 @@ impl ScriptEngine {
                 }
             }
 
+            operator_address::EXIT_IF_NOT_GROUNDED => {
+                let exit_flag = self.read_u8(script)?;
+                if !context.is_grounded() {
+                    self.exit_flag = exit_flag;
+                    self.pos = script.len();
+                }
+            }
+
             operator_address::SKIP => {
                 let skip_count = self.read_u8(script)? as usize;
                 self.pos += skip_count;
@@ -316,7 +324,10 @@ impl ScriptEngine {
                 if var_index >= self.vars.len() {
                     return Err(ScriptError::InvalidScript);
                 }
-                self.exit_flag = self.vars[var_index];
+                self.exit_flag = match self.vars[var_index] {
+                    0 => 0,
+                    _ => 1,
+                };
                 self.pos = script.len();
             }
 
@@ -593,6 +604,8 @@ pub trait ScriptContext {
     fn get_current_energy(&self) -> u8;
     /// Check if on cooldown
     fn is_on_cooldown(&self) -> bool;
+    /// Check if character is grounded (touching ground)
+    fn is_grounded(&self) -> bool;
     /// Get random u8 value
     fn get_random_u8(&mut self) -> u8;
     /// Lock action

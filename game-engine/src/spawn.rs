@@ -31,6 +31,7 @@ impl SpawnDefinition {
                 duration: 60,
                 element: None,
                 chance: 100,
+                size: (16, 16), // Default size
                 args: [0; 8],
                 spawns: [0; 4],
                 behavior_script: Vec::new(),
@@ -57,6 +58,7 @@ impl SpawnDefinition {
             duration,
             element,
             chance: 100,
+            size: (16, 16), // Default size
             args: [0; 8],
             spawns: [0; 4],
             behavior_script: Vec::new(),
@@ -79,6 +81,8 @@ impl SpawnDefinition {
             SpawnInstance::new(spawn_id, owner_id, pos)
         };
 
+        // Set size from definition
+        instance.core.size = self.size;
         instance.life_span = self.duration;
         if let Some(vars) = vars {
             instance.runtime_vars = vars;
@@ -312,13 +316,15 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
 
             // Entity direction properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.spawn_instance.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (self.spawn_instance.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.spawn_instance.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (self.spawn_instance.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
 
@@ -407,13 +413,13 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
 
             // Entity direction properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    self.spawn_instance.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    self.spawn_instance.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    self.spawn_instance.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    self.spawn_instance.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
 
@@ -430,6 +436,10 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
         255
     }
     fn is_on_cooldown(&self) -> bool {
+        false
+    }
+    fn is_grounded(&self) -> bool {
+        // Spawns don't have grounding concept, always return false
         false
     }
     fn get_random_u8(&mut self) -> u8 {
@@ -681,13 +691,15 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             }
             // EntityCore properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = character.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (character.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = character.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (character.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -855,13 +867,13 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
             }
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    character.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    character.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -906,13 +918,15 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
         match property_address {
             // EntityCore properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = spawn_instance.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (spawn_instance.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = spawn_instance.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (spawn_instance.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -1039,13 +1053,13 @@ impl ScriptContext for SpawnBehaviorContext<'_> {
         match property_address {
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    spawn_instance.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    spawn_instance.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_ENMITY => {

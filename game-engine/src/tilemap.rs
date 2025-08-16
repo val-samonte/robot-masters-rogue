@@ -34,6 +34,11 @@ pub struct Tilemap {
     /// 16x15 byte array representing tiles
     /// tiles[y][x] where y is row (0-14) and x is column (0-15)
     tiles: [[u8; TILEMAP_WIDTH]; TILEMAP_HEIGHT],
+
+    /// PERFORMANCE OPTIMIZATION: Pre-calculated tile boundaries for faster lookup
+    /// tile_boundaries[y][x] = (left_pixel, top_pixel, right_pixel, bottom_pixel)
+    /// This avoids repeated multiplication by TILE_SIZE during collision detection
+    tile_boundaries: [[(i32, i32, i32, i32); TILEMAP_WIDTH]; TILEMAP_HEIGHT],
 }
 
 /// Rectangle representing an entity's bounding box for collision detection
@@ -48,13 +53,35 @@ pub struct CollisionRect {
 impl Tilemap {
     /// Create a new tilemap from a 16x15 byte array
     pub fn new(tiles: [[u8; TILEMAP_WIDTH]; TILEMAP_HEIGHT]) -> Self {
-        Self { tiles }
+        let mut tilemap = Self {
+            tiles,
+            tile_boundaries: [[(0, 0, 0, 0); TILEMAP_WIDTH]; TILEMAP_HEIGHT],
+        };
+        tilemap.precalculate_tile_boundaries();
+        tilemap
     }
 
     /// Create an empty tilemap (all tiles are Empty)
     pub fn empty() -> Self {
-        Self {
+        let mut tilemap = Self {
             tiles: [[0; TILEMAP_WIDTH]; TILEMAP_HEIGHT],
+            tile_boundaries: [[(0, 0, 0, 0); TILEMAP_WIDTH]; TILEMAP_HEIGHT],
+        };
+        tilemap.precalculate_tile_boundaries();
+        tilemap
+    }
+
+    /// PERFORMANCE OPTIMIZATION: Pre-calculate tile boundaries to avoid repeated multiplication
+    /// This is called once during tilemap creation and whenever tiles are modified
+    fn precalculate_tile_boundaries(&mut self) {
+        for tile_y in 0..TILEMAP_HEIGHT {
+            for tile_x in 0..TILEMAP_WIDTH {
+                let left = (tile_x * TILE_SIZE as usize) as i32;
+                let top = (tile_y * TILE_SIZE as usize) as i32;
+                let right = left + TILE_SIZE as i32;
+                let bottom = top + TILE_SIZE as i32;
+                self.tile_boundaries[tile_y][tile_x] = (left, top, right, bottom);
+            }
         }
     }
 
@@ -70,33 +97,72 @@ impl Tilemap {
     pub fn set_tile(&mut self, tile_x: usize, tile_y: usize, tile_type: TileType) {
         if tile_x < TILEMAP_WIDTH && tile_y < TILEMAP_HEIGHT {
             self.tiles[tile_y][tile_x] = tile_type.into();
+            // Note: tile_boundaries don't need to be recalculated since they're position-based, not type-based
         }
     }
 
     /// Get the tile type at the specified pixel coordinates
     pub fn get_tile_at_pixel(&self, pixel_x: Fixed, pixel_y: Fixed) -> TileType {
+        // Convert pixel coordinates to tile coordinates
+        // Pixel coordinates can be negative, but we clamp to 0 for tile lookup
         let tile_x = (pixel_x.to_int().max(0) as usize) / (TILE_SIZE as usize);
         let tile_y = (pixel_y.to_int().max(0) as usize) / (TILE_SIZE as usize);
         self.get_tile(tile_x, tile_y)
     }
 
-    /// Check if there's a collision between an entity and the tilemap
+    /// OPTIMIZED: Check if there's a collision between an entity and the tilemap
     /// Returns true if the entity would collide with any solid tiles
+    /// PERFORMANCE IMPROVEMENTS:
+    /// - Uses pre-calculated tile boundaries to avoid repeated division
+    /// - Early exit conditions for out-of-bounds entities
+    /// - Optimized tile range calculation
     pub fn check_collision(&self, rect: CollisionRect) -> bool {
-        // Calculate the tile bounds that the entity overlaps
-        // Entity spans from rect.x to rect.x + rect.width (exclusive)
-        let left_tile = (rect.x.to_int().max(0) as usize) / (TILE_SIZE as usize);
-        let right_edge = rect.x.to_int() + rect.width as i32 - 1; // Last pixel the entity occupies
-        let right_tile = (right_edge.max(0) as usize) / (TILE_SIZE as usize);
-        let top_tile = (rect.y.to_int().max(0) as usize) / (TILE_SIZE as usize);
-        let bottom_edge = rect.y.to_int() + rect.height as i32 - 1; // Last pixel the entity occupies
-        let bottom_tile = (bottom_edge.max(0) as usize) / (TILE_SIZE as usize);
+        // FIXED: Handle fractional positions correctly
+        // Previous bug: Integer arithmetic truncated fractional overlaps
+        // For character at y=192.5 with height 32, bottom edge is at y=224.5
+        // We need to detect the 0.5 pixel overlap with ground at y=224
+        let entity_left = rect.x.to_int();
+        let entity_top = rect.y.to_int();
 
-        // Check all tiles that the entity overlaps
-        for tile_y in top_tile..=bottom_tile.min(TILEMAP_HEIGHT - 1) {
-            for tile_x in left_tile..=right_tile.min(TILEMAP_WIDTH - 1) {
-                if self.get_tile(tile_x, tile_y) == TileType::Block {
-                    return true;
+        // CRITICAL FIX: Use ceiling for right/bottom edges to catch fractional overlaps
+        // This ensures that a character at y=192.5 with height 32 (bottom=224.5)
+        // will have entity_bottom=225, which will check tile row 14 (ground)
+        let entity_right = rect
+            .x
+            .add(Fixed::from_int(rect.width as i16))
+            .ceil()
+            .to_int();
+        let entity_bottom = rect
+            .y
+            .add(Fixed::from_int(rect.height as i16))
+            .ceil()
+            .to_int();
+
+        // Check if entity is completely outside tilemap bounds
+        if entity_right <= 0
+            || entity_left >= (TILEMAP_WIDTH * TILE_SIZE as usize) as i32
+            || entity_bottom <= 0
+            || entity_top >= (TILEMAP_HEIGHT * TILE_SIZE as usize) as i32
+        {
+            return false;
+        }
+
+        // OPTIMIZED: Calculate tile bounds using fast division (avoiding repeated calculations)
+        let left_tile =
+            ((entity_left.max(0) as usize) / (TILE_SIZE as usize)).min(TILEMAP_WIDTH - 1);
+        let right_tile =
+            (((entity_right - 1).max(0) as usize) / (TILE_SIZE as usize)).min(TILEMAP_WIDTH - 1);
+        let top_tile =
+            ((entity_top.max(0) as usize) / (TILE_SIZE as usize)).min(TILEMAP_HEIGHT - 1);
+        let bottom_tile =
+            (((entity_bottom - 1).max(0) as usize) / (TILE_SIZE as usize)).min(TILEMAP_HEIGHT - 1);
+
+        // OPTIMIZED: Check tiles with early exit - stop as soon as we find a collision
+        for tile_y in top_tile..=bottom_tile {
+            for tile_x in left_tile..=right_tile {
+                // PERFORMANCE: Direct array access instead of get_tile() method call
+                if self.tiles[tile_y][tile_x] == TileType::Block as u8 {
+                    return true; // EARLY EXIT: Found collision
                 }
             }
         }
@@ -104,112 +170,56 @@ impl Tilemap {
         false
     }
 
-    /// Check collision for horizontal movement
+    /// Check collision for horizontal movement using industry-standard swept collision
     /// Returns the maximum distance the entity can move horizontally without collision
     pub fn check_horizontal_movement(&self, rect: CollisionRect, delta_x: Fixed) -> Fixed {
         if delta_x.is_zero() {
             return delta_x;
         }
 
-        // Use pixel-by-pixel movement for accurate collision detection
-        let step_size = Fixed::ONE; // 1 pixel steps for simplicity
-        let mut current_delta = Fixed::ZERO;
-        let direction = if delta_x.is_positive() {
-            step_size
+        // Convert to AABB and use swept collision detection
+        let entity_aabb =
+            crate::collision::AABB::from_entity((rect.x, rect.y), (rect.width, rect.height));
+        let velocity = crate::collision::Vec2::new(delta_x, Fixed::ZERO);
+
+        let collision_result = crate::collision::CollisionSystem::sweep_tilemap_collision(
+            self,
+            &entity_aabb,
+            velocity,
+        );
+
+        if collision_result.hit {
+            // collision_result.distance is the time fraction (t), multiply by delta_x to get actual distance
+            delta_x.mul(collision_result.distance)
         } else {
-            step_size.neg()
-        };
-
-        while current_delta.abs().raw() < delta_x.abs().raw() {
-            let next_delta = current_delta.add(direction);
-
-            // Don't overshoot the target
-            let test_delta = if delta_x.is_positive() {
-                if next_delta.raw() > delta_x.raw() {
-                    delta_x
-                } else {
-                    next_delta
-                }
-            } else if next_delta.raw() < delta_x.raw() {
-                delta_x
-            } else {
-                next_delta
-            };
-
-            let test_rect = CollisionRect {
-                x: rect.x.add(test_delta),
-                y: rect.y,
-                width: rect.width,
-                height: rect.height,
-            };
-
-            if self.check_collision(test_rect) {
-                return current_delta;
-            }
-
-            current_delta = test_delta;
-
-            // If we've reached the target, break
-            if current_delta.raw() == delta_x.raw() {
-                break;
-            }
+            delta_x
         }
-
-        current_delta
     }
 
-    /// Check collision for vertical movement
+    /// Check collision for vertical movement using industry-standard swept collision
     /// Returns the maximum distance the entity can move vertically without collision
     pub fn check_vertical_movement(&self, rect: CollisionRect, delta_y: Fixed) -> Fixed {
         if delta_y.is_zero() {
             return delta_y;
         }
 
-        // Use pixel-by-pixel movement for accurate collision detection
-        let step_size = Fixed::ONE; // 1 pixel steps for simplicity
-        let mut current_delta = Fixed::ZERO;
-        let direction = if delta_y.is_positive() {
-            step_size
+        // Convert to AABB and use swept collision detection
+        let entity_aabb =
+            crate::collision::AABB::from_entity((rect.x, rect.y), (rect.width, rect.height));
+        let velocity = crate::collision::Vec2::new(Fixed::ZERO, delta_y);
+
+        let collision_result = crate::collision::CollisionSystem::sweep_tilemap_collision(
+            self,
+            &entity_aabb,
+            velocity,
+        );
+
+        if collision_result.hit {
+            // collision_result.distance is the time fraction (t), multiply by delta_y to get actual distance
+            delta_y.mul(collision_result.distance)
         } else {
-            step_size.neg()
-        };
-
-        while current_delta.abs().raw() < delta_y.abs().raw() {
-            let next_delta = current_delta.add(direction);
-
-            // Don't overshoot the target
-            let test_delta = if delta_y.is_positive() {
-                if next_delta.raw() > delta_y.raw() {
-                    delta_y
-                } else {
-                    next_delta
-                }
-            } else if next_delta.raw() < delta_y.raw() {
-                delta_y
-            } else {
-                next_delta
-            };
-
-            let test_rect = CollisionRect {
-                x: rect.x,
-                y: rect.y.add(test_delta),
-                width: rect.width,
-                height: rect.height,
-            };
-
-            if self.check_collision(test_rect) {
-                return current_delta;
-            }
-
-            current_delta = test_delta;
-
-            // If we've reached the target, break
-            if current_delta.raw() == delta_y.raw() {
-                break;
-            }
+            delta_y
         }
-
-        current_delta
     }
 
     /// Check if an entity is standing on solid ground

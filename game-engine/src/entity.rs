@@ -73,6 +73,7 @@ pub struct ConditionDefinition {
 #[derive(Debug, Clone)]
 pub struct ConditionInstance {
     pub definition_id: ConditionId,
+    pub character_id: CharacterId, // NEW: Track which character this instance belongs to
     pub runtime_vars: [u8; 4],
     pub runtime_fixed: [Fixed; 4],
 }
@@ -86,7 +87,7 @@ pub struct EntityCore {
     pub vel: (Fixed, Fixed),
     pub size: (u8, u8),
     pub collision: (bool, bool, bool, bool), // top, right, bottom, left
-    pub dir: (u8, u8), // (horizontal: 0=left/1=right, vertical: 0=upward/1=downward)
+    pub dir: (u8, u8), // (horizontal: 0=left/1=neutral/2=right, vertical: 0=upward/1=neutral/2=downward)
     pub enmity: u8,    // Target ordering priority
     pub target_id: Option<EntityId>, // Target entity ID (can be Character or Spawn)
     pub target_type: u8, // Target entity type (1=Character, 2=Spawn)
@@ -103,6 +104,7 @@ pub struct SpawnDefinition {
     pub duration: u16,
     pub element: Option<Element>,
     pub chance: u8,
+    pub size: (u8, u8),  // [width, height] in pixels
     pub args: [u8; 8],   // Passed when calling scripts (read-only)
     pub spawns: [u8; 4], // Spawn IDs
     pub behavior_script: Vec<u8>,
@@ -275,10 +277,15 @@ impl ConditionDefinition {
         Ok(())
     }
 
-    /// Create an instance from this definition
-    pub fn create_instance(&self, definition_id: ConditionId) -> ConditionInstance {
+    /// Create an instance from this definition for a specific character
+    pub fn create_instance(
+        &self,
+        character_id: CharacterId,
+        definition_id: ConditionId,
+    ) -> ConditionInstance {
         ConditionInstance {
             definition_id,
+            character_id,
             runtime_vars: [0; 4],
             runtime_fixed: [Fixed::ZERO; 4],
         }
@@ -286,10 +293,11 @@ impl ConditionDefinition {
 }
 
 impl ConditionInstance {
-    /// Create a new condition instance
-    pub fn new(definition_id: ConditionId) -> Self {
+    /// Create a new condition instance for a specific character
+    pub fn new(character_id: CharacterId, definition_id: ConditionId) -> Self {
         Self {
             definition_id,
+            character_id,
             runtime_vars: [0; 4],
             runtime_fixed: [Fixed::ZERO; 4],
         }
@@ -303,48 +311,65 @@ impl EntityCore {
             group,
             pos: (Fixed::ZERO, Fixed::ZERO),
             vel: (Fixed::ZERO, Fixed::ZERO),
-            size: (16, 16), // Default 16x16 pixel size
-            collision: (true, true, true, true),
-            dir: (1, 1),     // Default to right (1) and downward (1)
+            size: (0, 0), // Size will be set from configuration
+            collision: (false, false, false, false),
+            dir: (2, 2),     // CORRECTED: Default to right (2) and downward gravity (2)
             enmity: 0,       // Default enmity
             target_id: None, // No target initially
             target_type: 0,  // No target type initially
         }
     }
 
-    /// Get facing direction as Fixed value (-1.0 for left, 1.0 for right)
+    /// Get facing direction as Fixed value (-1.0 for left, 0.0 for neutral, 1.0 for right)
     pub fn get_facing(&self) -> Fixed {
-        if self.dir.0 == 0 {
-            Fixed::from_int(-1) // Left
-        } else {
-            Fixed::from_int(1) // Right
+        match self.dir.0 {
+            0 => Fixed::from_int(-1), // Left
+            1 => Fixed::ZERO,         // Neutral
+            2 => Fixed::from_int(1),  // Right
+            _ => Fixed::ZERO,         // Invalid → Neutral
         }
     }
 
-    /// Set facing direction from Fixed value (-1.0 → left, 1.0 → right)
+    /// Set facing direction from Fixed value (-1.0 → left, 0.0 → neutral, 1.0 → right)
     pub fn set_facing(&mut self, value: Fixed) {
-        if value < Fixed::ZERO {
-            self.dir.0 = 0; // Left
+        let int_value = value.to_int();
+        self.dir.0 = if int_value < 0 {
+            0 // Left
+        } else if int_value > 0 {
+            2 // Right
         } else {
-            self.dir.0 = 1; // Right
+            1 // Neutral
+        };
+    }
+
+    /// Get gravity multiplier based on dir.1 value
+    /// CORRECTED GRAVITY DIRECTION LOGIC (Fixed in Task 1):
+    /// The direction rule is: 0=upward, 1=neutral, 2=downward
+    /// When global gravity is positive (downward force), multipliers should be:
+    /// dir.1 = 0: Upward gravity → multiply by -1 (negative velocity = upward acceleration)
+    /// dir.1 = 1: Neutral gravity → multiply by 0 (no gravity effect)  
+    /// dir.1 = 2: Downward gravity → multiply by +1 (positive velocity = downward acceleration)
+    pub fn get_gravity_multiplier(&self) -> Fixed {
+        match self.dir.1 {
+            0 => Fixed::from_int(-1), // CORRECTED: Upward gravity returns -1
+            1 => Fixed::ZERO,         // Neutral - no gravity effect
+            2 => Fixed::from_int(1),  // CORRECTED: Downward gravity returns +1
+            _ => Fixed::ZERO,         // Invalid value defaults to neutral
         }
     }
 
-    /// Get gravity direction as Fixed value (-1.0 for upward, 1.0 for downward)
-    pub fn get_gravity_dir(&self) -> Fixed {
-        if self.dir.1 == 0 {
-            Fixed::from_int(-1) // Upward
+    /// Set gravity direction from multiplier value
+    /// CORRECTED GRAVITY DIRECTION LOGIC (Fixed in Task 1):
+    /// -1.0 → upward (dir.1 = 0)
+    /// 0.0 → neutral (dir.1 = 1)
+    /// +1.0 → downward (dir.1 = 2)
+    pub fn set_gravity_direction(&mut self, multiplier: Fixed) {
+        if multiplier > Fixed::ZERO {
+            self.dir.1 = 2; // CORRECTED: Positive multiplier → downward gravity
+        } else if multiplier < Fixed::ZERO {
+            self.dir.1 = 0; // CORRECTED: Negative multiplier → upward gravity
         } else {
-            Fixed::from_int(1) // Downward
-        }
-    }
-
-    /// Set gravity direction from Fixed value (-1.0 → upward, 1.0 → downward)
-    pub fn set_gravity_dir(&mut self, value: Fixed) {
-        if value < Fixed::ZERO {
-            self.dir.1 = 0; // Upward
-        } else {
-            self.dir.1 = 1; // Downward
+            self.dir.1 = 1; // Neutral
         }
     }
 }
@@ -353,6 +378,7 @@ impl SpawnInstance {
     pub fn new(spawn_id: SpawnLookupId, owner_id: EntityId, pos: (Fixed, Fixed)) -> Self {
         let mut core = EntityCore::new(0, 0); // ID will be assigned by game state
         core.pos = pos;
+        core.dir.1 = 1; // Spawns default to neutral gravity (not affected by gravity)
 
         Self {
             core,
@@ -377,6 +403,7 @@ impl SpawnInstance {
     ) -> Self {
         let mut core = EntityCore::new(0, 0); // ID will be assigned by game state
         core.pos = pos;
+        core.dir.1 = 1; // Spawns default to neutral gravity (not affected by gravity)
 
         Self {
             core,

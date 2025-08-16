@@ -14,6 +14,7 @@ fn test_character_json_conversion() {
         id: 1,
         group: 2,
         position: [[176, 32], [328, 32]], // 5.5 and 10.25 as numerator/denominator pairs
+        size: [16, 32],                   // width: 16, height: 32
         health: 100,
         health_cap: 120,
         energy: 80,
@@ -58,14 +59,14 @@ fn test_character_json_conversion() {
     assert_eq!(character.behaviors, vec![(0, 1), (2, 3)]);
 
     // Verify position conversion (numerator/denominator to fixed-point)
-    let expected_x = Fixed::from_num(176) / Fixed::from_num(32); // 5.5
-    let expected_y = Fixed::from_num(328) / Fixed::from_num(32); // 10.25
+    let expected_x = Fixed::from_frac(176, 32); // 5.5
+    let expected_y = Fixed::from_frac(328, 32); // 10.25
     assert_eq!(character.core.pos.0, expected_x);
     assert_eq!(character.core.pos.1, expected_y);
 
     // Verify jump_force and move_speed conversion
-    let expected_jump = Fixed::from_num(480) / Fixed::from_num(32); // 15.0
-    let expected_speed = Fixed::from_num(160) / Fixed::from_num(32); // 5.0
+    let expected_jump = Fixed::from_frac(480, 32); // 15.0
+    let expected_speed = Fixed::from_frac(160, 32); // 5.0
     assert_eq!(character.jump_force, expected_jump);
     assert_eq!(character.move_speed, expected_speed);
 }

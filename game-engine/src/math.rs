@@ -14,14 +14,33 @@ impl Fixed {
     pub const MAX: Fixed = Fixed(i16::MAX);
     pub const MIN: Fixed = Fixed(i16::MIN);
 
+    // Box2D-style collision tolerance constants
+    /// Linear slop - tolerance for collision detection (equivalent to Box2D's b2_linearSlop)
+    /// Value: ~0.005 units in our fixed-point scale (164/32768 ≈ 0.005)
+    pub const LINEAR_SLOP: Fixed = Fixed(164);
+
+    /// Contact tolerance for resting contacts - slightly larger than linear slop
+    /// Used to determine when objects should be treated as "resting" rather than bouncing
+    pub const CONTACT_TOLERANCE: Fixed = Fixed(328); // ~0.01 units
+
     /// Create a Fixed from an integer value
     pub fn from_int(value: i16) -> Self {
         Fixed(value << Self::FRACTIONAL_BITS)
     }
 
-    /// Create a Fixed from numerator (integer value)
-    pub fn from_num(value: i16) -> Self {
-        Fixed(value << Self::FRACTIONAL_BITS)
+    /// Create a Fixed from fraction (numerator / denominator)
+    pub fn from_frac(numerator: i16, denominator: i16) -> Self {
+        if denominator == 0 {
+            // Return max/min value based on sign of numerator for division by zero
+            return if numerator >= 0 {
+                Fixed::MAX
+            } else {
+                Fixed::MIN
+            };
+        }
+        let result = ((numerator as i32) << Self::FRACTIONAL_BITS) / denominator as i32;
+        // Clamp to i16 range to handle overflow
+        Fixed(result.clamp(i16::MIN as i32, i16::MAX as i32) as i16)
     }
 
     /// Create a Fixed from raw internal representation
@@ -105,6 +124,22 @@ impl Fixed {
     /// Check if the value is zero
     pub fn is_zero(self) -> bool {
         self.0 == 0
+    }
+
+    /// Ceiling function - rounds up to the next integer
+    /// For fractional positions like 192.5, this returns 193
+    pub fn ceil(self) -> Fixed {
+        let fractional_mask = (1 << Self::FRACTIONAL_BITS) - 1;
+        if self.0 & fractional_mask == 0 {
+            // Already an integer, return as-is
+            self
+        } else if self.0 >= 0 {
+            // Positive number with fractional part - round up
+            Fixed((self.0 & !fractional_mask) + (1 << Self::FRACTIONAL_BITS))
+        } else {
+            // Negative number with fractional part - round towards zero (up)
+            Fixed(self.0 & !fractional_mask)
+        }
     }
 }
 

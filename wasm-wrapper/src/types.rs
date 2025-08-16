@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GameConfig {
     pub seed: u16,
-    pub tilemap: Vec<Vec<u8>>, // 15x16 tilemap as nested arrays
+    pub gravity: Option<[i16; 2]>, // Optional gravity as [numerator, denominator], defaults to [1, 1] (downward)
+    pub tilemap: Vec<Vec<u8>>,     // 15x16 tilemap as nested arrays
     pub characters: Vec<CharacterDefinitionJson>,
     pub actions: Vec<ActionDefinitionJson>,
     pub conditions: Vec<ConditionDefinitionJson>,
@@ -26,6 +27,7 @@ pub struct CharacterDefinitionJson {
     pub id: u8,
     pub group: u8,
     pub position: [[i16; 2]; 2], // [[x_num, x_den], [y_num, y_den]]
+    pub size: [u8; 2],           // [width, height] in pixels
     pub health: u16,             // Updated from u8 to u16
     pub health_cap: u16,         // New property
     pub energy: u8,
@@ -75,6 +77,7 @@ pub struct SpawnDefinitionJson {
     pub duration: u16,
     pub element: Option<u8>, // Element as u8 value (0-8)
     pub chance: u8,          // New property
+    pub size: [u8; 2],       // [width, height] in pixels
     pub args: [u8; 8],
     pub spawns: [u8; 4],
     pub behavior_script: Vec<u8>,
@@ -108,6 +111,17 @@ impl GameConfig {
     /// Validate the complete game configuration
     pub fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
+
+        // Validate gravity field if present
+        if let Some(gravity) = &self.gravity {
+            if gravity[1] == 0 {
+                errors.push(ValidationError {
+                    field: "gravity".to_string(),
+                    message: "Gravity denominator cannot be zero".to_string(),
+                    context: Some("Fixed-point denominators must be non-zero".to_string()),
+                });
+            }
+        }
 
         // Validate tilemap dimensions
         if self.tilemap.len() != 15 {
@@ -259,8 +273,8 @@ impl From<CharacterDefinitionJson> for Character {
 
         // Set position using Fixed-point conversion from numerator/denominator
         character.core.pos = (
-            Fixed::from_num(json.position[0][0]) / Fixed::from_num(json.position[0][1]),
-            Fixed::from_num(json.position[1][0]) / Fixed::from_num(json.position[1][1]),
+            Fixed::from_frac(json.position[0][0], json.position[0][1]),
+            Fixed::from_frac(json.position[1][0], json.position[1][1]),
         );
 
         // Set updated properties
@@ -270,10 +284,8 @@ impl From<CharacterDefinitionJson> for Character {
         character.energy_cap = json.energy_cap;
         character.power = json.power;
         character.weight = json.weight;
-        character.jump_force =
-            Fixed::from_num(json.jump_force[0]) / Fixed::from_num(json.jump_force[1]);
-        character.move_speed =
-            Fixed::from_num(json.move_speed[0]) / Fixed::from_num(json.move_speed[1]);
+        character.jump_force = Fixed::from_frac(json.jump_force[0], json.jump_force[1]);
+        character.move_speed = Fixed::from_frac(json.move_speed[0], json.move_speed[1]);
         character.armor = json.armor;
         character.energy_regen = json.energy_regen;
         character.energy_regen_rate = json.energy_regen_rate;
@@ -281,6 +293,7 @@ impl From<CharacterDefinitionJson> for Character {
         character.energy_charge_rate = json.energy_charge_rate;
 
         // Set EntityCore properties
+        character.core.size = (json.size[0], json.size[1]);
         character.core.dir = (json.dir[0], json.dir[1]);
         character.core.enmity = json.enmity;
         character.core.target_id = json.target_id;
@@ -334,6 +347,7 @@ impl From<SpawnDefinitionJson> for SpawnDefinition {
             duration: json.duration,
             element,
             chance: json.chance,
+            size: (json.size[0], json.size[1]),
             args: json.args,
             spawns: json.spawns,
             behavior_script: json.behavior_script,
@@ -392,6 +406,7 @@ pub fn convert_tilemap(json_tilemap: &[Vec<u8>]) -> Result<[[u8; 16]; 15], Valid
 pub struct GameStateJson {
     pub frame: u16,
     pub seed: u16,
+    pub gravity: [i16; 2], // Gravity as [numerator, denominator]
     pub status: String,
     pub characters: Vec<CharacterStateJson>,
     pub spawns: Vec<SpawnStateJson>,
@@ -475,8 +490,8 @@ impl GameStateJson {
             for x in 0..16 {
                 let tile_type = game_state.tile_map.get_tile(x, y);
                 row.push(match tile_type {
-                    robot_masters_engine::physics::TileType::Empty => 0,
-                    robot_masters_engine::physics::TileType::Block => 1,
+                    robot_masters_engine::tilemap::TileType::Empty => 0,
+                    robot_masters_engine::tilemap::TileType::Block => 1,
                 });
             }
             tilemap.push(row);
@@ -485,6 +500,7 @@ impl GameStateJson {
         Self {
             frame: game_state.frame,
             seed: game_state.seed,
+            gravity: [game_state.gravity.numer(), game_state.gravity.denom()],
             status: match game_state.status {
                 robot_masters_engine::state::GameStatus::Playing => "playing".to_string(),
                 robot_masters_engine::state::GameStatus::Ended => "ended".to_string(),

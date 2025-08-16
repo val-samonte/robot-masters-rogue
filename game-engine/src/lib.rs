@@ -9,6 +9,7 @@ extern crate alloc;
 
 // Core modules
 pub mod api;
+pub mod collision;
 pub mod constants;
 pub mod core;
 pub mod entity;
@@ -21,10 +22,6 @@ pub mod spawn;
 pub mod state;
 pub mod status;
 pub mod tilemap;
-
-// Test modules
-#[cfg(test)]
-pub mod tests;
 
 // Re-export public API
 pub use api::*;

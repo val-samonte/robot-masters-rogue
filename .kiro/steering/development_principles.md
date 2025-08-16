@@ -63,6 +63,349 @@
 - Never convert Fixed-point to floating-point for calculations
 - All game logic must be deterministic and reproducible across platforms
 
+### 9. WASM Debugging with Node.js
+
+When debugging WASM-related issues that are hard to trace in the browser:
+
+- **Create a Node.js debug script** in `debug-node/` directory
+- **Replicate the exact game configuration** from the web viewer
+- **Load WASM directly** using `import('../wasm-wrapper/pkg/wasm_wrapper.js')`
+- **Run frame-by-frame analysis** with detailed logging of game state
+- **Test specific behaviors** by isolating conditions and actions
+- **Verify property reading/writing** by checking if script variables match expected values
+- **Use this approach for**:
+  - Script execution debugging
+  - Property access issues
+  - Behavior system problems
+  - Collision detection verification
+  - Direction/movement logic validation
+
+**Example debugging pattern:**
+
+```javascript
+// Load WASM and create game
+const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+gameWrapper.new_game()
+
+// Run frames with detailed logging
+for (let frame = 0; frame < 100; frame++) {
+  const before = JSON.parse(gameWrapper.get_characters_json())
+  gameWrapper.step_frame()
+  const after = JSON.parse(gameWrapper.get_characters_json())
+
+  // Log state changes and detect issues
+  if (before[0].dir[0] !== after[0].dir[0]) {
+    console.log(`Direction changed: ${before[0].dir[0]} → ${after[0].dir[0]}`)
+  }
+}
+```
+
+### 10. Property Implementation Consistency
+
+To prevent bugs like the collision property issue:
+
+- **Always implement properties in ALL contexts** (ConditionContext, ActionContext, etc.)
+- **Use consistent array types**: `vars[]` for u8, `fixed[]` for Fixed
+- **Check array bounds correctly**: `engine.vars.len()` for vars, `engine.fixed.len()` for fixed
+- **Document unfinished implementations** in `.kiro/steering/unfinished_implementations.md`
+- **Test property access** with Node.js debugging before assuming it works
+- **Follow the property implementation checklist**:
+  - [ ] Define constant in `constants.rs`
+  - [ ] Implement in `ConditionContext::read_property`
+  - [ ] Implement in `ActionContext::read_property`
+  - [ ] Implement write methods if needed
+  - [ ] Use correct array type and bounds check
+  - [ ] Test with isolated script
+
+### 11. CRITICAL: NEVER USE WEB VIEWER FOR DEBUGGING OR START DEV SERVERS
+
+**MANDATORY RULE**: When debugging game engine issues, ALWAYS use Node.js debug scripts, NEVER the web viewer.
+
+**NEVER START DEV SERVERS**:
+
+- **NEVER run `npm run dev`, `vite dev`, or any web development server**
+- **ASSUME a web viewer instance is already running** and accessible
+- **Just tell the user to check their existing web viewer** instead of starting servers
+- **Focus on Node.js debugging and code fixes only**
+
+**Why this rule exists**:
+
+- Web viewer has complex UI interactions that mask the real issues
+- Browser environment adds layers of complexity (React, PIXI, state management)
+- Web debugging is slow and unreliable for game engine logic
+- Node.js provides direct access to WASM without UI interference
+- Console logging is clearer and more detailed in Node.js
+- Starting dev servers is unnecessary overhead when debugging
+
+**What to do instead**:
+
+- **Create Node.js debug scripts** in `debug-node/` directory
+- **Use CommonJS format** (`.cjs` files) for reliable WASM loading
+- **Test game logic directly** without UI complications
+- **Log frame-by-frame state changes** to understand behavior
+- **Isolate specific issues** with minimal test configurations
+
+**When to use web viewer**:
+
+- **ONLY for final verification** after fixing issues in Node.js
+- **ONLY for visual confirmation** that fixes work in the UI
+- **NEVER for initial debugging** or problem investigation
+- **Tell user to check their existing web viewer instance** instead of starting one
+
+**Example Node.js debugging pattern**:
+
+```javascript
+const { GameWrapper } = require('../wasm-wrapper/pkg/wasm_wrapper.js')
+
+// Minimal test configuration
+const gameConfig = {
+  /* minimal config */
+}
+
+const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+gameWrapper.new_game()
+
+// Frame-by-frame analysis
+for (let frame = 0; frame < 100; frame++) {
+  const before = JSON.parse(gameWrapper.get_characters_json())
+  gameWrapper.step_frame()
+  const after = JSON.parse(gameWrapper.get_characters_json())
+
+  // Log specific changes
+  console.log(`Frame ${frame}: energy ${before[0].energy} → ${after[0].energy}`)
+}
+```
+
+**VIOLATION OF THIS RULE WASTES TIME AND CREATES CONFUSION**
+
+### 12. Comprehensive Code Documentation
+
+To prevent circular debugging and repeated work:
+
+- **ALWAYS add comprehensive comments** to every critical piece of code
+- **Document WHY decisions were made**, not just what the code does
+- **Mark fixed bugs with detailed comments** explaining the problem and solution
+- **Use clear section headers** in complex functions to identify different logic blocks
+- **Comment any non-obvious logic** or workarounds
+- **Include references to related tasks/issues** in comments
+- **Document expected behavior** for complex systems like collision detection
+- **Add TODO comments** for known limitations or future improvements
+
+**Example of proper commenting:**
+
+```rust
+// COLLISION DETECTION SYSTEM - FIXED IN TASK 12
+// Problem: Priority system was clearing wall collision flags when grounded
+// Solution: Allow multiple collision flags simultaneously for proper turn-around behavior
+// Related: Tasks 12-14, movement actions in Task 16
+if flag_count > 1 {
+    // KEEP ALL COLLISION FLAGS - DO NOT USE PRIORITY SYSTEM
+    // This allows wall+ground collision for turn-around behavior
+    // Previous bug: collision_flags = (false, false, true, false) cleared wall flags
+    // Fixed: Keep original collision_flags with multiple flags set
+}
+```
+
+### 13. NEVER MARK TASKS COMPLETED WITHOUT USER CONFIRMATION
+
+**CRITICAL RULE**: Never mark any task as "completed" until the user explicitly confirms it is working correctly.
+
+**Why this rule exists**:
+
+- Node.js debugging only tests the WASM layer, not the full web viewer integration
+- Web viewer may have additional UI, state management, or rendering issues
+- User needs to verify the feature works in the actual application context
+- Premature completion marking wastes time and creates confusion
+
+**Process for task completion**:
+
+1. **Implement the feature** and test with Node.js debugging
+2. **Report results** to the user with test evidence
+3. **Wait for user confirmation** after they test in web viewer
+4. **Only then mark task as completed** when user says it's working
+
+**What to say instead of marking completed**:
+
+- "The Node.js tests show the feature is working. Please test in the web viewer to confirm."
+- "Implementation appears successful based on debugging. Ready for your verification."
+- "Feature implemented and tested in Node.js. Awaiting your confirmation from web viewer testing."
+
+**NEVER assume success** - always wait for user verification.
+
+### 14. MANDATORY: Use Constant Values for Script Byte Addresses
+
+**CRITICAL RULE**: NEVER use hardcoded numbers for operator addresses or property addresses in script arrays.
+
+**Why this rule exists**:
+
+- Hardcoded numbers are unreadable and unmaintainable
+- Address values may change during development
+- Constants provide type safety and IDE support
+- Debugging is impossible with magic numbers
+
+**ALWAYS use constants from `wasm-wrapper/tests/constants.ts`**:
+
+```typescript
+// ❌ WRONG - Hardcoded magic numbers
+const JUMP_SCRIPT = [
+  3,
+  0, // What does 3 mean? What does 0 mean?
+  1,
+  0, // Completely unreadable
+  15,
+  0,
+  65, // Impossible to debug
+  // ... more magic numbers
+]
+
+// ✅ CORRECT - Use named constants
+import {
+  OperatorAddress,
+  PropertyAddress,
+} from '../wasm-wrapper/tests/constants'
+
+const JUMP_SCRIPT = [
+  OperatorAddress.EXIT_IF_NOT_GROUNDED,
+  0, // Clear intent
+  OperatorAddress.EXIT_IF_NO_ENERGY,
+  0, // Self-documenting
+  OperatorAddress.READ_PROP,
+  0,
+  PropertyAddress.ENTITY_DIR_VERTICAL, // Readable
+  // ... rest of script with constants
+]
+```
+
+**Import pattern for script constants**:
+
+```typescript
+// At top of scriptConstants.ts
+import {
+  OperatorAddress,
+  PropertyAddress,
+} from '../../wasm-wrapper/tests/constants'
+
+// Use throughout the file
+export const ACTION_SCRIPTS = {
+  JUMP: [
+    OperatorAddress.EXIT_IF_NOT_GROUNDED,
+    0, // exit_flag
+    OperatorAddress.READ_PROP,
+    0, // var_index
+    PropertyAddress.ENTITY_DIR_VERTICAL,
+    // ... etc
+  ],
+}
+```
+
+**Benefits of using constants**:
+
+- **Readability**: Code is self-documenting
+- **Maintainability**: Changes to addresses only need to be made in one place
+- **Debugging**: Easy to understand what each script operation does
+- **Type Safety**: TypeScript can catch invalid address usage
+- **IDE Support**: Autocomplete and refactoring work correctly
+
+**VIOLATION OF THIS RULE MAKES SCRIPTS UNMAINTAINABLE AND UNDEBUGGABLE**
+
+### 15. Development Journals and Knowledge Management
+
+**MANDATORY DOCUMENTATION SYSTEM**: All significant development work must be documented in the `/journals/` directory.
+
+**Journal Categories**:
+
+- **`/journals/task-successes/`** - Major completed tasks and milestones
+- **`/journals/bug-fixes/`** - Detailed bug resolution documentation
+- **`/journals/investigations/`** - Analysis of complex system behaviors
+- **`/journals/research/`** - External technology and design pattern research
+
+**When to Create Journal Entries**:
+
+- **Task Successes**: After completing any major feature or resolving critical bugs
+- **Bug Fixes**: For any non-trivial bug that required investigation or debugging
+- **Investigations**: When analyzing complex behaviors, debugging issues, or understanding system interactions
+- **Research**: When investigating external technologies, libraries, or design patterns
+
+**Journal Entry Requirements**:
+
+- **Problem Description**: Clear explanation of what was being solved
+- **Investigation Process**: Steps taken to understand and debug the issue
+- **Root Cause Analysis**: Why the problem occurred and what caused it
+- **Solution Implementation**: How the problem was fixed
+- **Impact Assessment**: What changed and broader implications
+- **Prevention Strategies**: How to avoid similar issues in the future
+- **Related References**: Links to tasks, files, and other relevant documentation
+
+**Example Journal Structure**:
+
+```markdown
+# [Title] - [Date]
+
+## Problem Summary
+
+Brief description of the issue or task
+
+## Investigation Process
+
+- Step-by-step analysis
+- Tools and methods used
+- Key findings
+
+## Root Cause
+
+Why the problem occurred
+
+## Solution Implemented
+
+- Changes made
+- Code examples
+- Test results
+
+## Impact
+
+- What improved
+- Side effects
+- Performance implications
+
+## Prevention
+
+- How to avoid this issue
+- Best practices learned
+- Warning signs to watch for
+
+## Related Files
+
+- List of modified files
+- Related tasks/issues
+- Cross-references
+```
+
+**Benefits of Journal System**:
+
+- **Prevents repeated debugging** of the same issues
+- **Builds institutional knowledge** for complex systems
+- **Documents successful patterns** and anti-patterns
+- **Provides context** for future development decisions
+- **Creates searchable knowledge base** of solutions
+- **Tracks evolution** of system design and architecture
+
+**Integration with Development Process**:
+
+- **Reference journals** when encountering similar issues
+- **Update journals** when systems change significantly
+- **Cross-reference** related journal entries
+- **Use journals** to onboard new developers
+- **Archive outdated** journals to maintain relevance
+
+**VIOLATION OF THIS RULE LEADS TO**:
+
+- Repeated debugging of known issues
+- Lost institutional knowledge
+- Inefficient development cycles
+- Forgotten solutions to complex problems
+
 ## Remember
 
 This project is in active development. We can break things, change APIs, and redesign systems freely. Use this freedom to build something great, not to maintain something old.
+
+**The journals system ensures we learn from our successes and failures, building a knowledge base that accelerates future development.**

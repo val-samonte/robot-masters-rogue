@@ -1,0 +1,30 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const main: () => void;
+export const __wbg_gamewrapper_free: (a: number, b: number) => void;
+export const gamewrapper_new: (a: number, b: number) => [number, number, number];
+export const gamewrapper_get_config_json: (a: number) => [number, number, number, number];
+export const gamewrapper_is_initialized: (a: number) => number;
+export const gamewrapper_validate_config: (a: number, b: number) => [number, number, number, number];
+export const gamewrapper_new_game: (a: number) => [number, number];
+export const gamewrapper_is_game_initialized: (a: number) => number;
+export const gamewrapper_step_frame: (a: number) => [number, number];
+export const gamewrapper_get_frame: (a: number) => number;
+export const gamewrapper_get_frame_info_json: (a: number) => [number, number, number, number];
+export const gamewrapper_is_game_ended: (a: number) => number;
+export const gamewrapper_get_game_status: (a: number) => [number, number];
+export const gamewrapper_get_state_json: (a: number) => [number, number, number, number];
+export const gamewrapper_get_characters_json: (a: number) => [number, number, number, number];
+export const gamewrapper_get_spawns_json: (a: number) => [number, number, number, number];
+export const gamewrapper_get_status_effects_json: (a: number) => [number, number, number, number];
+export const gamewrapper_get_last_error_details: (a: number) => [number, number];
+export const gamewrapper_is_stable: (a: number) => number;
+export const gamewrapper_attempt_stabilization: (a: number) => [number, number, number, number];
+export const gamewrapper_get_health_info: (a: number) => [number, number, number, number];
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_export_3: WebAssembly.Table;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_start: () => void;

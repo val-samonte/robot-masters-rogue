@@ -1,0 +1,21 @@
+{
+  "name": "wasm-wrapper",
+  "type": "module",
+  "description": "WebAssembly bindings for Robot Masters Game Engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robotmasters/game-engine"
+  },
+  "files": [
+    "wasm_wrapper_bg.wasm",
+    "wasm_wrapper.js",
+    "wasm_wrapper.d.ts"
+  ],
+  "main": "wasm_wrapper.js",
+  "types": "wasm_wrapper.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

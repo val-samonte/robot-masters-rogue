@@ -401,13 +401,15 @@ impl ScriptContext for StatusEffectContext<'_> {
 
             // Entity direction properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (self.character.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = self.character.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (self.character.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
 
@@ -571,13 +573,13 @@ impl ScriptContext for StatusEffectContext<'_> {
 
             // Entity direction properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    self.character.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    self.character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    self.character.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    self.character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             _ => {} // Property not writable or not supported in status effect context
@@ -594,6 +596,19 @@ impl ScriptContext for StatusEffectContext<'_> {
 
     fn is_on_cooldown(&self) -> bool {
         false // Status effects don't have cooldowns
+    }
+
+    fn is_grounded(&self) -> bool {
+        // GRAVITY-AWARE GROUNDING LOGIC - TASK 4
+        // Check appropriate collision based on gravity direction
+        // dir.1 = 0: Upward gravity (inverted) → check top collision (ceiling)
+        // dir.1 = 1: Neutral gravity → check bottom collision (default)
+        // dir.1 = 2: Downward gravity (normal) → check bottom collision (floor)
+        match self.character.core.dir.1 {
+            0 => self.character.core.collision.0, // Upward gravity: grounded when touching ceiling
+            2 => self.character.core.collision.2, // Downward gravity: grounded when touching floor
+            _ => self.character.core.collision.0 || self.character.core.collision.2, // Neutral/unknown: either
+        }
     }
 
     fn get_random_u8(&mut self) -> u8 {
@@ -862,13 +877,15 @@ impl ScriptContext for StatusEffectContext<'_> {
             }
             // EntityCore properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = character.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (character.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = character.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (character.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -1036,13 +1053,13 @@ impl ScriptContext for StatusEffectContext<'_> {
             }
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    character.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    character.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    character.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    character.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -1087,13 +1104,15 @@ impl ScriptContext for StatusEffectContext<'_> {
         match property_address {
             // EntityCore properties
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = spawn_instance.core.dir.0;
+                if var_index < engine.fixed.len() {
+                    let x = (spawn_instance.core.dir.0 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(x);
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    engine.vars[var_index] = spawn_instance.core.dir.1;
+                if var_index < engine.fixed.len() {
+                    let y = (spawn_instance.core.dir.1 as i16) - 1;
+                    engine.fixed[var_index] = Fixed::from_int(y);
                 }
             }
             property_address::ENTITY_ENMITY => {
@@ -1220,15 +1239,16 @@ impl ScriptContext for StatusEffectContext<'_> {
         match property_address {
             // EntityCore properties (writable)
             property_address::ENTITY_DIR_HORIZONTAL => {
-                if var_index < engine.vars.len() {
-                    spawn_instance.core.dir.0 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.dir.0 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
             property_address::ENTITY_DIR_VERTICAL => {
-                if var_index < engine.vars.len() {
-                    spawn_instance.core.dir.1 = engine.vars[var_index];
+                if var_index < engine.fixed.len() {
+                    spawn_instance.core.dir.1 = (engine.fixed[var_index].to_int() + 1) as u8;
                 }
             }
+
             property_address::ENTITY_ENMITY => {
                 if var_index < engine.vars.len() {
                     spawn_instance.core.enmity = engine.vars[var_index];
