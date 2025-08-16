@@ -63,42 +63,85 @@
 - Never convert Fixed-point to floating-point for calculations
 - All game logic must be deterministic and reproducible across platforms
 
-### 9. WASM Debugging with Node.js
+### 9. WASM Debugging with Node.js and TypeScript
 
 When debugging WASM-related issues that are hard to trace in the browser:
 
-- **Create a Node.js debug script** in `debug-node/` directory
+- **Create TypeScript debug scripts** in `debug-node/` directory using `.ts` extension
+- **Use ts-node for execution** to get full TypeScript support and constant imports
+- **Import constants from WASM wrapper** for readable script debugging
 - **Replicate the exact game configuration** from the web viewer
 - **Load WASM directly** using `import('../wasm-wrapper/pkg/wasm_wrapper.js')`
 - **Run frame-by-frame analysis** with detailed logging of game state
 - **Test specific behaviors** by isolating conditions and actions
 - **Verify property reading/writing** by checking if script variables match expected values
-- **Use this approach for**:
-  - Script execution debugging
-  - Property access issues
-  - Behavior system problems
-  - Collision detection verification
-  - Direction/movement logic validation
 
-**Example debugging pattern:**
+**Setup ts-node for debugging:**
 
-```javascript
-// Load WASM and create game
-const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
+```bash
+# Install ts-node globally or in project
+npm install -g ts-node
+# or
+npm install --save-dev ts-node
+
+# Run TypeScript debug scripts directly
+npx ts-node debug-node/test-spawn-system.ts
+```
+
+**Example debugging pattern with TypeScript:**
+
+```typescript
+// debug-node/test-spawn-system.ts
+import { GameWrapper } from '../wasm-wrapper/pkg/wasm_wrapper.js'
+import {
+  OperatorAddress,
+  PropertyAddress,
+} from '../wasm-wrapper/tests/constants'
+
+// Use constants for readable script debugging
+const testConfig = {
+  characters: [
+    {
+      behaviors: [
+        [
+          // Readable script with constants instead of magic numbers
+          [OperatorAddress.READ_PROP, 0, PropertyAddress.CHARACTER_HEALTH],
+          [OperatorAddress.SPAWN_ENTITY, 1, 0], // Much clearer than [15, 1, 0]
+        ],
+      ],
+    },
+  ],
+}
+
+const gameWrapper = new GameWrapper(JSON.stringify(testConfig))
 gameWrapper.new_game()
 
 // Run frames with detailed logging
 for (let frame = 0; frame < 100; frame++) {
   const before = JSON.parse(gameWrapper.get_characters_json())
-  gameWrapper.step_frame()
-  const after = JSON.parse(gameWrapper.get_characters_json())
+  const spawnsBefore = JSON.parse(gameWrapper.get_spawns_json())
 
-  // Log state changes and detect issues
-  if (before[0].dir[0] !== after[0].dir[0]) {
-    console.log(`Direction changed: ${before[0].dir[0]} → ${after[0].dir[0]}`)
+  gameWrapper.step_frame()
+
+  const after = JSON.parse(gameWrapper.get_characters_json())
+  const spawnsAfter = JSON.parse(gameWrapper.get_spawns_json())
+
+  // Log state changes with TypeScript type safety
+  if (spawnsAfter.length !== spawnsBefore.length) {
+    console.log(
+      `Frame ${frame}: Spawn count changed: ${spawnsBefore.length} → ${spawnsAfter.length}`
+    )
   }
 }
 ```
+
+**Benefits of ts-node approach:**
+
+- **Import constants**: Use `OperatorAddress.READ_PROP` instead of magic numbers
+- **Type safety**: Catch errors at compile time
+- **IDE support**: Full autocomplete and refactoring
+- **Maintainable scripts**: Changes to constants automatically propagate
+- **Readable debugging**: Scripts are self-documenting with named constants
 
 ### 10. Property Implementation Consistency
 
@@ -152,29 +195,45 @@ To prevent bugs like the collision property issue:
 - **NEVER for initial debugging** or problem investigation
 - **Tell user to check their existing web viewer instance** instead of starting one
 
-**Example Node.js debugging pattern**:
+**Example TypeScript debugging pattern**:
 
-```javascript
-const { GameWrapper } = require('../wasm-wrapper/pkg/wasm_wrapper.js')
+```typescript
+// debug-node/test-example.ts
+import { GameWrapper } from '../wasm-wrapper/pkg/wasm_wrapper.js'
+import {
+  OperatorAddress,
+  PropertyAddress,
+} from '../wasm-wrapper/tests/constants'
 
-// Minimal test configuration
+// Minimal test configuration with readable constants
 const gameConfig = {
-  /* minimal config */
+  characters: [
+    {
+      behaviors: [
+        [
+          [OperatorAddress.READ_PROP, 0, PropertyAddress.CHARACTER_ENERGY],
+          [OperatorAddress.EXIT, 1],
+        ],
+      ],
+    },
+  ],
 }
 
 const gameWrapper = new GameWrapper(JSON.stringify(gameConfig))
 gameWrapper.new_game()
 
-// Frame-by-frame analysis
+// Frame-by-frame analysis with type safety
 for (let frame = 0; frame < 100; frame++) {
   const before = JSON.parse(gameWrapper.get_characters_json())
   gameWrapper.step_frame()
   const after = JSON.parse(gameWrapper.get_characters_json())
 
-  // Log specific changes
+  // Log specific changes with TypeScript support
   console.log(`Frame ${frame}: energy ${before[0].energy} → ${after[0].energy}`)
 }
 ```
+
+**Run with:** `npx ts-node debug-node/test-example.ts`
 
 **VIOLATION OF THIS RULE WASTES TIME AND CREATES CONFUSION**
 
